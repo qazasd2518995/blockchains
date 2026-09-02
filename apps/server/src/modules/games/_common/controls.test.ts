@@ -820,6 +820,48 @@ describe('control decision priority', () => {
     expect(decision?.reason).toBe('deposit_control');
   });
 
+  it('does not restart an agent-line deposit path after that member moved points', async () => {
+    const tx = {
+      $queryRaw: vi
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { id: 'agent-child', depth: 0 },
+          { id: 'agent-line', depth: 1 },
+        ]),
+      memberDepositControl: {
+        findMany: vi.fn(async () => [
+          {
+            id: 'deposit-line-1',
+            scope: 'AGENT_LINE',
+            memberId: null,
+            memberUsername: null,
+            targetAgentId: 'agent-line',
+            startBalance: new Prisma.Decimal(0),
+            targetProfit: new Prisma.Decimal(0),
+            controlWinRate: new Prisma.Decimal('0.5'),
+            winFreezeThreshold: new Prisma.Decimal(50000),
+            lifecycleSteps: null,
+            notes: null,
+            controlZoneRootAgentId: null,
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+          },
+        ]),
+      },
+      memberDepositLifecycleState: {
+        findUnique: vi.fn(async () => ({ isCompleted: true })),
+      },
+    };
+
+    const decision = await __controlsTestHooks.findDepositControlDecision(
+      tx as never,
+      { id: 'member-1', username: 'vip0666', agentId: 'agent-child' },
+      predictedResult(100, 200, 2),
+    );
+
+    expect(decision).toBeNull();
+  });
+
   it('caps deposit lifecycle natural burst wins at the active path band when intervention misses', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.99);
     const state = {
@@ -1918,6 +1960,67 @@ describe('control decision priority', () => {
         isActive: false,
         resetReason: 'banker_guard_frozen',
         lifecycleCompletedAt: expect.any(Date),
+      }),
+    });
+  });
+
+  it('freezes a member when an active deposit lifecycle exceeds its configured win limit', async () => {
+    const depositUpdate = vi.fn();
+    const memberUpdateMany = vi.fn();
+    const lifecycleUpdateMany = vi.fn();
+    const autoBalanceUpdateMany = vi.fn();
+    const tx = {
+      $queryRaw: vi.fn(async () => []),
+      memberDepositControl: {
+        findMany: vi.fn(async () => [
+          {
+            id: 'deposit-guard-1',
+            scope: 'MEMBER',
+            memberId: 'member-1',
+            memberUsername: 'regular-member',
+            targetAgentId: null,
+            startBalance: new Prisma.Decimal(10000),
+            targetProfit: new Prisma.Decimal(0),
+            controlWinRate: new Prisma.Decimal('0.5'),
+            winFreezeThreshold: new Prisma.Decimal(50000),
+            lifecycleSteps: [120, 80, 0],
+            notes: null,
+            controlZoneRootAgentId: null,
+            createdAt: new Date(),
+          },
+        ]),
+        update: depositUpdate,
+      },
+      memberDepositLifecycleState: {
+        findUnique: vi.fn(async () => ({
+          startBalance: new Prisma.Decimal(10000),
+          isCompleted: false,
+        })),
+        updateMany: lifecycleUpdateMany,
+      },
+      memberAutoBalanceControl: { updateMany: autoBalanceUpdateMany },
+      user: { updateMany: memberUpdateMany },
+    };
+
+    await __controlsTestHooks.enforceDepositControlWinGuard(
+      tx as never,
+      { id: 'member-1', username: 'regular-member', agentId: 'agent-1' },
+      new Prisma.Decimal(60000),
+    );
+
+    expect(depositUpdate).toHaveBeenCalledWith({
+      where: { id: 'deposit-guard-1' },
+      data: { isActive: false, isCompleted: true },
+    });
+    expect(memberUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'member-1', disabledAt: null, frozenAt: null },
+      data: { frozenAt: expect.any(Date) },
+    });
+    expect(autoBalanceUpdateMany).toHaveBeenCalledWith({
+      where: { memberId: 'member-1' },
+      data: expect.objectContaining({
+        isActive: false,
+        resetReason: 'deposit_win_guard_frozen',
       }),
     });
   });

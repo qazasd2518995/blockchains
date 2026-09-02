@@ -15,6 +15,7 @@ interface Props {
   onClose: () => void;
   onDone: () => void;
   templates: AutoBalanceTemplateOption[];
+  allowAllScope?: boolean;
 }
 
 type Scope = 'ALL' | 'AGENT_LINE' | 'MEMBER';
@@ -29,9 +30,10 @@ export function ManualDetectionControlModal({
   onClose,
   onDone,
   templates,
+  allowAllScope = true,
 }: Props): JSX.Element {
   const firstTemplateKey = templates[0]?.key ?? '';
-  const [scope, setScope] = useState<Scope>('ALL');
+  const [scope, setScope] = useState<Scope>(allowAllScope ? 'ALL' : 'AGENT_LINE');
   const [target, setTarget] = useState<AccountSearchOption | null>(null);
   const [controlPercentage, setControlPercentage] = useState('50');
   const [lineFreezeThreshold, setLineFreezeThreshold] = useState(DEFAULT_FREEZE_THRESHOLD);
@@ -45,7 +47,7 @@ export function ManualDetectionControlModal({
 
   useEffect(() => {
     if (!open) {
-      setScope('ALL');
+      setScope(allowAllScope ? 'ALL' : 'AGENT_LINE');
       setTarget(null);
       setControlPercentage('50');
       setLineFreezeThreshold(DEFAULT_FREEZE_THRESHOLD);
@@ -74,7 +76,7 @@ export function ManualDetectionControlModal({
       }
       return firstTemplateKey ? [firstTemplateKey] : [];
     });
-  }, [firstTemplateKey, open, templates]);
+  }, [allowAllScope, firstTemplateKey, open, templates]);
 
   const selectedTemplates = useMemo(
     () => templates.filter((template) => selectedTemplateKeys.includes(template.key)),
@@ -149,6 +151,14 @@ export function ManualDetectionControlModal({
     setBusy(true);
     setErr(null);
     try {
+      const interventionRate = Number.parseInt(controlPercentage, 10);
+      if (!Number.isFinite(interventionRate) || interventionRate < 1 || interventionRate > 100) {
+        throw new Error('介入機率必須介於 1 到 100');
+      }
+      const freezeThreshold = Number.parseFloat(lineFreezeThreshold);
+      if (!Number.isFinite(freezeThreshold) || freezeThreshold <= 0) {
+        throw new Error('最高可贏金額必須大於 0');
+      }
       if (pathSource === 'GENERATED') {
         validateGeneratedPath();
       } else if (selectedTemplateKeys.length === 0) {
@@ -163,10 +173,10 @@ export function ManualDetectionControlModal({
         targetMemberId: target.memberId,
         targetMemberUsername: target.memberUsername,
         targetSettlement: '0',
-        controlPercentage: Number.parseInt(controlPercentage, 10),
+        controlPercentage: interventionRate,
         lifecycleTemplateKeys: pathSource === 'PRESET' ? selectedTemplateKeys : undefined,
         lifecycleSteps: pathSource === 'GENERATED' ? generatedSteps : undefined,
-        lineFreezeThreshold,
+        lineFreezeThreshold: freezeThreshold.toFixed(2),
       });
       onDone();
       onClose();
@@ -191,7 +201,7 @@ export function ManualDetectionControlModal({
             }}
             className="term-input"
           >
-            <option value="ALL">全盤會員</option>
+            {allowAllScope ? <option value="ALL">全盤會員</option> : null}
             <option value="AGENT_LINE">指定代理線</option>
             <option value="MEMBER">指定會員</option>
           </select>
@@ -224,7 +234,7 @@ export function ManualDetectionControlModal({
             />
           </label>
           <label className="block">
-            <div className="label mb-2">整線凍結金額</div>
+            <div className="label mb-2">最高可贏／超額凍結</div>
             <input
               name="lineFreezeThreshold"
               type="number"
@@ -294,7 +304,9 @@ export function ManualDetectionControlModal({
               ? `自訂 ${generatedSteps.length || stageCount} 階 · 回正 ${actualRecoveryCount} 次`
               : `已選 ${selectedTemplates.length} 組路徑`}
           </div>
-          <div className="mt-1">新入點或重置週期時套用路徑；達到凍結金額時會凍結所屬代理線。</div>
+          <div className="mt-1">
+            新入點或重置週期時套用路徑；超過最高可贏金額時會自動凍結所屬控制範圍。
+          </div>
         </div>
 
         {err ? (

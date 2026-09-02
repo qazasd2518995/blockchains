@@ -9,7 +9,10 @@ import {
 } from '../../../utils/hierarchy.js';
 import { runSerializable } from '../../games/_common/BaseGameService.js';
 import { writeAudit } from '../audit/audit.service.js';
-import { resetMemberAutoBalanceControl } from '../controls/controls.runtime.js';
+import {
+  cancelMemberDepositControlsForBalanceMovement,
+  resetMemberAutoBalanceControl,
+} from '../controls/controls.runtime.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import type {
   AgentToAgentInput,
@@ -44,7 +47,8 @@ export class TransferService {
       if (from.role === 'SUB_ACCOUNT' || to.role === 'SUB_ACCOUNT') {
         throw new ApiError('INVALID_TRANSFER', 'Sub-account cannot transfer points');
       }
-      if (from.balance.lessThan(amount)) throw new ApiError('INSUFFICIENT_FUNDS', 'From agent insufficient');
+      if (from.balance.lessThan(amount))
+        throw new ApiError('INSUFFICIENT_FUNDS', 'From agent insufficient');
 
       const fromAfter = from.balance.sub(amount);
       const toAfter = to.balance.add(amount);
@@ -72,7 +76,11 @@ export class TransferService {
     });
 
     await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
       action: 'transfer.agent_to_agent',
       targetType: 'transfer',
       targetId: result.id,
@@ -94,7 +102,8 @@ export class TransferService {
       canManageAgent(this.prisma, operator, input.agentId),
       canManageMember(this.prisma, operator, input.memberId),
     ]);
-    if (!canAg || !canMem) throw new ApiError('FORBIDDEN', 'Cannot transfer between these accounts');
+    if (!canAg || !canMem)
+      throw new ApiError('FORBIDDEN', 'Cannot transfer between these accounts');
 
     const result = await runSerializable(this.prisma, async (tx) => {
       const agent = await tx.agent.findUnique({ where: { id: input.agentId } });
@@ -112,7 +121,7 @@ export class TransferService {
         throw new ApiError('FORBIDDEN', 'Member does not belong to this agent line');
       }
 
-      const isDeposit = amount.greaterThan(0);    // 代理→會員
+      const isDeposit = amount.greaterThan(0); // 代理→會員
       const absAmount = amount.abs();
 
       if (isDeposit && agent.balance.lessThan(absAmount)) {
@@ -156,6 +165,12 @@ export class TransferService {
           meta: { from: 'agent', agentId: agent.id, operatorId: operator.id },
         },
       });
+      await cancelMemberDepositControlsForBalanceMovement(tx, {
+        id: member.id,
+        username: member.username,
+        agentId: member.agentId,
+        balanceAfter: memberAfter,
+      });
       await resetMemberAutoBalanceControl(tx, {
         memberId: member.id,
         memberUsername: member.username,
@@ -168,7 +183,11 @@ export class TransferService {
     });
 
     await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
       action: amount.greaterThan(0) ? 'transfer.agent_to_member' : 'transfer.member_to_agent',
       targetType: 'transfer',
       targetId: result.id,
@@ -178,8 +197,13 @@ export class TransferService {
     return toEntry(result);
   }
 
-  async csAgent(operator: AdminCurrent, input: CsTransferInput, req?: FastifyRequest): Promise<TransferEntry> {
-    if (operator.role !== 'SUPER_ADMIN') throw new ApiError('FORBIDDEN', 'CS transfer requires super admin');
+  async csAgent(
+    operator: AdminCurrent,
+    input: CsTransferInput,
+    req?: FastifyRequest,
+  ): Promise<TransferEntry> {
+    if (operator.role !== 'SUPER_ADMIN')
+      throw new ApiError('FORBIDDEN', 'CS transfer requires super admin');
     const amount = new Prisma.Decimal(input.amount);
     if (amount.isZero()) throw new ApiError('INVALID_TRANSFER', 'amount cannot be zero');
 
@@ -220,8 +244,13 @@ export class TransferService {
     return toEntry(result);
   }
 
-  async csMember(operator: AdminCurrent, input: CsTransferInput, req?: FastifyRequest): Promise<TransferEntry> {
-    if (operator.role !== 'SUPER_ADMIN') throw new ApiError('FORBIDDEN', 'CS transfer requires super admin');
+  async csMember(
+    operator: AdminCurrent,
+    input: CsTransferInput,
+    req?: FastifyRequest,
+  ): Promise<TransferEntry> {
+    if (operator.role !== 'SUPER_ADMIN')
+      throw new ApiError('FORBIDDEN', 'CS transfer requires super admin');
     const amount = new Prisma.Decimal(input.amount);
     if (amount.isZero()) throw new ApiError('INVALID_TRANSFER', 'amount cannot be zero');
 
@@ -258,6 +287,12 @@ export class TransferService {
           meta: { from: 'cs', operatorId: operator.id },
         },
       });
+      await cancelMemberDepositControlsForBalanceMovement(tx, {
+        id: member.id,
+        username: member.username,
+        agentId: member.agentId,
+        balanceAfter: after,
+      });
       await resetMemberAutoBalanceControl(tx, {
         memberId: member.id,
         memberUsername: member.username,
@@ -279,7 +314,10 @@ export class TransferService {
     return toEntry(result);
   }
 
-  async list(operator: AdminCurrent, query: TransferListQuery): Promise<{ items: TransferEntry[]; nextCursor: string | null }> {
+  async list(
+    operator: AdminCurrent,
+    query: TransferListQuery,
+  ): Promise<{ items: TransferEntry[]; nextCursor: string | null }> {
     const limit = query.limit ?? 50;
     const where: Prisma.PointTransferWhereInput = {};
     if (query.fromId) where.fromId = query.fromId;

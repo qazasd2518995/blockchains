@@ -17,7 +17,10 @@ import {
 import { runSerializable } from '../../games/_common/BaseGameService.js';
 import { createPlayerSeeds } from '../../auth/player-seeds.js';
 import { writeAudit } from '../audit/audit.service.js';
-import { resetMemberAutoBalanceControl } from '../controls/controls.runtime.js';
+import {
+  cancelMemberDepositControlsForBalanceMovement,
+  resetMemberAutoBalanceControl,
+} from '../controls/controls.runtime.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import { resolveAdminGameDayRange } from '../gameDay.js';
 import type {
@@ -431,6 +434,12 @@ export class MemberService {
           balanceAfter: next,
           meta: { operatorId: operator.id, description: input.description ?? null },
         },
+      });
+      await cancelMemberDepositControlsForBalanceMovement(tx, {
+        id,
+        username: updated.username,
+        agentId: updated.agentId,
+        balanceAfter: next,
       });
       await resetMemberAutoBalanceControl(tx, {
         memberId: id,

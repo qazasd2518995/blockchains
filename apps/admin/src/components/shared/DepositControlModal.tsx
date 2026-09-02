@@ -14,6 +14,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
   const [target, setTarget] = useState<AccountSearchOption | null>(null);
   const [steps, setSteps] = useState<string[]>(['120', '80', '100', '30', '0']);
   const [controlWinRatePercent, setControlWinRatePercent] = useState('50');
+  const [winFreezeThreshold, setWinFreezeThreshold] = useState('50000');
   const [notes, setNotes] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -24,6 +25,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
       setTarget(null);
       setSteps(['120', '80', '100', '30', '0']);
       setControlWinRatePercent('50');
+      setWinFreezeThreshold('50000');
       setNotes('');
       setErr(null);
     }
@@ -52,6 +54,11 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
       setErr('介入率请输入 0-100');
       return;
     }
+    const freezeThreshold = Number.parseFloat(winFreezeThreshold);
+    if (!Number.isFinite(freezeThreshold) || freezeThreshold <= 0) {
+      setErr('最高可贏金額必須大於 0');
+      return;
+    }
     setBusy(true);
     setErr(null);
     try {
@@ -65,6 +72,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
         targetProfit: '0',
         startBalance: scope === 'MEMBER' ? principalNum.toFixed(2) : '0',
         controlWinRate: (ratePercent / 100).toFixed(4),
+        winFreezeThreshold: freezeThreshold.toFixed(2),
         lifecycleSteps: parsedSteps,
         notes: notes || undefined,
       });
@@ -178,7 +186,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
           </div>
         </label>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <label className="block">
             <div className="label mb-2">介入率（0-100%）</div>
             <input
@@ -190,6 +198,19 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
             />
           </label>
           <label className="block">
+            <div className="label mb-2">最高可贏／超額凍結</div>
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputMode="decimal"
+              value={winFreezeThreshold}
+              onChange={(e) => setWinFreezeThreshold(e.target.value)}
+              className="term-input font-mono"
+              placeholder="50000"
+            />
+          </label>
+          <label className="block">
             <div className="label mb-2">备注</div>
             <input
               type="text"
@@ -198,6 +219,10 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
               className="term-input"
             />
           </label>
+        </div>
+
+        <div className="rounded-md border border-[#AE8B35]/30 bg-[#FFF8DF] px-3 py-2 text-[11px] text-[#6A5520]">
+          入金路徑優先執行；完成後以當下剩餘本金重新進入本金路徑。期間若入點、出點或調整點數，會取消該會員的入金路徑並立即重建本金路徑。
         </div>
 
         {err && (

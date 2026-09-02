@@ -9,6 +9,7 @@ import {
 } from '../../../utils/hierarchy.js';
 import { getAdminGameDay, getAdminGameDayWindow } from '../gameDay.js';
 import { calculateRebateAmountByCategory, effectiveDownlineRebate } from '../rebate.js';
+import { resolveDelegatedControlZoneForAgent } from './controlZone.service.js';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -272,7 +273,10 @@ export async function calculateCurrentSettlement(
   return calculateAllSettlement(db);
 }
 
-export async function getAllActiveManualDetectionControls(db: Db) {
+export async function getAllActiveManualDetectionControls(
+  db: Db,
+  controlZoneRootAgentId?: string | null,
+) {
   const delegate = (
     db as unknown as {
       manualDetectionControl?: {
@@ -290,6 +294,7 @@ export async function getAllActiveManualDetectionControls(db: Db) {
     where: {
       isActive: true,
       isCompleted: false,
+      ...(controlZoneRootAgentId !== undefined ? { controlZoneRootAgentId } : {}),
       OR: [{ operatorUsername: null }, { operatorUsername: { not: STARTER_CONFIDENCE_OPERATOR } }],
     },
     orderBy: { createdAt: 'desc' },
@@ -420,6 +425,7 @@ export async function resetMemberAutoBalanceControl(
 ) {
   const baselineBalance = decimal(input.balanceAfter).toDecimalPlaces(2);
   const runtimeConfig = await getAutoBalanceRuntimeConfig(db);
+  const controlZoneRootAgentId = await resolveDelegatedControlZoneForAgent(db, input.agentId);
   const pathControl = await findApplicableManualLifecyclePathControl(db, {
     username: input.memberUsername,
     agentId: input.agentId,
@@ -445,13 +451,16 @@ export async function resetMemberAutoBalanceControl(
   const reviveTargetBalance = baselineBalance
     .mul(AUTO_BALANCE_REVIVE_RATE)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-  const isActive = baselineBalance.greaterThan(0) && (runtimeConfig.isEnabled || !!pathControl);
+  const centralAutomaticPathEnabled = controlZoneRootAgentId === null && runtimeConfig.isEnabled;
+  const isActive = baselineBalance.greaterThan(0) && (centralAutomaticPathEnabled || !!pathControl);
   const resetReason =
-    runtimeConfig.isEnabled || pathControl
+    centralAutomaticPathEnabled || pathControl
       ? pathControl
         ? `${input.reason}:manual_path:${pathControl.control.id}`
         : input.reason
-      : `${input.reason}:auto_balance_disabled`;
+      : controlZoneRootAgentId
+        ? `${input.reason}:delegated_path_unconfigured`
+        : `${input.reason}:auto_balance_disabled`;
 
   await deactivateLegacyAutomaticControls(db, input.memberId, input.memberUsername);
 
@@ -510,8 +519,10 @@ export async function getOrCreateMemberAutoBalanceControl(
     where: { memberId: member.id },
   });
   const runtimeConfig = await getAutoBalanceRuntimeConfig(db);
+  const controlZoneRootAgentId = await resolveDelegatedControlZoneForAgent(db, member.agentId);
   const pathControl = await findApplicableManualLifecyclePathControl(db, member);
-  if (!runtimeConfig.isEnabled && !pathControl) {
+  const centralAutomaticPathEnabled = controlZoneRootAgentId === null && runtimeConfig.isEnabled;
+  if (!centralAutomaticPathEnabled && !pathControl) {
     if (existing?.isActive) {
       await db.memberAutoBalanceControl.update({
         where: { id: existing.id },
@@ -522,7 +533,7 @@ export async function getOrCreateMemberAutoBalanceControl(
   }
   if (
     existing &&
-    pathControl &&
+    (pathControl || centralAutomaticPathEnabled) &&
     !existing.isActive &&
     existing.resetReason !== 'banker_guard_frozen'
   ) {
@@ -638,11 +649,105 @@ async function deactivateLegacyAutomaticControls(
   });
 }
 
+/**
+ * A manual point movement starts a new principal cycle. Any in-progress deposit
+ * lifecycle for this member must stop first, otherwise the old deposit baseline
+ * would keep steering results after the balance was changed externally.
+ *
+ * Member controls are terminal for the single member. Agent-line controls stay
+ * available to the rest of the line, while this member receives a completed
+ * lifecycle marker so the same rule cannot be recreated lazily.
+ */
+export async function cancelMemberDepositControlsForBalanceMovement(
+  db: Db,
+  member: {
+    id: string;
+    username: string;
+    agentId: string | null;
+    balanceAfter: Prisma.Decimal | string | number;
+  },
+): Promise<number> {
+  const controlZoneRootAgentId = await resolveDelegatedControlZoneForAgent(db, member.agentId);
+  const controls = await db.memberDepositControl.findMany({
+    where: {
+      isActive: true,
+      isCompleted: false,
+      controlZoneRootAgentId,
+      AND: [
+        { OR: [{ notes: null }, { NOT: { notes: { contains: 'online_reward' } } }] },
+        { OR: [{ notes: null }, { NOT: { notes: { contains: AUTO_REVIVAL_NOTE } } }] },
+      ],
+      OR: [
+        { scope: 'MEMBER', memberId: member.id },
+        { scope: 'AGENT_LINE', targetAgentId: { not: null } },
+      ],
+    },
+    select: {
+      id: true,
+      scope: true,
+      targetAgentId: true,
+      lifecycleSteps: true,
+    },
+  });
+  if (controls.length === 0) return 0;
+
+  const ancestors = member.agentId ? await getAgentAncestors(db, member.agentId) : [];
+  const applicable = controls.filter(
+    (control) =>
+      (control.scope === 'MEMBER' && control.targetAgentId === null) ||
+      (control.scope === 'AGENT_LINE' &&
+        !!control.targetAgentId &&
+        ancestors.includes(control.targetAgentId)),
+  );
+  if (applicable.length === 0) return 0;
+
+  const now = new Date();
+  const balanceAfter = decimal(member.balanceAfter).toDecimalPlaces(2);
+  for (const control of applicable) {
+    if (control.scope === 'MEMBER') {
+      await db.memberDepositControl.update({
+        where: { id: control.id },
+        data: { isActive: false, isCompleted: true },
+      });
+      await db.memberDepositLifecycleState.updateMany({
+        where: { controlId: control.id, memberId: member.id, isCompleted: false },
+        data: { isCompleted: true, completedAt: now, lastBalance: balanceAfter },
+      });
+      continue;
+    }
+
+    const finalStageIndex = Array.isArray(control.lifecycleSteps)
+      ? control.lifecycleSteps.length
+      : 0;
+    await db.memberDepositLifecycleState.upsert({
+      where: { controlId_memberId: { controlId: control.id, memberId: member.id } },
+      create: {
+        controlId: control.id,
+        memberId: member.id,
+        memberUsername: member.username,
+        startBalance: balanceAfter,
+        currentStageIndex: finalStageIndex,
+        isCompleted: true,
+        completedAt: now,
+        lastBalance: balanceAfter,
+      },
+      update: {
+        currentStageIndex: finalStageIndex,
+        isCompleted: true,
+        completedAt: now,
+        lastBalance: balanceAfter,
+      },
+    });
+  }
+  return applicable.length;
+}
+
 export async function findApplicableManualDetectionControl(
   db: Db,
   member: { username: string; agentId: string | null },
 ) {
-  const controls = (await getAllActiveManualDetectionControls(db)).filter(
+  const controlZoneRootAgentId = await resolveDelegatedControlZoneForAgent(db, member.agentId);
+  const controls = (await getAllActiveManualDetectionControls(db, controlZoneRootAgentId)).filter(
     (control) => (control.controlMode ?? 'settlement') === 'settlement',
   );
   if (controls.length === 0) return null;
@@ -682,13 +787,16 @@ export async function findApplicableManualLifecyclePathControl(
   db: Db,
   member: { username: string; agentId: string | null },
 ) {
-  const controls = (await getAllActiveManualDetectionControls(db)).filter((control) => {
-    if ((control.controlMode ?? 'settlement') !== MANUAL_LIFECYCLE_PATH_MODE) return false;
-    return (
-      normalizeCustomLifecycleSteps(control.lifecycleSteps).length > 0 ||
-      normalizeAutoBalanceTemplateKeys(control.lifecycleTemplateKeys).length > 0
-    );
-  });
+  const controlZoneRootAgentId = await resolveDelegatedControlZoneForAgent(db, member.agentId);
+  const controls = (await getAllActiveManualDetectionControls(db, controlZoneRootAgentId)).filter(
+    (control) => {
+      if ((control.controlMode ?? 'settlement') !== MANUAL_LIFECYCLE_PATH_MODE) return false;
+      return (
+        normalizeCustomLifecycleSteps(control.lifecycleSteps).length > 0 ||
+        normalizeAutoBalanceTemplateKeys(control.lifecycleTemplateKeys).length > 0
+      );
+    },
+  );
   if (controls.length === 0) return null;
 
   const memberControl = controls.find(

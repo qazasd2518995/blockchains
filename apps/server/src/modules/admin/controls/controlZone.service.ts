@@ -130,7 +130,7 @@ export async function requireAccessibleControlMember(
   if (!accessibleIds.includes(member.agentId)) {
     throw new ApiError('FORBIDDEN', 'Cannot control a member outside this control zone');
   }
-  return member;
+  return { ...member, agentId: member.agentId };
 }
 
 export async function grantControlZone(
@@ -190,19 +190,26 @@ export async function grantControlZone(
     );
   }
 
-  return prisma.agent.update({
-    where: { id: target.id },
-    data: {
-      canManageControlZone: true,
-      controlZoneGrantedBy: operator.id,
-      controlZoneGrantedAt: new Date(),
-    },
-    select: {
-      id: true,
-      username: true,
-      canManageControlZone: true,
-      controlZoneGrantedAt: true,
-    },
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.agent.update({
+      where: { id: target.id },
+      data: {
+        canManageControlZone: true,
+        controlZoneGrantedBy: operator.id,
+        controlZoneGrantedAt: new Date(),
+      },
+      select: {
+        id: true,
+        username: true,
+        canManageControlZone: true,
+        controlZoneGrantedAt: true,
+      },
+    });
+    await tx.memberAutoBalanceControl.updateMany({
+      where: { agentId: { in: descendants }, isActive: true },
+      data: { isActive: false, resetReason: 'control_zone_delegated' },
+    });
+    return updated;
   });
 }
 
@@ -226,6 +233,19 @@ export async function revokeControlZone(
     await tx.winLossControl.updateMany({
       where: { controlZoneRootAgentId: target.id, isActive: true },
       data: { isActive: false },
+    });
+    await tx.manualDetectionControl.updateMany({
+      where: { controlZoneRootAgentId: target.id, isActive: true },
+      data: { isActive: false },
+    });
+    await tx.memberDepositControl.updateMany({
+      where: { controlZoneRootAgentId: target.id, isActive: true },
+      data: { isActive: false },
+    });
+    const descendants = await listAgentDescendants(tx, target.id);
+    await tx.memberAutoBalanceControl.updateMany({
+      where: { agentId: { in: descendants } },
+      data: { isActive: false, resetReason: 'control_zone_revoked' },
     });
     await tx.agent.update({
       where: { id: target.id },

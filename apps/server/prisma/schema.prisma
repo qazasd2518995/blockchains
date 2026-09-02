@@ -639,31 +639,34 @@ model MemberWinCapControl {
 }
 
 model MemberDepositControl {
-  id                  String                        @id @default(cuid())
-  scope               String                        @default("MEMBER")
-  memberId            String?
-  memberUsername      String?
-  targetAgentId       String?
-  targetAgentUsername String?
-  agentId             String
-  creator             Agent                         @relation("DepositCreatedBy", fields: [agentId], references: [id])
-  depositAmount       Decimal                       @db.Decimal(20, 2)
-  targetProfit        Decimal                       @db.Decimal(20, 2)
-  startBalance        Decimal                       @db.Decimal(20, 2)
-  controlWinRate      Decimal                       @default(0.70) @db.Decimal(5, 4)
-  lifecycleSteps      Json?
-  isActive            Boolean                       @default(true)
-  isCompleted         Boolean                       @default(false)
-  startPeriod         String?
-  notes               String?
-  operatorUsername    String?
-  createdAt           DateTime                      @default(now())
-  updatedAt           DateTime                      @updatedAt
-  lifecycleStates     MemberDepositLifecycleState[]
+  id                     String                        @id @default(cuid())
+  scope                  String                        @default("MEMBER")
+  memberId               String?
+  memberUsername         String?
+  targetAgentId          String?
+  targetAgentUsername    String?
+  agentId                String
+  creator                Agent                         @relation("DepositCreatedBy", fields: [agentId], references: [id])
+  depositAmount          Decimal                       @db.Decimal(20, 2)
+  targetProfit           Decimal                       @db.Decimal(20, 2)
+  startBalance           Decimal                       @db.Decimal(20, 2)
+  controlWinRate         Decimal                       @default(0.70) @db.Decimal(5, 4)
+  winFreezeThreshold     Decimal                       @default(50000) @db.Decimal(20, 2)
+  lifecycleSteps         Json?
+  isActive               Boolean                       @default(true)
+  isCompleted            Boolean                       @default(false)
+  startPeriod            String?
+  notes                  String?
+  operatorUsername       String?
+  controlZoneRootAgentId String?
+  createdAt              DateTime                      @default(now())
+  updatedAt              DateTime                      @updatedAt
+  lifecycleStates        MemberDepositLifecycleState[]
 
   @@index([memberUsername, isActive])
   @@index([scope, isActive, isCompleted])
   @@index([targetAgentId, isActive])
+  @@index([controlZoneRootAgentId, isActive, isCompleted])
 }
 
 model MemberDepositLifecycleState {
@@ -809,6 +812,7 @@ model ManualDetectionControl {
   completionSettlement     Decimal?             @db.Decimal(20, 2)
   operatorId               String?
   operatorUsername         String?
+  controlZoneRootAgentId   String?
   createdAt                DateTime             @default(now())
   updatedAt                DateTime             @updatedAt
 
@@ -816,6 +820,7 @@ model ManualDetectionControl {
   @@index([targetAgentId, isActive])
   @@index([targetMemberUsername, isActive])
   @@index([isActive, isCompleted, completionBehavior])
+  @@index([controlZoneRootAgentId, isActive, isCompleted])
   @@index([createdAt])
 }
 

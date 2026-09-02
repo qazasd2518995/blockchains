@@ -62,6 +62,7 @@ export const depositControlSchema = z
     targetProfit: decimal.optional(),
     startBalance: decimal.optional(),
     controlWinRate: fractionDecimal.default('0.50'),
+    winFreezeThreshold: positiveDecimal.default('50000'),
     lifecycleSteps: z.array(z.coerce.number().min(0).max(1000)).min(1).max(20).optional(),
     notes: z.string().max(500).optional(),
   })
@@ -254,7 +255,7 @@ export const manualDetectionControlSchema = z
       .max(100)
       .optional()
       .nullable(),
-    lineFreezeThreshold: decimal.default('50000'),
+    lineFreezeThreshold: positiveDecimal.default('50000'),
   })
   .superRefine((value, ctx) => {
     if (value.scope === 'AGENT_LINE' && !value.targetAgentId) {

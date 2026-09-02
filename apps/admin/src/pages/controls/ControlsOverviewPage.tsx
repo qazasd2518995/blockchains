@@ -106,6 +106,7 @@ interface DepositRow {
   currentProfit?: string;
   progressPercent?: string;
   controlWinRate: string;
+  winFreezeThreshold?: string | null;
   lifecycleSteps?: number[];
   lifecycleState?: DepositLifecycleState | null;
   lifecycleStates?: DepositLifecycleState[];
@@ -256,17 +257,20 @@ export function ControlsOverviewPage(): JSX.Element {
   const reload = useCallback(async () => {
     try {
       if (!isSuperAdmin) {
-        const [winLoss, logRes] = await Promise.all([
-          adminApi.get<{ items: WinLossRow[] }>('/controls/win-loss'),
+        const [manualStatus, deposit, autoBalance, logRes] = await Promise.all([
+          adminApi.get<{ items: ManualDetectionRow[] }>('/controls/manual-detection/status'),
+          adminApi.get<{ items: DepositRow[] }>('/controls/deposit'),
+          adminApi.get<AutoBalanceConfig>('/controls/auto-balance/config'),
           adminApi.get<{ items: ControlLogRow[] }>('/controls/logs'),
         ]);
-        setManualActive([]);
+        setManualActive(manualStatus.data.items);
         setAllSettlement(null);
-        setWl(winLoss.data.items);
+        setWl([]);
         setWc([]);
-        setDc([]);
+        setDc(deposit.data.items);
         setAl([]);
         setBc([]);
+        setAutoBalanceConfig(autoBalance.data);
         setLogs(logRes.data.items);
         setError(null);
         return;
@@ -460,7 +464,7 @@ export function ControlsOverviewPage(): JSX.Element {
     },
     {
       key: 'freeze',
-      label: '整線凍結',
+      label: '最高可贏',
       align: 'right',
       render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.lineFreezeThreshold)}</span>,
     },
@@ -691,6 +695,12 @@ export function ControlsOverviewPage(): JSX.Element {
       label: '介入率',
       align: 'right',
       render: (r) => <span className="data-num">{pct(r.controlWinRate)}</span>,
+    },
+    {
+      key: 'freeze',
+      label: '最高可贏',
+      align: 'right',
+      render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.winFreezeThreshold)}</span>,
     },
     {
       key: 'status',
@@ -1078,7 +1088,7 @@ export function ControlsOverviewPage(): JSX.Element {
         description={
           isSuperAdmin
             ? '以本金百分比路徑作為主要風控入口，搭配入金、爆分與真實介入紀錄檢查。'
-            : '可查询自己代理线内的游戏账号或下级代理线，并建立对应的输赢控制。'
+            : '可管理下放線內的本金路徑與入金路徑；其他代理線由伺服器完全隔離。'
         }
       />
 
@@ -1089,7 +1099,7 @@ export function ControlsOverviewPage(): JSX.Element {
         description={
           isSuperAdmin
             ? '每次入點或重置週期會依範圍匹配路徑，並以介入率決定控輸或控贏。'
-            : '代理账号只能看到和管理自己建立的下线控制规则。'
+            : '只有取得下放權限的代理主帳號能看到並操作，所有下級代理及子帳號均不繼承。'
         }
         tone="ember"
         imagePosition="object-[74%_30%]"
@@ -1103,14 +1113,14 @@ export function ControlsOverviewPage(): JSX.Element {
               爆分控制 &gt; 入金控制 &gt; 本金路徑控制 &gt; 莊家守衛整線凍結
             </div>
             <div className="mt-1 text-[#7A5F15]/80">
-              舊交收目標、會員封頂、代理封頂已不作為主要設定入口；入金與爆分超過時不觸發整線凍結。
+              入金控制完成後會以剩餘本金接續本金路徑；兩種路徑皆可設定最高贏額並於超額時自動凍結。
             </div>
           </>
         ) : (
           <>
             <div className="font-semibold text-[#7A5F15]">代理控制范围</div>
             <div className="mt-1">
-              可搜索自己代理线内的会员游戏账号，或选择自己及下级代理作为整条代理线目标。未命中介入率时自然开奖。
+              下放範圍包含「本金路徑」與「入金控制」。入金控制優先，完成後接回本金路徑；中途移動點數會取消入金控制並重建本金路徑。
             </div>
           </>
         )}
@@ -1156,12 +1166,18 @@ export function ControlsOverviewPage(): JSX.Element {
           />
         </div>
       ) : (
-        <div className="mb-4 grid gap-4 md:grid-cols-2">
+        <div className="mb-4 grid gap-4 md:grid-cols-3">
           <StatCard
-            label="我的控制在线"
-            value={wl.filter((x) => x.isActive).length.toString()}
-            hint="会员 / 代理线"
+            label="本金路徑在線"
+            value={manualPathActive.length.toString()}
+            hint="會員 / 代理線"
             accent="ember"
+          />
+          <StatCard
+            label="入金控制在線"
+            value={depositControls.filter((x) => x.isActive).length.toString()}
+            hint="優先於本金路徑"
+            accent="toxic"
           />
           <StatCard
             label="介入纪录"
@@ -1188,20 +1204,22 @@ export function ControlsOverviewPage(): JSX.Element {
         <div className="crt-panel p-8 text-center text-ink-500">{t.common.loading}…</div>
       ) : (
         <div className="space-y-6">
-          {isSuperAdmin && (
-            <Section
-              title="§ 本金路徑控制"
-              subtitle="會員路徑 > 代理線路徑 > 全盤路徑"
-              actions={
-                <button
-                  type="button"
-                  onClick={() => setManualOpen(true)}
-                  className="btn-acid text-[11px]"
-                >
-                  + 新增
-                </button>
-              }
-            >
+          <Section
+            title="§ 本金路徑控制"
+            subtitle={
+              isSuperAdmin ? '會員路徑 > 代理線路徑 > 全盤路徑' : '僅限下放控制區內的會員與代理線'
+            }
+            actions={
+              <button
+                type="button"
+                onClick={() => setManualOpen(true)}
+                className="btn-acid text-[11px]"
+              >
+                + 新增
+              </button>
+            }
+          >
+            {isSuperAdmin ? (
               <div className="mb-4 grid gap-4 md:grid-cols-4">
                 <MetricCard label="总投注" value={fmt(allSettlement?.totalBet)} />
                 <MetricCard label="总派彩" value={fmt(allSettlement?.totalPayout)} />
@@ -1216,61 +1234,38 @@ export function ControlsOverviewPage(): JSX.Element {
                   accent="amber"
                 />
               </div>
-              <DataTable
-                columns={manualCols}
-                rows={manualPathActive}
-                rowKey={(r) => r.id}
-                empty="目前沒有啟用中的本金路徑控制"
-              />
-            </Section>
-          )}
+            ) : null}
+            <DataTable
+              columns={manualCols}
+              rows={manualPathActive}
+              rowKey={(r) => r.id}
+              empty="目前沒有啟用中的本金路徑控制"
+            />
+          </Section>
 
-          {!isSuperAdmin && (
-            <Section
-              title="§ 線路輸贏控制"
-              subtitle="僅限目前被下放的代理線"
-              actions={
-                <button
-                  type="button"
-                  onClick={() => setWlOpen(true)}
-                  className="btn-acid text-[11px]"
-                >
-                  + 新增
-                </button>
-              }
-            >
-              <DataTable
-                columns={wlCols}
-                rows={wl}
-                rowKey={(row) => row.id}
-                empty="目前沒有輸贏控制規則"
-              />
-            </Section>
-          )}
+          <Section
+            title="§ 入金控制"
+            subtitle="優先執行；完成或點數移動後接回本金路徑"
+            actions={
+              <button
+                type="button"
+                onClick={() => setDcOpen(true)}
+                className="btn-acid text-[11px]"
+              >
+                + 新增
+              </button>
+            }
+          >
+            <DataTable
+              columns={dcCols}
+              rows={depositControls}
+              rowKey={(r) => r.id}
+              empty={t.common.empty}
+            />
+          </Section>
 
           {isSuperAdmin && (
             <>
-              <Section
-                title="§ 入金控制"
-                subtitle="按本金百分比建立会员或代理线生命周期"
-                actions={
-                  <button
-                    type="button"
-                    onClick={() => setDcOpen(true)}
-                    className="btn-acid text-[11px]"
-                  >
-                    + 新增
-                  </button>
-                }
-              >
-                <DataTable
-                  columns={dcCols}
-                  rows={depositControls}
-                  rowKey={(r) => r.id}
-                  empty={t.common.empty}
-                />
-              </Section>
-
               <Section
                 title="§ 爆分控制"
                 subtitle="指定玩家账号与爆分金额"
@@ -1404,6 +1399,7 @@ export function ControlsOverviewPage(): JSX.Element {
         onClose={() => setManualOpen(false)}
         onDone={() => void reload()}
         templates={autoBalanceConfig?.templates ?? []}
+        allowAllScope={isSuperAdmin}
       />
       <WinLossControlModal
         open={wlOpen}

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   calculateDefaultManualTargetBand,
   calculateAutoDetectionBitePlan,
+  cancelMemberDepositControlsForBalanceMovement,
   checkAndCompleteManualDetectionControls,
   distributeAutoDetectionRedistribution,
   findApplicableBurstControl,
@@ -253,6 +254,63 @@ describe('resetMemberAutoBalanceControl', () => {
     expect(update.lifecycleCompletedAt).toBeNull();
     expect(update.isActive).toBe(true);
     expect(update.resetReason).toBe('agent_to_member:manual_path:manual-path-1');
+  });
+});
+
+describe('cancelMemberDepositControlsForBalanceMovement', () => {
+  it('ends a member deposit path and marks only that member complete on an agent-line path', async () => {
+    const update = vi.fn().mockResolvedValue({});
+    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const upsert = vi.fn().mockResolvedValue({});
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        id: 'member-control',
+        scope: 'MEMBER',
+        targetAgentId: null,
+        lifecycleSteps: [120, 80, 0],
+      },
+      {
+        id: 'line-control',
+        scope: 'AGENT_LINE',
+        targetAgentId: 'line-root',
+        lifecycleSteps: [120, 80, 0],
+      },
+    ]);
+    const db = {
+      $queryRaw: vi
+        .fn()
+        .mockResolvedValueOnce([{ id: 'delegated-root' }])
+        .mockResolvedValueOnce([
+          { id: 'member-agent', depth: 0 },
+          { id: 'line-root', depth: 1 },
+        ]),
+      memberDepositControl: { findMany, update },
+      memberDepositLifecycleState: { updateMany, upsert },
+    };
+
+    const cancelled = await cancelMemberDepositControlsForBalanceMovement(db as never, {
+      id: 'member-1',
+      username: 'member1',
+      agentId: 'member-agent',
+      balanceAfter: new Prisma.Decimal(8000),
+    });
+
+    expect(cancelled).toBe(2);
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ controlZoneRootAgentId: 'delegated-root' }),
+      }),
+    );
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'member-control' },
+      data: { isActive: false, isCompleted: true },
+    });
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { controlId_memberId: { controlId: 'line-control', memberId: 'member-1' } },
+        update: expect.objectContaining({ isCompleted: true, currentStageIndex: 3 }),
+      }),
+    );
   });
 });
 
@@ -687,7 +745,10 @@ describe('findApplicableManualDetectionControl no-count lines', () => {
           lineControl,
         ]),
       },
-      $queryRaw: vi.fn().mockResolvedValueOnce([{ id: 'test111-agent', depth: 0 }]),
+      $queryRaw: vi
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 'test111-agent', depth: 0 }]),
     };
 
     const applicable = await findApplicableManualDetectionControl(db as never, {
@@ -736,10 +797,13 @@ describe('findApplicableManualDetectionControl priority fallback', () => {
     );
     const db = {
       manualDetectionControl: { findMany },
-      $queryRaw: vi.fn().mockResolvedValue([
-        { id: 'member-agent', depth: 0 },
-        { id: 'line-a', depth: 1 },
-      ]),
+      $queryRaw: vi
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { id: 'member-agent', depth: 0 },
+          { id: 'line-a', depth: 1 },
+        ]),
     };
 
     const applicable = await findApplicableManualDetectionControl(db as never, {
@@ -767,6 +831,7 @@ describe('findApplicableManualDetectionControl priority fallback', () => {
       },
       $queryRaw: vi
         .fn()
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([
           { id: 'member-agent', depth: 0 },
           { id: 'line-a', depth: 1 },

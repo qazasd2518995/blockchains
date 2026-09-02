@@ -163,7 +163,7 @@ export async function agentRoutes(fastify: FastifyInstance): Promise<void> {
       });
       return {
         success: true,
-        message: action === 'grant' ? '線路輸贏控制權已下放' : '線路輸贏控制權已收回',
+        message: action === 'grant' ? '線路路徑控制權已下放' : '線路路徑控制權已收回',
         target,
       };
     },

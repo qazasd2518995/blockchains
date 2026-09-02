@@ -94,8 +94,10 @@ type DepositControlRecord = {
   startBalance: Prisma.Decimal;
   targetProfit: Prisma.Decimal;
   controlWinRate: Prisma.Decimal;
+  winFreezeThreshold: Prisma.Decimal;
   lifecycleSteps: Prisma.JsonValue | null;
   notes: string | null;
+  controlZoneRootAgentId: string | null;
   createdAt: Date;
 };
 
@@ -386,6 +388,7 @@ export async function finalizeControls(
 
   await updateMemberWinCap(tx, member.id, final);
   await updateAgentLineCaps(tx, member.agentId, final);
+  await enforceDepositControlWinGuard(tx, member, member.balance);
   await completeDepositControlIfReached(tx, member, member.balance);
   await updateBurstControlUsage(tx, outcome, final);
   await updateWinLossBiteProgress(tx, member, final);
@@ -404,13 +407,12 @@ export async function finalizeControls(
   await enforceAutoBalanceBankerGuard(tx, member, outcome);
 
   if (outcome.controlled && outcome.controlId && outcome.flipReason) {
-    // The log belongs to the rule's owner, not merely to the member's line.
-    // Central burst/cap/manual controls may still act on a delegated line and
-    // must remain visible only to central administrators.
-    const winLossOwner = await tx.winLossControl.findUnique({
-      where: { id: outcome.controlId },
-      select: { controlZoneRootAgentId: true },
-    });
+    const controlZoneRootAgentId = await resolveControlLogZone(
+      tx,
+      member,
+      outcome.controlId,
+      outcome.flipReason,
+    );
     await tx.winLossControlLogs.create({
       data: {
         controlId: outcome.controlId,
@@ -434,10 +436,40 @@ export async function finalizeControls(
           result: finalResult,
         },
         flipReason: outcome.flipReason,
-        controlZoneRootAgentId: winLossOwner?.controlZoneRootAgentId ?? null,
+        controlZoneRootAgentId,
       },
     });
   }
+}
+
+async function resolveControlLogZone(
+  tx: Db,
+  member: { agentId: string | null },
+  controlId: string,
+  reason: string,
+): Promise<string | null> {
+  if (reason === 'deposit_control' || reason === 'deposit_lifecycle_path_guard') {
+    const control = await tx.memberDepositControl.findUnique({
+      where: { id: controlId },
+      select: { controlZoneRootAgentId: true },
+    });
+    return control?.controlZoneRootAgentId ?? null;
+  }
+  if (reason === 'manual_detection' || reason === 'manual_detection_release') {
+    const control = await tx.manualDetectionControl.findUnique({
+      where: { id: controlId },
+      select: { controlZoneRootAgentId: true },
+    });
+    return control?.controlZoneRootAgentId ?? null;
+  }
+  if (reason.startsWith('auto_balance_')) {
+    return resolveDelegatedControlZoneForAgent(tx, member.agentId);
+  }
+  const control = await tx.winLossControl.findUnique({
+    where: { id: controlId },
+    select: { controlZoneRootAgentId: true },
+  });
+  return control?.controlZoneRootAgentId ?? null;
 }
 
 /**
@@ -1540,10 +1572,13 @@ async function findApplicableDepositControl(
     startBalance: true,
     targetProfit: true,
     controlWinRate: true,
+    winFreezeThreshold: true,
     lifecycleSteps: true,
     notes: true,
+    controlZoneRootAgentId: true,
     createdAt: true,
   };
+  const controlZoneRootAgentId = await resolveDelegatedControlZoneForAgent(tx, member.agentId);
 
   if (!delegate.findMany) {
     const legacy = await delegate.findFirst?.({
@@ -1551,28 +1586,32 @@ async function findApplicableDepositControl(
         memberId: member.id,
         isActive: true,
         isCompleted: false,
+        controlZoneRootAgentId,
         OR: [{ notes: null }, { NOT: { notes: { contains: 'online_reward' } } }],
       },
       orderBy: { createdAt: 'desc' },
       select,
     });
-    return legacy
-      ? {
-          ...legacy,
-          scope: legacy.scope ?? 'MEMBER',
-          memberId: legacy.memberId ?? member.id,
-          memberUsername: legacy.memberUsername ?? member.username,
-          targetAgentId: legacy.targetAgentId ?? null,
-          lifecycleSteps: legacy.lifecycleSteps ?? null,
-          createdAt: legacy.createdAt ?? new Date(0),
-        }
-      : null;
+    if (!legacy) return null;
+    const normalized = {
+      ...legacy,
+      scope: legacy.scope ?? 'MEMBER',
+      memberId: legacy.memberId ?? member.id,
+      memberUsername: legacy.memberUsername ?? member.username,
+      targetAgentId: legacy.targetAgentId ?? null,
+      winFreezeThreshold: legacy.winFreezeThreshold ?? new Prisma.Decimal(50000),
+      lifecycleSteps: legacy.lifecycleSteps ?? null,
+      controlZoneRootAgentId: legacy.controlZoneRootAgentId ?? null,
+      createdAt: legacy.createdAt ?? new Date(0),
+    };
+    return activeDepositControlForMember(tx, member.id, normalized);
   }
 
   const controls = await delegate.findMany({
     where: {
       isActive: true,
       isCompleted: false,
+      controlZoneRootAgentId,
       AND: [
         { OR: [{ notes: null }, { NOT: { notes: { contains: 'online_reward' } } }] },
         { OR: [{ notes: null }, { NOT: { notes: { contains: 'auto_revive' } } }] },
@@ -1588,10 +1627,10 @@ async function findApplicableDepositControl(
   if (controls.length === 0) return null;
 
   const memberControl = controls.find((control) => control.scope === 'MEMBER');
-  if (memberControl) return memberControl;
+  if (memberControl) return activeDepositControlForMember(tx, member.id, memberControl);
 
   const ancestors = member.agentId ? await getAgentAncestors(tx, member.agentId) : [];
-  return (
+  const lineControl =
     controls
       .filter(
         (control) =>
@@ -1606,8 +1645,28 @@ async function findApplicableDepositControl(
       .sort(
         (a, b) =>
           a.depth - b.depth || b.control.createdAt.getTime() - a.control.createdAt.getTime(),
-      )[0]?.control ?? null
-  );
+      )[0]?.control ?? null;
+  return lineControl ? activeDepositControlForMember(tx, member.id, lineControl) : null;
+}
+
+async function activeDepositControlForMember(
+  tx: Db,
+  memberId: string,
+  control: DepositControlRecord,
+): Promise<DepositControlRecord | null> {
+  const delegate = (
+    tx as unknown as {
+      memberDepositLifecycleState?: {
+        findUnique?: (args: unknown) => Promise<{ isCompleted: boolean } | null>;
+      };
+    }
+  ).memberDepositLifecycleState;
+  if (!delegate?.findUnique) return control;
+  const state = await delegate.findUnique({
+    where: { controlId_memberId: { controlId: control.id, memberId } },
+    select: { isCompleted: true },
+  });
+  return state?.isCompleted ? null : control;
 }
 
 async function buildDepositDecision(
@@ -2458,18 +2517,80 @@ async function updateAgentLineCaps(
   }
 }
 
+async function enforceDepositControlWinGuard(
+  tx: Db,
+  member: { id: string; username: string; agentId: string | null },
+  currentBalance: Prisma.Decimal,
+): Promise<void> {
+  if (isImportedGameTestUsername(member.username)) return;
+  const control = await findApplicableDepositControl(tx, member);
+  if (!control?.winFreezeThreshold || control.winFreezeThreshold.lessThanOrEqualTo(0)) return;
+
+  const lifecycleState = await tx.memberDepositLifecycleState.findUnique({
+    where: { controlId_memberId: { controlId: control.id, memberId: member.id } },
+    select: { startBalance: true, isCompleted: true },
+  });
+  if (lifecycleState?.isCompleted) return;
+
+  const startBalance = lifecycleState?.startBalance ?? control.startBalance;
+  const currentWin = currentBalance.sub(startBalance).toDecimalPlaces(2);
+  if (currentWin.lessThan(control.winFreezeThreshold)) return;
+
+  const now = new Date();
+  await tx.memberDepositControl.update({
+    where: { id: control.id },
+    data: { isActive: false, isCompleted: true },
+  });
+  await tx.memberDepositLifecycleState.updateMany({
+    where: { controlId: control.id, memberId: member.id, isCompleted: false },
+    data: { isCompleted: true, completedAt: now, lastBalance: currentBalance },
+  });
+  await tx.memberAutoBalanceControl.updateMany({
+    where: { memberId: member.id },
+    data: {
+      isActive: false,
+      resetReason: 'deposit_win_guard_frozen',
+      lifecycleCompletedAt: now,
+    },
+  });
+
+  if (control.scope !== 'AGENT_LINE' || !control.targetAgentId) {
+    await tx.user.updateMany({
+      where: { id: member.id, disabledAt: null, frozenAt: null },
+      data: { frozenAt: now },
+    });
+    return;
+  }
+
+  const agentIds = await listControlIncludedAgentDescendants(tx, control.targetAgentId);
+  await tx.user.updateMany({
+    where: {
+      agentId: { in: agentIds },
+      username: { notIn: [...IMPORTED_GAME_TEST_USERNAMES] },
+      disabledAt: null,
+      frozenAt: null,
+    },
+    data: { frozenAt: now },
+  });
+  await tx.agent.updateMany({
+    where: { id: { in: agentIds }, status: 'ACTIVE', role: { not: 'SUPER_ADMIN' } },
+    data: { status: 'FROZEN' },
+  });
+}
+
 async function completeDepositControlIfReached(
   tx: Db,
   member: { id: string; username: string; agentId: string | null },
   currentBalance: Prisma.Decimal,
 ): Promise<void> {
+  const controlZoneRootAgentId = await resolveDelegatedControlZoneForAgent(tx, member.agentId);
   let completedAny = false;
   if (tx.memberDepositLifecycleState?.findMany) {
     const lifecycleStates = await tx.memberDepositLifecycleState.findMany({
       where: {
         memberId: member.id,
         isCompleted: false,
-        control: { isActive: true, isCompleted: false },
+        control: { isActive: true, isCompleted: false, controlZoneRootAgentId },
       },
       include: { control: true },
     });
@@ -2492,6 +2613,7 @@ async function completeDepositControlIfReached(
       memberId: member.id,
       isActive: true,
       isCompleted: false,
+      controlZoneRootAgentId,
       lifecycleSteps: { equals: Prisma.DbNull },
     },
   });
@@ -3024,6 +3146,7 @@ export function multiplierExceedsControlCeiling(
 export const __controlsTestHooks = {
   applyGlobalMemberDailyWinCap,
   enforceAutoBalanceBankerGuard,
+  enforceDepositControlWinGuard,
   findControlDecision,
   findWinLossDecision,
   findAutoBalanceDecision,

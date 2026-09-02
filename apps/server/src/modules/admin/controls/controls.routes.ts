@@ -863,7 +863,7 @@ function jsonDecimalNumber(value: Prisma.JsonValue, key: string): number | null 
 
 /**
  * 控制表 CRUD。Super Admin 可使用完整風控；只有被明確下放的代理主帳號
- * 可使用自己控制區的輸贏控制與介入紀錄。其他代理與所有子帳號一律拒絕。
+ * 可使用自己控制區的本金路徑、入金控制與介入紀錄。其他代理與所有子帳號一律拒絕。
  * 所有 mutation 都寫 AuditLog。
  */
 export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
@@ -889,6 +889,22 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     return record;
   };
 
+  const requireOwnedManualControl = async (admin: AdminCurrent, id: string) => {
+    const record = await fastify.prisma.manualDetectionControl.findFirst({
+      where: { id, controlZoneRootAgentId: controlZoneRootAgentId(admin) },
+    });
+    if (!record) throw new ApiError('INVALID_ACTION', 'Path control not found in this zone');
+    return record;
+  };
+
+  const requireOwnedDepositControl = async (admin: AdminCurrent, id: string) => {
+    const record = await fastify.prisma.memberDepositControl.findFirst({
+      where: { id, controlZoneRootAgentId: controlZoneRootAgentId(admin) },
+    });
+    if (!record) throw new ApiError('INVALID_ACTION', 'Deposit control not found in this zone');
+    return record;
+  };
+
   function resolveWinLossTarget(body: WinLossControlInput): {
     targetType: string | null;
     targetId: string | null;
@@ -909,7 +925,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     };
   }
 
-  fastify.get('/auto-balance/config', { preHandler: [fastify.requireSuperAdmin] }, async () => {
+  fastify.get('/auto-balance/config', async () => {
     const config = await getAutoBalanceRuntimeConfig(fastify.prisma);
     return serializeAutoBalanceConfig(config);
   });
@@ -952,7 +968,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     return { items: await enrichControlLogs(fastify, logs, usernames) };
   });
 
-  fastify.get('/win-loss', async (req) => {
+  fastify.get('/win-loss', { preHandler: [fastify.requireSuperAdmin] }, async (req) => {
     const items = await fastify.prisma.winLossControl.findMany({
       where: { controlZoneRootAgentId: controlZoneRootAgentId(req.admin) },
       orderBy: { createdAt: 'desc' },
@@ -960,7 +976,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     return { items };
   });
 
-  fastify.post('/win-loss', async (req, reply) => {
+  fastify.post('/win-loss', { preHandler: [fastify.requireSuperAdmin] }, async (req, reply) => {
     const body = winLossControlSchema.parse(req.body);
     const target = resolveWinLossTarget(body);
     const access = requireControlAccessContext(req.admin);
@@ -1038,38 +1054,46 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     reply.code(201).send(created);
   });
 
-  fastify.patch('/win-loss/:id/toggle', async (req, reply) => {
-    const { id } = req.params as { id: string };
-    const { isActive } = toggleSchema.parse(req.body);
-    await requireOwnedWinLossControl(req.admin, id);
-    const updated = await fastify.prisma.winLossControl.update({
-      where: { id },
-      data: { isActive },
-    });
-    await writeAudit(fastify.prisma, {
-      actor: auditActor(req),
-      action: 'control.win_loss.toggle',
-      targetType: 'control',
-      targetId: id,
-      newValues: { isActive },
-      req,
-    });
-    return updated;
-  });
+  fastify.patch(
+    '/win-loss/:id/toggle',
+    { preHandler: [fastify.requireSuperAdmin] },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const { isActive } = toggleSchema.parse(req.body);
+      await requireOwnedWinLossControl(req.admin, id);
+      const updated = await fastify.prisma.winLossControl.update({
+        where: { id },
+        data: { isActive },
+      });
+      await writeAudit(fastify.prisma, {
+        actor: auditActor(req),
+        action: 'control.win_loss.toggle',
+        targetType: 'control',
+        targetId: id,
+        newValues: { isActive },
+        req,
+      });
+      return updated;
+    },
+  );
 
-  fastify.delete('/win-loss/:id', async (req, reply) => {
-    const { id } = req.params as { id: string };
-    await requireOwnedWinLossControl(req.admin, id);
-    await fastify.prisma.winLossControl.delete({ where: { id } });
-    await writeAudit(fastify.prisma, {
-      actor: auditActor(req),
-      action: 'control.win_loss.delete',
-      targetType: 'control',
-      targetId: id,
-      req,
-    });
-    reply.code(204).send();
-  });
+  fastify.delete(
+    '/win-loss/:id',
+    { preHandler: [fastify.requireSuperAdmin] },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      await requireOwnedWinLossControl(req.admin, id);
+      await fastify.prisma.winLossControl.delete({ where: { id } });
+      await writeAudit(fastify.prisma, {
+        actor: auditActor(req),
+        action: 'control.win_loss.delete',
+        targetType: 'control',
+        targetId: id,
+        req,
+      });
+      reply.code(204).send();
+    },
+  );
 
   fastify.get(
     '/win-cap',
@@ -1173,227 +1197,200 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  fastify.get(
-    '/deposit',
-    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
-    async () => {
-      const items = await fastify.prisma.memberDepositControl.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: {
-          lifecycleStates: {
-            orderBy: { updatedAt: 'desc' },
-            take: 5,
-          },
-          _count: { select: { lifecycleStates: true } },
+  fastify.get('/deposit', async (req) => {
+    const items = await fastify.prisma.memberDepositControl.findMany({
+      where: { controlZoneRootAgentId: controlZoneRootAgentId(req.admin) },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        lifecycleStates: {
+          orderBy: { updatedAt: 'desc' },
+          take: 5,
+        },
+        _count: { select: { lifecycleStates: true } },
+      },
+    });
+    const stateMemberIds = items.flatMap((item) =>
+      item.lifecycleStates.map((state) => state.memberId),
+    );
+    const members = await fastify.prisma.user.findMany({
+      where: {
+        id: {
+          in: Array.from(
+            new Set([
+              ...items.map((item) => item.memberId).filter((id): id is string => Boolean(id)),
+              ...stateMemberIds,
+            ]),
+          ),
+        },
+      },
+      select: { id: true, balance: true },
+    });
+    const balanceByMemberId = new Map(members.map((member) => [member.id, member.balance]));
+    return {
+      items: items.map((item) => {
+        const steps = parseLifecycleSteps(item.lifecycleSteps);
+        const primaryState =
+          item.scope === 'MEMBER'
+            ? (item.lifecycleStates.find((state) => state.memberId === item.memberId) ??
+              item.lifecycleStates[0])
+            : item.lifecycleStates[0];
+        const currentBalance =
+          (primaryState
+            ? balanceByMemberId.get(primaryState.memberId)
+            : item.memberId
+              ? balanceByMemberId.get(item.memberId)
+              : undefined) ?? item.startBalance;
+        const startBalance = primaryState?.startBalance ?? item.startBalance;
+        const currentProfit = currentBalance.sub(item.startBalance);
+        const progressPercent = item.targetProfit.greaterThan(0)
+          ? Math.max(0, Math.min(100, currentProfit.div(item.targetProfit).mul(100).toNumber()))
+          : 0;
+        const lifecycleState = primaryState
+          ? serializeDepositLifecycleState(primaryState, currentBalance, steps)
+          : null;
+        return {
+          id: item.id,
+          scope: item.scope,
+          memberId: item.memberId,
+          memberUsername: item.memberUsername,
+          targetAgentId: item.targetAgentId,
+          targetAgentUsername: item.targetAgentUsername,
+          depositAmount: item.depositAmount.toFixed(2),
+          targetProfit: item.targetProfit.toFixed(2),
+          targetBalance: item.startBalance.add(item.targetProfit).toFixed(2),
+          startBalance: startBalance.toFixed(2),
+          currentBalance: currentBalance.toFixed(2),
+          currentProfit: currentProfit.toFixed(2),
+          progressPercent: progressPercent.toFixed(2),
+          controlWinRate: item.controlWinRate.toFixed(4),
+          winFreezeThreshold: item.winFreezeThreshold?.toFixed(2) ?? null,
+          lifecycleSteps: steps,
+          lifecycleState,
+          lifecycleStateCount: item._count.lifecycleStates,
+          lifecycleStates: item.lifecycleStates.map((state) =>
+            serializeDepositLifecycleState(state, balanceByMemberId.get(state.memberId), steps),
+          ),
+          isTargetReached: currentProfit.greaterThanOrEqualTo(item.targetProfit),
+          isActive: item.isActive,
+          isCompleted: item.isCompleted,
+          notes: item.notes,
+          operatorUsername: item.operatorUsername,
+          createdAt: item.createdAt,
+        };
+      }),
+    };
+  });
+
+  fastify.post('/deposit', async (req, reply) => {
+    const body = depositControlSchema.parse(req.body);
+    const access = requireControlAccessContext(req.admin);
+    const lifecycleSteps = normalizeLifecycleSteps(body.lifecycleSteps);
+    const controlWinRate = new Prisma.Decimal(body.controlWinRate);
+    const winFreezeThreshold = new Prisma.Decimal(body.winFreezeThreshold);
+
+    let created: Awaited<ReturnType<typeof fastify.prisma.memberDepositControl.create>>;
+    if (body.scope === 'AGENT_LINE') {
+      const agent = await requireAccessibleControlAgent(fastify.prisma, access, body.targetAgentId);
+      created = await fastify.prisma.memberDepositControl.create({
+        data: {
+          scope: 'AGENT_LINE',
+          memberId: null,
+          memberUsername: null,
+          targetAgentId: agent.id,
+          targetAgentUsername: agent.username,
+          agentId: agent.id,
+          depositAmount: new Prisma.Decimal(body.depositAmount ?? 0),
+          targetProfit: new Prisma.Decimal(body.targetProfit ?? 0),
+          startBalance: new Prisma.Decimal(body.startBalance ?? 0),
+          controlWinRate,
+          winFreezeThreshold,
+          lifecycleSteps: lifecycleSteps
+            ? (lifecycleSteps as unknown as Prisma.InputJsonValue)
+            : undefined,
+          notes: body.notes ?? null,
+          operatorUsername: req.admin.username,
+          controlZoneRootAgentId: access.zoneRootAgentId,
         },
       });
-      const stateMemberIds = items.flatMap((item) =>
-        item.lifecycleStates.map((state) => state.memberId),
-      );
-      const members = await fastify.prisma.user.findMany({
-        where: {
-          id: {
-            in: Array.from(
-              new Set([
-                ...items.map((item) => item.memberId).filter((id): id is string => Boolean(id)),
-                ...stateMemberIds,
-              ]),
-            ),
-          },
+    } else {
+      const member = await requireAccessibleControlMember(fastify.prisma, access, body.memberId);
+      const startBalance = new Prisma.Decimal(body.startBalance ?? member.balance);
+      created = await fastify.prisma.memberDepositControl.create({
+        data: {
+          scope: 'MEMBER',
+          memberId: member.id,
+          memberUsername: member.username,
+          targetAgentId: null,
+          targetAgentUsername: null,
+          agentId: member.agentId,
+          depositAmount: new Prisma.Decimal(body.depositAmount ?? startBalance),
+          targetProfit: new Prisma.Decimal(body.targetProfit ?? 0),
+          startBalance,
+          controlWinRate,
+          winFreezeThreshold,
+          lifecycleSteps: lifecycleSteps
+            ? (lifecycleSteps as unknown as Prisma.InputJsonValue)
+            : undefined,
+          notes: body.notes ?? null,
+          operatorUsername: req.admin.username,
+          controlZoneRootAgentId: access.zoneRootAgentId,
+          lifecycleStates: lifecycleSteps
+            ? {
+                create: {
+                  memberId: member.id,
+                  memberUsername: member.username,
+                  startBalance,
+                  currentStageIndex: 0,
+                  lastBalance: member.balance,
+                },
+              }
+            : undefined,
         },
-        select: { id: true, balance: true },
       });
-      const balanceByMemberId = new Map(members.map((member) => [member.id, member.balance]));
-      return {
-        items: items.map((item) => {
-          const steps = parseLifecycleSteps(item.lifecycleSteps);
-          const primaryState =
-            item.scope === 'MEMBER'
-              ? (item.lifecycleStates.find((state) => state.memberId === item.memberId) ??
-                item.lifecycleStates[0])
-              : item.lifecycleStates[0];
-          const currentBalance =
-            (primaryState
-              ? balanceByMemberId.get(primaryState.memberId)
-              : item.memberId
-                ? balanceByMemberId.get(item.memberId)
-                : undefined) ?? item.startBalance;
-          const startBalance = primaryState?.startBalance ?? item.startBalance;
-          const currentProfit = currentBalance.sub(item.startBalance);
-          const progressPercent = item.targetProfit.greaterThan(0)
-            ? Math.max(0, Math.min(100, currentProfit.div(item.targetProfit).mul(100).toNumber()))
-            : 0;
-          const lifecycleState = primaryState
-            ? serializeDepositLifecycleState(primaryState, currentBalance, steps)
-            : null;
-          return {
-            id: item.id,
-            scope: item.scope,
-            memberId: item.memberId,
-            memberUsername: item.memberUsername,
-            targetAgentId: item.targetAgentId,
-            targetAgentUsername: item.targetAgentUsername,
-            depositAmount: item.depositAmount.toFixed(2),
-            targetProfit: item.targetProfit.toFixed(2),
-            targetBalance: item.startBalance.add(item.targetProfit).toFixed(2),
-            startBalance: startBalance.toFixed(2),
-            currentBalance: currentBalance.toFixed(2),
-            currentProfit: currentProfit.toFixed(2),
-            progressPercent: progressPercent.toFixed(2),
-            controlWinRate: item.controlWinRate.toFixed(4),
-            lifecycleSteps: steps,
-            lifecycleState,
-            lifecycleStateCount: item._count.lifecycleStates,
-            lifecycleStates: item.lifecycleStates.map((state) =>
-              serializeDepositLifecycleState(state, balanceByMemberId.get(state.memberId), steps),
-            ),
-            isTargetReached: currentProfit.greaterThanOrEqualTo(item.targetProfit),
-            isActive: item.isActive,
-            isCompleted: item.isCompleted,
-            notes: item.notes,
-            operatorUsername: item.operatorUsername,
-            createdAt: item.createdAt,
-          };
-        }),
-      };
-    },
-  );
+    }
+    await writeAudit(fastify.prisma, {
+      actor: auditActor(req),
+      action: 'control.deposit.create',
+      targetType: 'control',
+      targetId: created.id,
+      newValues: body,
+      req,
+    });
+    reply.code(201).send(created);
+  });
 
-  fastify.post(
-    '/deposit',
-    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
-    async (req, reply) => {
-      const body = depositControlSchema.parse(req.body);
-      const lifecycleSteps = normalizeLifecycleSteps(body.lifecycleSteps);
-      const controlWinRate = new Prisma.Decimal(body.controlWinRate);
+  fastify.patch('/deposit/:id/toggle', async (req) => {
+    const { id } = req.params as { id: string };
+    const { isActive } = toggleSchema.parse(req.body);
+    await requireOwnedDepositControl(req.admin, id);
+    const updated = await fastify.prisma.memberDepositControl.update({
+      where: { id },
+      data: { isActive },
+    });
+    await writeAudit(fastify.prisma, {
+      actor: auditActor(req),
+      action: 'control.deposit.toggle',
+      targetType: 'control',
+      targetId: id,
+      newValues: { isActive },
+      req,
+    });
+    return updated;
+  });
 
-      let created: Awaited<ReturnType<typeof fastify.prisma.memberDepositControl.create>>;
-      if (body.scope === 'AGENT_LINE') {
-        const agent = await fastify.prisma.agent.findUnique({
-          where: { id: body.targetAgentId ?? '' },
-          select: { id: true, username: true, status: true },
-        });
-        if (!agent || agent.status === 'DELETED') {
-          reply.code(404).send({ code: 'AGENT_NOT_FOUND', message: 'Agent not found' });
-          return;
-        }
-        created = await fastify.prisma.memberDepositControl.create({
-          data: {
-            scope: 'AGENT_LINE',
-            memberId: null,
-            memberUsername: null,
-            targetAgentId: agent.id,
-            targetAgentUsername: agent.username,
-            agentId: agent.id,
-            depositAmount: new Prisma.Decimal(body.depositAmount ?? 0),
-            targetProfit: new Prisma.Decimal(body.targetProfit ?? 0),
-            startBalance: new Prisma.Decimal(body.startBalance ?? 0),
-            controlWinRate,
-            lifecycleSteps: lifecycleSteps
-              ? (lifecycleSteps as unknown as Prisma.InputJsonValue)
-              : undefined,
-            notes: body.notes ?? null,
-            operatorUsername: req.admin.username,
-          },
-        });
-      } else {
-        const member = await fastify.prisma.user.findUnique({
-          where: { id: body.memberId ?? '' },
-          select: {
-            id: true,
-            username: true,
-            role: true,
-            disabledAt: true,
-            agentId: true,
-            balance: true,
-          },
-        });
-        if (!member || member.role !== 'PLAYER' || member.disabledAt || !member.agentId) {
-          reply.code(400).send({ code: 'INVALID_ACTION', message: 'Member has no agent' });
-          return;
-        }
-        const startBalance = new Prisma.Decimal(body.startBalance ?? member.balance);
-        created = await fastify.prisma.memberDepositControl.create({
-          data: {
-            scope: 'MEMBER',
-            memberId: member.id,
-            memberUsername: member.username,
-            targetAgentId: null,
-            targetAgentUsername: null,
-            agentId: member.agentId,
-            depositAmount: new Prisma.Decimal(body.depositAmount ?? startBalance),
-            targetProfit: new Prisma.Decimal(body.targetProfit ?? 0),
-            startBalance,
-            controlWinRate,
-            lifecycleSteps: lifecycleSteps
-              ? (lifecycleSteps as unknown as Prisma.InputJsonValue)
-              : undefined,
-            notes: body.notes ?? null,
-            operatorUsername: req.admin.username,
-            lifecycleStates: lifecycleSteps
-              ? {
-                  create: {
-                    memberId: member.id,
-                    memberUsername: member.username,
-                    startBalance,
-                    currentStageIndex: 0,
-                    lastBalance: member.balance,
-                  },
-                }
-              : undefined,
-          },
-        });
-      }
-      await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-        action: 'control.deposit.create',
-        targetType: 'control',
-        targetId: created.id,
-        newValues: body,
-        req,
-      });
-      reply.code(201).send(created);
-    },
-  );
-
-  fastify.patch(
-    '/deposit/:id/toggle',
-    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
-    async (req) => {
-      const { id } = req.params as { id: string };
-      const { isActive } = toggleSchema.parse(req.body);
-      const updated = await fastify.prisma.memberDepositControl.update({
-        where: { id },
-        data: { isActive },
-      });
-      await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-        action: 'control.deposit.toggle',
-        targetType: 'control',
-        targetId: id,
-        newValues: { isActive },
-        req,
-      });
-      return updated;
-    },
-  );
-
-  fastify.delete(
-    '/deposit/:id',
-    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
-    async (req, reply) => {
-      const { id } = req.params as { id: string };
-      await fastify.prisma.memberDepositControl.delete({ where: { id } });
-      await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-        action: 'control.deposit.delete',
-        targetType: 'control',
-        targetId: id,
-        req,
-      });
-      reply.code(204).send();
-    },
-  );
+  fastify.delete('/deposit/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    await requireOwnedDepositControl(req.admin, id);
+    await fastify.prisma.memberDepositControl.delete({ where: { id } });
+    await writeAudit(fastify.prisma, {
+      actor: auditActor(req),
+      action: 'control.deposit.delete',
+      targetType: 'control',
+      targetId: id,
+      req,
+    });
+    reply.code(204).send();
+  });
 
   fastify.get(
     '/agent-line',
@@ -1649,29 +1646,29 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  fastify.get(
-    '/manual-detection/status',
-    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
-    async () => {
-      await checkAndCompleteManualDetectionControls(fastify.prisma);
-      const items = await getAllActiveManualDetectionControls(fastify.prisma);
-      const serialized = await Promise.all(
-        items.map((item) => serializeManualControl(fastify, item)),
-      );
-      return {
-        items: serialized,
-        activeControls: serialized,
-        isActive: serialized.length > 0,
-        totalActive: serialized.length,
-      };
-    },
-  );
+  fastify.get('/manual-detection/status', async (req) => {
+    await checkAndCompleteManualDetectionControls(fastify.prisma);
+    const items = await getAllActiveManualDetectionControls(
+      fastify.prisma,
+      controlZoneRootAgentId(req.admin),
+    );
+    const serialized = await Promise.all(
+      items.map((item) => serializeManualControl(fastify, item)),
+    );
+    return {
+      items: serialized,
+      activeControls: serialized,
+      isActive: serialized.length > 0,
+      totalActive: serialized.length,
+    };
+  });
 
   fastify.get(
     '/manual-detection/history',
     { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
     async () => {
       const items = await fastify.prisma.manualDetectionControl.findMany({
+        where: { controlZoneRootAgentId: null },
         orderBy: { createdAt: 'desc' },
         take: 50,
       });
@@ -1713,294 +1710,306 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  fastify.post(
-    '/manual-detection/activate',
-    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
-    async (req, reply) => {
-      const body = manualDetectionControlSchema.parse(req.body);
+  fastify.post('/manual-detection/activate', async (req, reply) => {
+    const body = manualDetectionControlSchema.parse(req.body);
+    const access = requireControlAccessContext(req.admin);
+    if (access.role === 'delegated' && body.controlMode !== MANUAL_LIFECYCLE_PATH_MODE) {
+      throw new ApiError('FORBIDDEN', 'Delegated control zones can only create path controls');
+    }
+    if (access.role === 'delegated' && body.scope === 'ALL') {
+      throw new ApiError('FORBIDDEN', 'Delegated control zones must target their own agent line');
+    }
 
-      let targetAgentId = body.targetAgentId ?? null;
-      let targetAgentUsername = body.targetAgentUsername ?? null;
-      let targetMemberId = body.targetMemberId ?? null;
-      let targetMemberUsername = body.targetMemberUsername ?? null;
+    let targetAgentId = body.targetAgentId ?? null;
+    let targetAgentUsername = body.targetAgentUsername ?? null;
+    let targetMemberId = body.targetMemberId ?? null;
+    let targetMemberUsername = body.targetMemberUsername ?? null;
 
-      if (body.scope === 'AGENT_LINE') {
-        const agent = await fastify.prisma.agent.findUnique({
-          where: { id: targetAgentId ?? undefined },
-          select: { id: true, username: true },
-        });
-        if (!agent) {
-          reply.code(404).send({ code: 'AGENT_NOT_FOUND', message: 'Agent not found' });
-          return;
-        }
-        targetAgentId = agent.id;
-        targetAgentUsername = agent.username;
-      }
+    if (body.scope === 'AGENT_LINE') {
+      const agent = await requireAccessibleControlAgent(fastify.prisma, access, targetAgentId);
+      targetAgentId = agent.id;
+      targetAgentUsername = agent.username;
+    }
 
-      if (body.scope === 'MEMBER') {
-        const member = targetMemberId
-          ? await fastify.prisma.user.findUnique({
-              where: { id: targetMemberId },
-              select: { id: true, username: true },
-            })
-          : await fastify.prisma.user.findUnique({
-              where: { username: targetMemberUsername ?? undefined },
-              select: { id: true, username: true },
-            });
-        if (!member) {
-          reply.code(404).send({ code: 'MEMBER_NOT_FOUND', message: 'Member not found' });
-          return;
-        }
-        targetMemberId = member.id;
-        targetMemberUsername = member.username;
-      }
+    if (body.scope === 'MEMBER') {
+      const resolvedMemberId =
+        targetMemberId ??
+        (
+          await fastify.prisma.user.findUnique({
+            where: { username: targetMemberUsername ?? undefined },
+            select: { id: true },
+          })
+        )?.id;
+      const member = await requireAccessibleControlMember(fastify.prisma, access, resolvedMemberId);
+      targetMemberId = member.id;
+      targetMemberUsername = member.username;
+    }
 
-      const settlement = await calculateCurrentSettlement(
-        fastify.prisma,
-        body.scope as ManualDetectionScope,
-        targetAgentId,
-        targetMemberUsername,
-      );
-      const isLifecyclePath = body.controlMode === MANUAL_LIFECYCLE_PATH_MODE;
-      const lifecycleTemplateKeys = isLifecyclePath
-        ? normalizeAutoBalanceTemplateKeys(body.lifecycleTemplateKeys)
-        : [];
-      const lifecycleSteps = isLifecyclePath
-        ? normalizeCustomLifecycleSteps(body.lifecycleSteps)
-        : [];
-      if (isLifecyclePath && lifecycleTemplateKeys.length === 0 && lifecycleSteps.length === 0) {
-        reply.code(400).send({
-          code: 'INVALID_LIFECYCLE_TEMPLATES',
-          message: 'Lifecycle path control requires a valid preset or generated path',
-        });
-        return;
-      }
-
-      const bitePlan =
-        !isLifecyclePath && body.bitePercentage
-          ? await calculateAutoDetectionBitePlan(fastify.prisma, {
-              scope: body.scope as ManualDetectionScope,
-              targetAgentId,
-              targetMemberUsername,
-              bitePercentage: body.bitePercentage,
-              houseTakePercentage: body.houseTakePercentage,
-              currentSettlement: settlement.superiorSettlement,
-            })
-          : null;
-
-      const existing = await fastify.prisma.manualDetectionControl.findFirst({
-        where:
-          body.scope === 'ALL'
-            ? { scope: 'ALL', isActive: true }
-            : body.scope === 'AGENT_LINE'
-              ? { scope: 'AGENT_LINE', targetAgentId, isActive: true }
-              : { scope: 'MEMBER', targetMemberUsername, isActive: true },
-        orderBy: { createdAt: 'desc' },
+    const settlement = await calculateCurrentSettlement(
+      fastify.prisma,
+      body.scope as ManualDetectionScope,
+      targetAgentId,
+      targetMemberUsername,
+    );
+    const isLifecyclePath = body.controlMode === MANUAL_LIFECYCLE_PATH_MODE;
+    const lifecycleTemplateKeys = isLifecyclePath
+      ? normalizeAutoBalanceTemplateKeys(body.lifecycleTemplateKeys)
+      : [];
+    const lifecycleSteps = isLifecyclePath
+      ? normalizeCustomLifecycleSteps(body.lifecycleSteps)
+      : [];
+    if (isLifecyclePath && lifecycleTemplateKeys.length === 0 && lifecycleSteps.length === 0) {
+      reply.code(400).send({
+        code: 'INVALID_LIFECYCLE_TEMPLATES',
+        message: 'Lifecycle path control requires a valid preset or generated path',
       });
+      return;
+    }
 
-      const targetSettlement = isLifecyclePath
-        ? ZERO
-        : (bitePlan?.targetSettlement ?? decimal(body.targetSettlement)).toDecimalPlaces(2);
-      const completionBehavior = isLifecyclePath
-        ? 'stop_on_target'
-        : normalizeManualDetectionCompletionBehavior(
-            body.scope as ManualDetectionScope,
-            body.bitePercentage,
-            body.completionBehavior,
-          );
-      const targetBand = isLifecyclePath
-        ? ZERO
-        : calculateDefaultManualTargetBand(
-            body.scope as ManualDetectionScope,
-            targetSettlement,
-            completionBehavior,
-          );
-      const lineFreezeThreshold = isLifecyclePath
-        ? decimal(body.lineFreezeThreshold).toDecimalPlaces(2)
+    const bitePlan =
+      !isLifecyclePath && body.bitePercentage
+        ? await calculateAutoDetectionBitePlan(fastify.prisma, {
+            scope: body.scope as ManualDetectionScope,
+            targetAgentId,
+            targetMemberUsername,
+            bitePercentage: body.bitePercentage,
+            houseTakePercentage: body.houseTakePercentage,
+            currentSettlement: settlement.superiorSettlement,
+          })
         : null;
 
-      const data = {
-        scope: body.scope as ManualDetectionScope,
-        targetAgentId,
-        targetAgentUsername,
-        targetMemberId,
-        targetMemberUsername,
-        controlMode: isLifecyclePath ? MANUAL_LIFECYCLE_PATH_MODE : 'settlement',
-        lifecycleTemplateKeys: isLifecyclePath
-          ? (lifecycleTemplateKeys as unknown as Prisma.InputJsonValue)
+    const existing = await fastify.prisma.manualDetectionControl.findFirst({
+      where:
+        body.scope === 'ALL'
+          ? { scope: 'ALL', isActive: true, controlZoneRootAgentId: access.zoneRootAgentId }
+          : body.scope === 'AGENT_LINE'
+            ? {
+                scope: 'AGENT_LINE',
+                targetAgentId,
+                isActive: true,
+                controlZoneRootAgentId: access.zoneRootAgentId,
+              }
+            : {
+                scope: 'MEMBER',
+                targetMemberUsername,
+                isActive: true,
+                controlZoneRootAgentId: access.zoneRootAgentId,
+              },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const targetSettlement = isLifecyclePath
+      ? ZERO
+      : (bitePlan?.targetSettlement ?? decimal(body.targetSettlement)).toDecimalPlaces(2);
+    const completionBehavior = isLifecyclePath
+      ? 'stop_on_target'
+      : normalizeManualDetectionCompletionBehavior(
+          body.scope as ManualDetectionScope,
+          body.bitePercentage,
+          body.completionBehavior,
+        );
+    const targetBand = isLifecyclePath
+      ? ZERO
+      : calculateDefaultManualTargetBand(
+          body.scope as ManualDetectionScope,
+          targetSettlement,
+          completionBehavior,
+        );
+    const lineFreezeThreshold = isLifecyclePath
+      ? decimal(body.lineFreezeThreshold).toDecimalPlaces(2)
+      : null;
+
+    const data = {
+      scope: body.scope as ManualDetectionScope,
+      targetAgentId,
+      targetAgentUsername,
+      targetMemberId,
+      targetMemberUsername,
+      controlMode: isLifecyclePath ? MANUAL_LIFECYCLE_PATH_MODE : 'settlement',
+      lifecycleTemplateKeys: isLifecyclePath
+        ? (lifecycleTemplateKeys as unknown as Prisma.InputJsonValue)
+        : Prisma.DbNull,
+      lifecycleSteps:
+        isLifecyclePath && lifecycleSteps.length > 0
+          ? (lifecycleSteps as unknown as Prisma.InputJsonValue)
           : Prisma.DbNull,
-        lifecycleSteps:
-          isLifecyclePath && lifecycleSteps.length > 0
-            ? (lifecycleSteps as unknown as Prisma.InputJsonValue)
-            : Prisma.DbNull,
-        lineFreezeThreshold,
-        targetSettlement,
-        controlPercentage: body.controlPercentage,
-        bitePercentage:
-          !isLifecyclePath && body.bitePercentage
-            ? decimal(body.bitePercentage).toDecimalPlaces(2)
-            : null,
-        houseTakePercentage: isLifecyclePath
-          ? ZERO
-          : decimal(body.houseTakePercentage).toDecimalPlaces(2),
-        completionBehavior,
-        targetBand,
-        cycleCount: 0,
-        lastCycleSettlement: null,
-        lastCycleAt: null,
-        lastCapitalAmount: bitePlan?.capitalAmount.toDecimalPlaces(2) ?? null,
-        lastPlatformTake: bitePlan?.platformTake.toDecimalPlaces(2) ?? null,
-        lastRedistributionAmount: bitePlan?.redistributionAmount.toDecimalPlaces(2) ?? null,
-        startSettlement: settlement.superiorSettlement.toDecimalPlaces(2),
+      lineFreezeThreshold,
+      targetSettlement,
+      controlPercentage: body.controlPercentage,
+      bitePercentage:
+        !isLifecyclePath && body.bitePercentage
+          ? decimal(body.bitePercentage).toDecimalPlaces(2)
+          : null,
+      houseTakePercentage: isLifecyclePath
+        ? ZERO
+        : decimal(body.houseTakePercentage).toDecimalPlaces(2),
+      completionBehavior,
+      targetBand,
+      cycleCount: 0,
+      lastCycleSettlement: null,
+      lastCycleAt: null,
+      lastCapitalAmount: bitePlan?.capitalAmount.toDecimalPlaces(2) ?? null,
+      lastPlatformTake: bitePlan?.platformTake.toDecimalPlaces(2) ?? null,
+      lastRedistributionAmount: bitePlan?.redistributionAmount.toDecimalPlaces(2) ?? null,
+      startSettlement: settlement.superiorSettlement.toDecimalPlaces(2),
+      isActive: true,
+      isCompleted: false,
+      completedAt: null,
+      completionSettlement: null,
+      operatorId: req.admin.id,
+      operatorUsername: req.admin.username,
+      controlZoneRootAgentId: access.zoneRootAgentId,
+    };
+
+    const record = existing
+      ? await fastify.prisma.manualDetectionControl.update({
+          where: { id: existing.id },
+          data,
+        })
+      : await fastify.prisma.manualDetectionControl.create({ data });
+
+    if (isLifecyclePath && body.scope !== 'ALL') {
+      const memberControlWhere =
+        body.scope === 'MEMBER'
+          ? { memberId: targetMemberId ?? undefined }
+          : targetAgentId
+            ? { agentId: { in: await listAgentDescendants(fastify.prisma, targetAgentId) } }
+            : {};
+      await fastify.prisma.memberAutoBalanceControl.updateMany({
+        where: { ...memberControlWhere, isActive: true },
+        data: { isActive: false, resetReason: `manual_path_updated:${record.id}` },
+      });
+    }
+
+    await writeAudit(fastify.prisma, {
+      actor: auditActor(req),
+      action: existing ? 'control.manual_detection.update' : 'control.manual_detection.create',
+      targetType: 'control',
+      targetId: record.id,
+      newValues: {
+        scope: record.scope,
+        targetAgentId: record.targetAgentId,
+        targetMemberUsername: record.targetMemberUsername,
+        controlMode: record.controlMode,
+        lifecycleTemplateKeys,
+        lifecycleSteps,
+        lineFreezeThreshold: record.lineFreezeThreshold?.toFixed(2) ?? null,
+        targetSettlement: record.targetSettlement.toFixed(2),
+        controlPercentage: record.controlPercentage,
+        bitePercentage: record.bitePercentage?.toFixed(2) ?? null,
+        houseTakePercentage: record.houseTakePercentage.toFixed(2),
+        completionBehavior: record.completionBehavior,
+        targetBand: record.targetBand.toFixed(2),
+        startSettlement: record.startSettlement?.toFixed(2) ?? null,
+      },
+      req,
+    });
+
+    reply.code(existing ? 200 : 201).send(await serializeManualControl(fastify, record));
+  });
+
+  fastify.post('/manual-detection/deactivate', async (req) => {
+    const { id } = deactivateManualDetectionSchema.parse(req.body);
+    if (id) {
+      await requireOwnedManualControl(req.admin, id);
+      const updated = await fastify.prisma.manualDetectionControl.update({
+        where: { id },
+        data: { isActive: false },
+      });
+      await writeAudit(fastify.prisma, {
+        actor: auditActor(req),
+        action: 'control.manual_detection.deactivate',
+        targetType: 'control',
+        targetId: id,
+        req,
+      });
+      return updated;
+    }
+
+    await fastify.prisma.manualDetectionControl.updateMany({
+      where: {
+        isActive: true,
+        controlZoneRootAgentId: controlZoneRootAgentId(req.admin),
+      },
+      data: { isActive: false },
+    });
+    await writeAudit(fastify.prisma, {
+      actor: auditActor(req),
+      action: 'control.manual_detection.deactivate_all',
+      targetType: 'control',
+      req,
+    });
+    return { success: true };
+  });
+
+  fastify.post('/manual-detection/:id/reactivate', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const record = await requireOwnedManualControl(req.admin, id);
+
+    const conflict = await fastify.prisma.manualDetectionControl.findFirst({
+      where:
+        record.scope === 'ALL'
+          ? {
+              id: { not: id },
+              scope: 'ALL',
+              isActive: true,
+              controlZoneRootAgentId: record.controlZoneRootAgentId,
+            }
+          : record.scope === 'AGENT_LINE'
+            ? {
+                id: { not: id },
+                scope: 'AGENT_LINE',
+                targetAgentId: record.targetAgentId,
+                isActive: true,
+                controlZoneRootAgentId: record.controlZoneRootAgentId,
+              }
+            : {
+                id: { not: id },
+                scope: 'MEMBER',
+                targetMemberUsername: record.targetMemberUsername,
+                isActive: true,
+                controlZoneRootAgentId: record.controlZoneRootAgentId,
+              },
+    });
+    if (conflict) {
+      reply
+        .code(400)
+        .send({ code: 'CONTROL_CONFLICT', message: 'Same-scope control is already active' });
+      return;
+    }
+
+    const updated = await fastify.prisma.manualDetectionControl.update({
+      where: { id },
+      data: {
         isActive: true,
         isCompleted: false,
         completedAt: null,
         completionSettlement: null,
-        operatorId: req.admin.id,
-        operatorUsername: req.admin.username,
-      };
+      },
+    });
+    await writeAudit(fastify.prisma, {
+      actor: auditActor(req),
+      action: 'control.manual_detection.reactivate',
+      targetType: 'control',
+      targetId: id,
+      req,
+    });
+    return serializeManualControl(fastify, updated);
+  });
 
-      const record = existing
-        ? await fastify.prisma.manualDetectionControl.update({
-            where: { id: existing.id },
-            data,
-          })
-        : await fastify.prisma.manualDetectionControl.create({ data });
-
-      await writeAudit(fastify.prisma, {
-        actor: auditActor(req),
-        action: existing ? 'control.manual_detection.update' : 'control.manual_detection.create',
-        targetType: 'control',
-        targetId: record.id,
-        newValues: {
-          scope: record.scope,
-          targetAgentId: record.targetAgentId,
-          targetMemberUsername: record.targetMemberUsername,
-          controlMode: record.controlMode,
-          lifecycleTemplateKeys,
-          lifecycleSteps,
-          lineFreezeThreshold: record.lineFreezeThreshold?.toFixed(2) ?? null,
-          targetSettlement: record.targetSettlement.toFixed(2),
-          controlPercentage: record.controlPercentage,
-          bitePercentage: record.bitePercentage?.toFixed(2) ?? null,
-          houseTakePercentage: record.houseTakePercentage.toFixed(2),
-          completionBehavior: record.completionBehavior,
-          targetBand: record.targetBand.toFixed(2),
-          startSettlement: record.startSettlement?.toFixed(2) ?? null,
-        },
-        req,
-      });
-
-      reply.code(existing ? 200 : 201).send(await serializeManualControl(fastify, record));
-    },
-  );
-
-  fastify.post(
-    '/manual-detection/deactivate',
-    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
-    async (req) => {
-      const { id } = deactivateManualDetectionSchema.parse(req.body);
-      if (id) {
-        const updated = await fastify.prisma.manualDetectionControl.update({
-          where: { id },
-          data: { isActive: false },
-        });
-        await writeAudit(fastify.prisma, {
-          actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-          action: 'control.manual_detection.deactivate',
-          targetType: 'control',
-          targetId: id,
-          req,
-        });
-        return updated;
-      }
-
-      await fastify.prisma.manualDetectionControl.updateMany({
-        where: { isActive: true },
-        data: { isActive: false },
-      });
-      await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-        action: 'control.manual_detection.deactivate_all',
-        targetType: 'control',
-        req,
-      });
-      return { success: true };
-    },
-  );
-
-  fastify.post(
-    '/manual-detection/:id/reactivate',
-    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
-    async (req, reply) => {
-      const { id } = req.params as { id: string };
-      const record = await fastify.prisma.manualDetectionControl.findUnique({ where: { id } });
-      if (!record) {
-        reply.code(404).send({ code: 'CONTROL_NOT_FOUND', message: 'Control not found' });
-        return;
-      }
-
-      const conflict = await fastify.prisma.manualDetectionControl.findFirst({
-        where:
-          record.scope === 'ALL'
-            ? { id: { not: id }, scope: 'ALL', isActive: true }
-            : record.scope === 'AGENT_LINE'
-              ? {
-                  id: { not: id },
-                  scope: 'AGENT_LINE',
-                  targetAgentId: record.targetAgentId,
-                  isActive: true,
-                }
-              : {
-                  id: { not: id },
-                  scope: 'MEMBER',
-                  targetMemberUsername: record.targetMemberUsername,
-                  isActive: true,
-                },
-      });
-      if (conflict) {
-        reply
-          .code(400)
-          .send({ code: 'CONTROL_CONFLICT', message: 'Same-scope control is already active' });
-        return;
-      }
-
-      const updated = await fastify.prisma.manualDetectionControl.update({
-        where: { id },
-        data: {
-          isActive: true,
-          isCompleted: false,
-          completedAt: null,
-          completionSettlement: null,
-        },
-      });
-      await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-        action: 'control.manual_detection.reactivate',
-        targetType: 'control',
-        targetId: id,
-        req,
-      });
-      return serializeManualControl(fastify, updated);
-    },
-  );
-
-  fastify.delete(
-    '/manual-detection/:id',
-    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
-    async (req, reply) => {
-      const { id } = req.params as { id: string };
-      await fastify.prisma.manualDetectionControl.delete({ where: { id } });
-      await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-        action: 'control.manual_detection.delete',
-        targetType: 'control',
-        targetId: id,
-        req,
-      });
-      reply.code(204).send();
-    },
-  );
+  fastify.delete('/manual-detection/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    await requireOwnedManualControl(req.admin, id);
+    await fastify.prisma.manualDetectionControl.delete({ where: { id } });
+    await writeAudit(fastify.prisma, {
+      actor: auditActor(req),
+      action: 'control.manual_detection.delete',
+      targetType: 'control',
+      targetId: id,
+      req,
+    });
+    reply.code(204).send();
+  });
 
   fastify.post(
     '/reward/online',

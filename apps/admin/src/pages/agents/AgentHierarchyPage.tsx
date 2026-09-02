@@ -142,8 +142,8 @@ export function AgentHierarchyPage(): JSX.Element {
     if (me?.role !== 'SUPER_ADMIN') return;
     const action = currentlyGranted ? 'revoke' : 'grant';
     const warning = currentlyGranted
-      ? `確定收回 ${username} 的線路輸贏控制權？該線所有啟用中的輸贏控制會立即停用，該帳號也會登出。`
-      : `確定將 ${username} 設為這條線唯一的輸贏控制者？只有這個代理主帳號可以看見及操作該線控制，下級代理與子帳號都不會取得權限。`;
+      ? `確定收回 ${username} 的路徑控制權？該線所有啟用中的本金路徑、入金控制與輸贏控制會立即停用，該帳號也會登出。`
+      : `確定將 ${username} 設為這條線唯一的路徑控制者？只有這個代理主帳號可以看見及操作本金路徑與入金控制，下級代理與子帳號都不會取得權限。`;
     if (!window.confirm(warning)) return;
     setControlZoneBusyId(id);
     setError(null);
@@ -374,7 +374,7 @@ export function AgentHierarchyPage(): JSX.Element {
                     <span className="tag tag-ember">例外線・不計交收</span>
                   )}
                   {row.kind === 'agent' && row.canManageControlZone && (
-                    <span className="tag tag-gold">線路輸贏控制者</span>
+                    <span className="tag tag-gold">線路路徑控制者</span>
                   )}
                   {row.kind === 'agent' && (
                     <span aria-hidden="true" className="ml-auto text-base text-[#186073]">
@@ -521,7 +521,7 @@ export function AgentHierarchyPage(): JSX.Element {
                             ? '處理中…'
                             : row.canManageControlZone
                               ? '收回控制'
-                              : '下放控制'}
+                              : '下放路徑控制'}
                         </button>
                       )}
                       <button
