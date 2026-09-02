@@ -30,6 +30,7 @@ export const zhHans = {
     more: '更多',
     empty: '暂无数据',
     logoutBtn: '登出',
+    logoutAndSwitch: '登出／切换账号',
     language: '语言',
   },
   auth: {

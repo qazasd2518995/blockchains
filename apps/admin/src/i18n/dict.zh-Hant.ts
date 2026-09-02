@@ -230,6 +230,7 @@ const SIMPLIFIED_TO_TRADITIONAL: Record<string, string> = {
   上级: '上級',
   会员: '會員',
   账号: '帳號',
+  切换账号: '切換帳號',
   子账号: '子帳號',
   点数: '點數',
   转账: '轉帳',

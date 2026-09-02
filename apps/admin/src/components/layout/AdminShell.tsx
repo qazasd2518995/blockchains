@@ -82,14 +82,17 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
     };
   }, [menuOpen]);
 
-  const handleLogout = async () => {
-    try {
-      if (refreshToken) await adminApi.post('/auth/logout', { refreshToken });
-    } catch (err) {
-      console.error(extractApiError(err));
-    }
+  const handleLogout = () => {
+    const sessionRefreshToken = refreshToken;
+    setMenuOpen(false);
     logout();
     navigate('/admin/login', { replace: true });
+
+    if (sessionRefreshToken) {
+      void adminApi
+        .post('/auth/logout', { refreshToken: sessionRefreshToken })
+        .catch((err) => console.error(extractApiError(err)));
+    }
   };
 
   const openProfile = () => {
@@ -104,7 +107,9 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
   return (
     <div className="admin-shell relative min-h-[100svh] overflow-x-hidden bg-[#E9ECEF]">
       <div className="pointer-events-none fixed inset-0">
-        {isQmoneyAdmin && <div className="absolute inset-0 bg-[radial-gradient(circle_at_86%_8%,rgba(255,191,229,0.56),transparent_24%),linear-gradient(180deg,#f8f2ff_0%,#efe9ff_42%,#fff5fb_100%)]" />}
+        {isQmoneyAdmin && (
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_86%_8%,rgba(255,191,229,0.56),transparent_24%),linear-gradient(180deg,#f8f2ff_0%,#efe9ff_42%,#fff5fb_100%)]" />
+        )}
         <img
           src={adminBrand.shellArtworkAsset}
           alt=""
@@ -115,7 +120,13 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
               : 'h-full w-full object-cover object-[72%_center] opacity-[0.12]'
           }
         />
-        <div className={isQmoneyAdmin ? 'absolute inset-0 bg-[linear-gradient(180deg,rgba(248,242,255,0.72)_0%,rgba(246,241,255,0.9)_34%,rgba(255,249,252,0.96)_100%)]' : 'absolute inset-0 bg-[linear-gradient(180deg,rgba(233,236,239,0.72)_0%,rgba(233,236,239,0.9)_34%,rgba(233,236,239,0.96)_100%)]'} />
+        <div
+          className={
+            isQmoneyAdmin
+              ? 'absolute inset-0 bg-[linear-gradient(180deg,rgba(248,242,255,0.72)_0%,rgba(246,241,255,0.9)_34%,rgba(255,249,252,0.96)_100%)]'
+              : 'absolute inset-0 bg-[linear-gradient(180deg,rgba(233,236,239,0.72)_0%,rgba(233,236,239,0.9)_34%,rgba(233,236,239,0.96)_100%)]'
+          }
+        />
       </div>
 
       {/* Top strip — felt dark with brass */}
@@ -141,7 +152,11 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
         <div className="admin-brand-row flex w-full flex-wrap items-center justify-between gap-3 border-t border-[#186073]/30 px-3 py-3 sm:px-6 sm:py-4">
           <Link to="/admin/dashboard" className="flex min-w-0 items-center gap-3">
             <span className="admin-brand-logo flex h-10 w-10 items-center justify-center overflow-hidden rounded-[8px] border border-[#F59E0B]/35 bg-[#130C07]/72 shadow-[0_10px_24px_rgba(245,158,11,0.18)]">
-              <img src={adminBrand.emblemAsset} alt="" className="h-9 w-9 rounded-[7px] object-cover" />
+              <img
+                src={adminBrand.emblemAsset}
+                alt=""
+                className="h-9 w-9 rounded-[7px] object-cover"
+              />
             </span>
             <div className="hidden sm:block">
               <div className="text-[18px] font-bold leading-none text-white">{t.shell.brand}</div>
@@ -222,7 +237,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
                   >
                     <span className="inline-flex items-center gap-2">
                       <LogOut className="h-4 w-4" aria-hidden="true" />
-                      {t.common.logoutBtn}
+                      {t.common.logoutAndSwitch}
                     </span>
                     <span className="text-[#FCA5A5]">→</span>
                   </button>
@@ -234,7 +249,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
       </div>
 
       <main className="admin-layout-main relative z-10 flex w-full flex-col gap-4 px-3 py-4 sm:px-6 lg:flex-row lg:gap-6 lg:px-8 lg:py-8 xl:px-10">
-        <Sidebar onLogout={() => void handleLogout()} />
+        <Sidebar onLogout={handleLogout} />
         <div className="min-w-0 flex-1">{children}</div>
       </main>
 

@@ -32,6 +32,7 @@ export const en = {
     more: 'More',
     empty: 'No data',
     logoutBtn: 'Log out',
+    logoutAndSwitch: 'Log out / Switch account',
     language: 'Language',
   },
   auth: {

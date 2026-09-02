@@ -165,7 +165,7 @@
       flex: 1 1 auto !important;
       flex-wrap: nowrap !important;
       gap: 0.45rem !important;
-      overflow: hidden;
+      overflow: visible !important;
     }
 
     .admin-shell .admin-brand-row .min-h-11 {
@@ -228,6 +228,11 @@
 
     .admin-shell .admin-nav-links a span:last-child {
       display: none;
+    }
+
+    .admin-shell .admin-nav-footer {
+      margin-top: 0.65rem !important;
+      padding-top: 0.65rem !important;
     }
 
     .admin-shell .admin-page-header {

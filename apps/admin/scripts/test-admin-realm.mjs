@@ -14,6 +14,7 @@ const [
   qmoneySeed,
   hierarchyPage,
   sidebar,
+  adminShell,
   globalStyles,
 ] = await Promise.all([
   read('render.yaml', repoRoot),
@@ -24,6 +25,7 @@ const [
   read('apps/server/prisma/seed-qmoney.ts', repoRoot),
   read('src/pages/agents/AgentHierarchyPage.tsx', appRoot),
   read('src/components/layout/Sidebar.tsx', appRoot),
+  read('src/components/layout/AdminShell.tsx', appRoot),
   read('src/styles/global.css', appRoot),
 ]);
 
@@ -84,11 +86,23 @@ assertContains(sidebar, [
   "{ to: '/admin/transfers', key: 'transfers' }",
   "{ to: '/admin/audit', key: 'audit' }",
   "{ to: '/admin/controls', key: 'controls', controlManagerOnly: true }",
+  'admin-nav-footer',
+  't.common.logoutAndSwitch',
+]);
+assertNotContains(sidebar, ['mt-auto hidden border-t']);
+assertContains(adminShell, [
+  'const sessionRefreshToken = refreshToken;',
+  'logout();',
+  "navigate('/admin/login', { replace: true });",
+  't.common.logoutAndSwitch',
+  '<Sidebar onLogout={handleLogout} />',
 ]);
 assertContains(globalStyles, [
   "html[data-admin-realm='qmoney'] .admin-page-header .btn-teal-outline",
   'grid-template-areas:',
   "'actions actions actions'",
+  'overflow: visible !important;',
+  '.admin-shell .admin-nav-footer',
 ]);
 
 console.log(

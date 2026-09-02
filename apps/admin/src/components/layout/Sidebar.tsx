@@ -60,19 +60,19 @@ export function Sidebar({ onLogout }: SidebarProps): JSX.Element {
           </NavLink>
         ))}
       </nav>
-      <div className="mt-auto hidden border-t border-[#E5E7EB] pt-3 lg:block">
+      <div className="admin-nav-footer mt-3 border-t border-[#E5E7EB] pt-3 lg:mt-auto">
         <button
           type="button"
           onClick={onLogout}
-          className="flex min-h-11 w-full items-center justify-between rounded-sm border border-[#D4574A]/35 bg-[#2A1215]/45 px-3 py-2 text-left text-[12px] font-bold text-[#FFC4B8] transition hover:bg-[#7F1D1D]/45 hover:text-white"
+          className="flex min-h-11 w-full touch-manipulation items-center justify-between rounded-sm border border-[#D4574A]/35 bg-[#2A1215]/45 px-3 py-2 text-left text-[12px] font-bold text-[#FFC4B8] transition hover:bg-[#7F1D1D]/45 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFC4B8]"
         >
           <span className="inline-flex items-center gap-2">
             <LogOut className="h-4 w-4" aria-hidden="true" />
-            {t.common.logoutBtn}
+            {t.common.logoutAndSwitch}
           </span>
           <span className="text-[#FCA5A5]">→</span>
         </button>
-        <div className="mt-3 text-center font-semibold text-[12px] text-[#DEBE66]">
+        <div className="mt-3 hidden text-center font-semibold text-[12px] text-[#DEBE66] lg:block">
           v0.1 · {t.shell.brandShort}
         </div>
       </div>
