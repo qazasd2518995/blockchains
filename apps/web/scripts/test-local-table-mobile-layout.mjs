@@ -19,6 +19,9 @@ for (const marker of [
   'stage.scrollBy({',
   'local-table-control-stack--active',
   'local-table-control-card',
+  'local-table-result-card__eyebrow',
+  'local-table-result-card__message',
+  'aria-live="polite"',
 ]) {
   assert.ok(page.includes(marker), `missing local-table mobile layout marker: ${marker}`);
 }
@@ -56,6 +59,26 @@ assert.match(
   styles,
   /qmoney-game-shell--table[\s\S]{0,220}blackjack-action-btn[\s\S]{0,120}min-height:\s*44px/,
   'Qmoney Blackjack actions must preserve a 44px mobile touch target',
+);
+assert.match(
+  styles,
+  /data-game-id='blackjack'[\s\S]{0,180}game-control-stack[\s\S]{0,180}max-height:\s*none\s*!important/,
+  'Qmoney Blackjack controls must size to their full content instead of clipping or scrolling',
+);
+assert.match(
+  styles,
+  /data-game-id='blackjack'[\s\S]{0,220}game-side-card:first-child[\s\S]{0,180}overflow:\s*hidden\s*!important/,
+  'Qmoney Blackjack control card must not expose an internal vertical scroller',
+);
+assert.match(
+  styles,
+  /local-table-result-card__message[\s\S]{0,100}color:\s*#172033/,
+  'local-table result copy must keep high contrast on the light result surface',
+);
+assert.match(
+  styles,
+  /local-table-result-card\s+\.local-table-profit--push[\s\S]{0,100}color:\s*#334155/,
+  'zero-value local-table results must remain legible on the light result surface',
 );
 assert.ok(
   blackjackPage.includes('blackjack-score-tile--${tone}'),

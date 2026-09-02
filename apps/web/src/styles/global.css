@@ -15671,6 +15671,44 @@
     -webkit-backdrop-filter: blur(5px) saturate(1.08) !important;
   }
 
+  /*
+   * Result cards use a light glass surface in both realms. Keep their copy on
+   * explicit semantic colors so utility text colors cannot turn them into a
+   * white-on-white panel when the shell theme changes.
+   */
+  .local-table-result-card__eyebrow {
+    color: #7c2d12;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.86);
+  }
+
+  .local-table-result-card__message {
+    color: #172033;
+    line-height: 1.35;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.78);
+    text-wrap: pretty;
+  }
+
+  .local-table-result-card__amount-label {
+    color: #475569;
+    font-weight: 800;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.78);
+  }
+
+  .local-table-result-card .local-table-profit--win {
+    color: #047857;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.82) !important;
+  }
+
+  .local-table-result-card .local-table-profit--loss {
+    color: #b42318;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+  }
+
+  .local-table-result-card .local-table-profit--push {
+    color: #334155;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.78) !important;
+  }
+
   .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-stage-panel::after,
   .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-stage-panel::after,
   .game-fullscreen-shell[data-game-id^='black-dot'] .local-table-stage-panel::after,
@@ -15820,9 +15858,7 @@
       height: 0;
     }
 
-    .game-fullscreen-shell
-      .local-table-control-stack--active
-      .local-table-main-button {
+    .game-fullscreen-shell .local-table-control-stack--active .local-table-main-button {
       display: none !important;
     }
   }
@@ -15872,9 +15908,7 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    .qmoney-game-shell--table
-      .game-control-stack
-      > .game-side-card:first-child::-webkit-scrollbar,
+    .qmoney-game-shell--table .game-control-stack > .game-side-card:first-child::-webkit-scrollbar,
     .qmoney-game-shell--table .local-table-control-card::-webkit-scrollbar {
       width: 0;
       height: 0;
@@ -15928,10 +15962,7 @@
       font-size: 20px !important;
     }
 
-    .qmoney-game-shell--table
-      .game-control-stack
-      .bet-controls__adjusters
-      .game-choice-btn {
+    .qmoney-game-shell--table .game-control-stack .bet-controls__adjusters .game-choice-btn {
       min-height: 44px !important;
       font-size: 12px !important;
     }
@@ -16008,24 +16039,18 @@
       line-height: 1.08 !important;
     }
 
-    .qmoney-game-shell--table[data-game-id^='tui-tongzi']
-      .local-table-stage-header
-      .text-\[11px\],
+    .qmoney-game-shell--table[data-game-id^='tui-tongzi'] .local-table-stage-header .text-\[11px\],
     .qmoney-game-shell--table[data-game-id^='tui-tongzi'] .tui-tongzi-lane__label,
     .qmoney-game-shell--table[data-game-id^='tui-tongzi'] .tui-tongzi-lane__detail {
       font-size: 11px !important;
       line-height: 1.25 !important;
     }
 
-    .qmoney-game-shell--table[data-game-id^='tui-tongzi']
-      .local-table-result-card
-      .text-\[11px\] {
+    .qmoney-game-shell--table[data-game-id^='tui-tongzi'] .local-table-result-card .text-\[11px\] {
       font-size: 11px !important;
     }
 
-    .qmoney-game-shell--table[data-game-id^='tui-tongzi']
-      .local-table-result-card
-      .text-\[16px\] {
+    .qmoney-game-shell--table[data-game-id^='tui-tongzi'] .local-table-result-card .text-\[16px\] {
       font-size: 14px !important;
       line-height: 1.28 !important;
     }
@@ -16051,9 +16076,7 @@
       line-height: 1.2 !important;
     }
 
-    .qmoney-game-shell--table[data-game-id^='black-dot']
-      .black-dot-split-mini-mound
-      > span {
+    .qmoney-game-shell--table[data-game-id^='black-dot'] .black-dot-split-mini-mound > span {
       font-size: 9px !important;
     }
 
@@ -16083,21 +16106,29 @@
     .qmoney-game-shell--table[data-game-id='blackjack']
       .game-control-stack
       > .game-side-card:first-child {
-      max-height: min(31dvh, 230px) !important;
+      max-height: none !important;
+    }
+
+    .qmoney-game-shell--table[data-game-id='blackjack'] .game-control-stack {
+      overflow: visible !important;
     }
 
     .qmoney-game-shell--table[data-game-id='blackjack']
       .game-control-stack
-      .bet-controls__entry {
+      > .game-side-card:first-child {
+      overflow: hidden !important;
+      padding: 0.46rem 0.58rem max(0.46rem, env(safe-area-inset-bottom)) !important;
+      overscroll-behavior: none;
+    }
+
+    .qmoney-game-shell--table[data-game-id='blackjack'] .game-control-stack .bet-controls__entry {
       grid-template-columns: minmax(0, 1fr) 88px !important;
-      min-height: 52px !important;
+      min-height: 48px !important;
       padding: 0.24rem !important;
     }
 
-    .qmoney-game-shell--table[data-game-id='blackjack']
-      .game-control-stack
-      .bet-controls__input {
-      min-height: 44px !important;
+    .qmoney-game-shell--table[data-game-id='blackjack'] .game-control-stack .bet-controls__input {
+      min-height: 40px !important;
       padding: 0.25rem 0.48rem !important;
       font-size: 20px !important;
     }
@@ -16113,10 +16144,17 @@
     .qmoney-game-shell--table[data-game-id='blackjack']
       .game-control-stack
       .bet-controls__limit-hint {
-      min-height: 14px !important;
-      margin-top: 0.24rem !important;
-      font-size: 10px !important;
-      line-height: 1.2 !important;
+      display: none !important;
+    }
+
+    .qmoney-game-shell--table[data-game-id='blackjack'] .bet-controls__header {
+      min-height: 26px !important;
+      padding-bottom: 0.3rem !important;
+    }
+
+    .qmoney-game-shell--table[data-game-id='blackjack'] .blackjack-action-grid {
+      gap: 0.35rem !important;
+      margin-top: 0.42rem !important;
     }
 
     .qmoney-game-shell--table[data-game-id='blackjack'] .blackjack-table-label {
@@ -16124,12 +16162,8 @@
       padding: 0.38rem 0.62rem !important;
     }
 
-    .qmoney-game-shell--table[data-game-id='blackjack']
-      .blackjack-table-label
-      > div:first-child,
-    .qmoney-game-shell--table[data-game-id='blackjack']
-      .blackjack-table-label
-      > div:last-child {
+    .qmoney-game-shell--table[data-game-id='blackjack'] .blackjack-table-label > div:first-child,
+    .qmoney-game-shell--table[data-game-id='blackjack'] .blackjack-table-label > div:last-child {
       font-size: 11px !important;
       letter-spacing: 0.08em !important;
     }
@@ -16269,18 +16303,18 @@
     }
 
     .qmoney-game-shell--table[data-game-id='blackjack'] .blackjack-action-btn,
-    .qmoney-game-shell--table[data-game-id='blackjack']
-      .blackjack-action-grid
-      > .btn-acid {
-      min-height: 44px;
-      padding: 0.48rem 0.5rem !important;
+    .qmoney-game-shell--table[data-game-id='blackjack'] .blackjack-action-grid > .btn-acid {
+      min-height: 44px !important;
+      padding: 0.42rem 0.48rem !important;
       font-size: 13px !important;
+      line-height: 1.05 !important;
+      touch-action: manipulation;
     }
 
-    .qmoney-game-shell--table[data-game-id='blackjack']
-      .game-control-stack
-      .game-balance-strip {
-      font-size: 11px !important;
+    .qmoney-game-shell--table[data-game-id='blackjack'] .game-control-stack .game-balance-strip {
+      margin-top: 0.28rem !important;
+      padding-top: 0.28rem !important;
+      font-size: 10px !important;
     }
   }
 

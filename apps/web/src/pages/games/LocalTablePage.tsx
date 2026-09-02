@@ -592,13 +592,18 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
   ]);
 
   const resultCard = (
-    <div className="local-table-result-card relative z-10 mt-3 rounded-[18px] border border-white/10 bg-black/24 p-3 sm:mt-4 sm:p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
-            Result
+    <div
+      className="local-table-result-card relative z-10 mt-3 rounded-[18px] border border-white/10 bg-black/24 p-3 sm:mt-4 sm:p-4"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <div className="local-table-result-card__layout flex flex-wrap items-center justify-between gap-3">
+        <div className="local-table-result-card__body min-w-0 flex-1">
+          <div className="local-table-result-card__eyebrow text-[11px] font-black uppercase tracking-[0.18em]">
+            牌局結果
           </div>
-          <div className="mt-1 text-[16px] font-bold text-white">
+          <div className="local-table-result-card__message mt-1 text-[16px] font-bold">
             {displayRound?.summary ??
               (isTwentyOneHalf
                 ? '下注後先發一張牌，請選擇補牌或停牌。'
@@ -607,8 +612,8 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
                   : '下注後立即開牌，結果會顯示在這裡。')}
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-[11px] text-white/45">本局盈虧</div>
+        <div className="local-table-result-card__amount shrink-0 text-right">
+          <div className="local-table-result-card__amount-label text-[11px]">本局盈虧</div>
           <div
             className={`local-table-profit data-num text-[24px] font-black ${
               profitValue > 0
