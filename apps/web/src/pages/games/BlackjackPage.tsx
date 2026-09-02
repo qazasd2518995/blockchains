@@ -563,7 +563,9 @@ function BlackjackScoreTile({
     tone === 'dealer' ? 'text-[#F3D67D]' : tone === 'player' ? 'text-[#7DD3FC]' : 'text-[#6EE7B7]';
 
   return (
-    <div className="blackjack-score-tile rounded-[14px] border border-white/10 bg-[#050A13]/68 px-2 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+    <div
+      className={`blackjack-score-tile blackjack-score-tile--${tone} rounded-[14px] border border-white/10 bg-[#050A13]/68 px-2 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]`}
+    >
       <div className="blackjack-score-tile__label text-[9px] font-black uppercase tracking-[0.18em] text-white/50">
         {label}
       </div>

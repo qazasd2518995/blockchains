@@ -16129,22 +16129,106 @@
     }
 
     .qmoney-game-shell--table[data-game-id='blackjack'] .blackjack-score-tile {
-      min-height: 45px;
-      padding: 0.38rem 0.28rem !important;
+      min-height: 58px;
+      border-color: rgba(232, 212, 138, 0.34) !important;
+      background: rgba(3, 10, 22, 0.94) !important;
+      padding: 0.48rem 0.3rem !important;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 2px 8px rgba(0, 0, 0, 0.2) !important;
     }
 
     .qmoney-game-shell--table[data-game-id='blackjack']
+      .blackjack-scoreboard
       .blackjack-score-tile
-      > div:first-child {
-      font-size: 10px !important;
-      letter-spacing: 0.04em !important;
+      .blackjack-score-tile__label {
+      display: flex;
+      min-height: 1.3em;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.92) !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+      font-size: 12px !important;
+      font-weight: 800 !important;
+      line-height: 1.15 !important;
+      letter-spacing: 0.01em !important;
+      text-shadow: none !important;
     }
 
     .qmoney-game-shell--table[data-game-id='blackjack']
+      .blackjack-scoreboard
       .blackjack-score-tile
-      > div:last-child {
-      margin-top: 0.18rem !important;
-      font-size: 17px !important;
+      .blackjack-score-tile__value {
+      margin-top: 0.3rem !important;
+      color: #f8fafc !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+      font-size: 22px !important;
+      font-variant-numeric: tabular-nums;
+      font-weight: 800 !important;
+      line-height: 1.05 !important;
+      letter-spacing: 0 !important;
+      -webkit-text-stroke: 0 transparent !important;
+      text-shadow: none !important;
+    }
+
+    .qmoney-game-shell--table[data-game-id='blackjack']
+      .blackjack-scoreboard
+      .blackjack-score-tile--dealer
+      .blackjack-score-tile__value {
+      color: #ffdc7b !important;
+    }
+
+    .qmoney-game-shell--table[data-game-id='blackjack']
+      .blackjack-scoreboard
+      .blackjack-score-tile--player
+      .blackjack-score-tile__value {
+      color: #8bdcff !important;
+    }
+
+    .qmoney-game-shell--table[data-game-id='blackjack']
+      .blackjack-scoreboard
+      .blackjack-score-tile--payout
+      .blackjack-score-tile__value {
+      color: #7df0b6 !important;
+    }
+
+    .qmoney-game-shell--table[data-game-id='blackjack'] .blackjack-scoreboard {
+      gap: 0.4rem !important;
+      border-color: rgba(232, 212, 138, 0.42) !important;
+      background: rgba(2, 8, 20, 0.92) !important;
+      padding: 0.38rem !important;
+      backdrop-filter: none !important;
+    }
+
+    .qmoney-game-shell--table[data-game-id='blackjack']
+      .blackjack-table-stage
+      .blackjack-table-label
+      .blackjack-table-label__title,
+    .qmoney-game-shell--table[data-game-id='blackjack']
+      .blackjack-table-stage
+      .blackjack-table-label
+      .blackjack-table-label__value {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+      font-size: 13px !important;
+      font-weight: 800 !important;
+      line-height: 1.15 !important;
+      letter-spacing: 0.03em !important;
+      -webkit-text-stroke: 0 transparent !important;
+      text-shadow: none !important;
+    }
+
+    .qmoney-game-shell--table[data-game-id='blackjack']
+      .blackjack-table-stage
+      .blackjack-table-label
+      .blackjack-table-label__title {
+      color: #ffe29a !important;
+    }
+
+    .qmoney-game-shell--table[data-game-id='blackjack']
+      .blackjack-table-stage
+      .blackjack-table-label
+      .blackjack-table-label__value {
+      color: #f8fafc !important;
     }
 
     .qmoney-game-shell--table[data-game-id='blackjack']
@@ -16192,6 +16276,26 @@
     .qmoney-game-shell--table[data-game-id='blackjack'] .blackjack-dealer-card-row,
     .qmoney-game-shell--table[data-game-id='blackjack'] .blackjack-player-card-row {
       min-height: 70px !important;
+    }
+
+    .qmoney-game-shell--table[data-game-id='blackjack'] .blackjack-score-tile {
+      min-height: 52px;
+      padding: 0.38rem 0.22rem !important;
+    }
+
+    .qmoney-game-shell--table[data-game-id='blackjack']
+      .blackjack-scoreboard
+      .blackjack-score-tile
+      .blackjack-score-tile__label {
+      font-size: 11px !important;
+    }
+
+    .qmoney-game-shell--table[data-game-id='blackjack']
+      .blackjack-scoreboard
+      .blackjack-score-tile
+      .blackjack-score-tile__value {
+      margin-top: 0.22rem !important;
+      font-size: 19px !important;
     }
   }
 }
