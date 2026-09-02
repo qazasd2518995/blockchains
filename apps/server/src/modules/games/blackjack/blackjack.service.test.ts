@@ -173,6 +173,7 @@ describe('applyBlackjackControl', () => {
 
   it('keeps a controlled natural blackjack at 3:2 payout', () => {
     const originalCards = [c(1, 0), c(13, 1)];
+    const originalDealerCards = [c(6, 2), c(8, 3)];
     const settled = applyBlackjackControl(
       [
         hand(originalCards, {
@@ -181,7 +182,7 @@ describe('applyBlackjackControl', () => {
           multiplier: '2.5000',
         }),
       ],
-      [c(10, 2), c(8, 3)],
+      originalDealerCards,
       new Prisma.Decimal('10.00'),
       {
         won: true,
@@ -198,5 +199,7 @@ describe('applyBlackjackControl', () => {
     expect(settled.hands[0]?.outcome).toBe('BLACKJACK');
     expect(settled.hands[0]?.payout).toBe('25.00');
     expect(settled.hands[0]?.multiplier).toBe('2.5000');
+    expect(settled.dealerHand).toEqual(originalDealerCards);
+    expect(settled.dealerHand).toHaveLength(2);
   });
 });

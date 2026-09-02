@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Sfx } from '@bg/game-engine';
 import { getBettingLimitForGame, MAX_BET_AMOUNT, MIN_BET_AMOUNT } from '@bg/shared';
 import { useTranslation } from '@/i18n/useTranslation';
+import { isQmoneyRealm } from '@/lib/platformRealm';
 import { useAuthStore } from '@/stores/authStore';
 
 interface BetControlsProps {
@@ -100,9 +101,21 @@ export function BetControls({
             {label ?? t.bet.stake}
           </span>
         </div>
-        <span className="data-num text-[10px] text-white/55">
-          {guestMode ? t.bet.loginToBet : `${limitLabel ?? t.bet.stakeLimit} ${formatLimit(stakeMax)}`}
-        </span>
+        <div className="bet-controls__meta flex min-w-0 items-center justify-end gap-2 text-[10px] text-white/55">
+          {isQmoneyRealm && !guestMode ? (
+            <span className="bet-controls__balance min-w-0 whitespace-nowrap">
+              {t.bet.balance}{' '}
+              <strong className="data-num font-black text-[#FDE68A]">
+                {formatLimit(availableBalance)}
+              </strong>
+            </span>
+          ) : null}
+          <span className="bet-controls__limit whitespace-nowrap">
+            {guestMode
+              ? t.bet.loginToBet
+              : `${limitLabel ?? t.bet.stakeLimit} ${formatLimit(stakeMax)}`}
+          </span>
+        </div>
       </div>
 
       <div className="bet-controls__entry mt-3 rounded-[16px] border border-white/10 bg-white/[0.06] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:mt-4 sm:rounded-[18px]">

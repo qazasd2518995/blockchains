@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { House } from 'lucide-react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
+import { GAMES_REGISTRY, LOCAL_TABLE_GAME_IDS, type GameIdType } from '@bg/shared';
 import { AudioMenu } from '@/components/layout/AudioMenu';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 import { getLocalizedGameTitle } from '@/i18n/gameLabels';
@@ -13,6 +13,13 @@ const MEGA_SLOT_GAME_IDS = new Set([
   'nebula-slot',
   'jungle-slot',
   'vampire-slot',
+]);
+
+const ACCESSIBLE_TABLE_GAME_IDS = new Set<string>([
+  'blackjack',
+  'mines',
+  'tower',
+  ...LOCAL_TABLE_GAME_IDS,
 ]);
 
 interface FloatingPosition {
@@ -60,6 +67,7 @@ export function QmoneyGameShell() {
   }, [locale, location.pathname]);
 
   const slotLayout = MEGA_SLOT_GAME_IDS.has(game.id) ? 'mega' : 'standard';
+  const isTableGame = ACCESSIBLE_TABLE_GAME_IDS.has(game.id);
 
   useLayoutEffect(() => {
     const shell = shellRef.current;
@@ -166,7 +174,9 @@ export function QmoneyGameShell() {
   return (
     <div
       ref={shellRef}
-      className="game-fullscreen-shell qmoney-game-shell relative overflow-hidden bg-black text-white"
+      className={`game-fullscreen-shell qmoney-game-shell relative overflow-hidden bg-black text-white ${
+        isTableGame ? 'qmoney-game-shell--table' : ''
+      }`}
       data-game-id={game.id}
       data-slot-layout={slotLayout}
       data-platform-realm="qmoney"

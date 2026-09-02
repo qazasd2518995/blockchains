@@ -827,8 +827,17 @@ function applyBlackjackWinControl(
     return rawBlackjackSettlement(rawHands, dealerHand, amount, control);
   }
 
+  // A natural Blackjack settles immediately after the dealer checks the
+  // original hole card. Outcome shaping must not manufacture extra dealer
+  // draws just to present a bust — that contradicts the table sequence even
+  // though the payout itself remains correct.
+  const hasNaturalBlackjack = hands.some((hand) => {
+    const score = blackjackScore(hand.cards);
+    return hand.outcome === 'BLACKJACK' && score.isBlackjack && !hand.splitAces;
+  });
+
   return {
-    dealerHand: makeDealerBust(dealerHand),
+    dealerHand: hasNaturalBlackjack ? dealerHand : makeDealerBust(dealerHand),
     hands,
     payout,
     multiplier,
