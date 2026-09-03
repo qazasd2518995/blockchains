@@ -79,6 +79,30 @@
         );
       });
     </script>
+    <script>
+      // Cocos' imported resources normally use immutable UUID URLs. Revise the
+      // corrected portrait loading prefab so returning players do not keep the
+      // previously cached layout for the lifetime of that immutable response.
+      (function () {
+        var revisedPath =
+          '/games/storm-of-seth-2-v115/assets/resources/import/3e/3e8965eb-cf9e-4542-b1f5-93891a50a8c9.json';
+        var originalOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function (method, url) {
+          var nextUrl = url;
+          try {
+            var parsedUrl = new URL(String(url), window.location.href);
+            if (parsedUrl.origin === window.location.origin && parsedUrl.pathname === revisedPath) {
+              parsedUrl.searchParams.set('v', '20260904-loading-center-1');
+              nextUrl = parsedUrl.href;
+            }
+          } catch (_error) {
+            // Preserve the engine's original request when a non-standard URL is supplied.
+          }
+          var remainingArguments = Array.prototype.slice.call(arguments, 2);
+          return originalOpen.apply(this, [method, nextUrl].concat(remainingArguments));
+        };
+      })();
+    </script>
     <script src="./app.js"></script>
     <script src="src/polyfills.bundle.js" charset="utf-8"></script>
     <script src="src/system.bundle.js" charset="utf-8"></script>

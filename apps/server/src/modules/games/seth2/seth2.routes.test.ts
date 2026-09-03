@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance } from 'fastify';
 import { describe, expect, it, vi } from 'vitest';
 import { seth2Routes } from './seth2.routes.js';
 
@@ -33,8 +33,8 @@ describe('Seth 2 test-account access', () => {
     expect(addHook).toHaveBeenNthCalledWith(1, 'preHandler', authenticate);
     const accessGate = addHook.mock.calls[1]![1] as (request: {
       authenticatedUsername: string;
-    }) => void;
-    expect(() => accessGate({ authenticatedUsername: username })).not.toThrow();
+    }) => Promise<void>;
+    await expect(accessGate({ authenticatedUsername: username })).resolves.toBeUndefined();
     expect(findUnique).not.toHaveBeenCalled();
   });
 
@@ -46,8 +46,8 @@ describe('Seth 2 test-account access', () => {
 
       const accessGate = addHook.mock.calls[1]![1] as (request: {
         authenticatedUsername: string;
-      }) => void;
-      expect(() => accessGate({ authenticatedUsername: username })).toThrowError(
+      }) => Promise<void>;
+      await expect(accessGate({ authenticatedUsername: username })).rejects.toMatchObject(
         expect.objectContaining({ code: 'FORBIDDEN' }),
       );
       expect(findUnique).not.toHaveBeenCalled();
@@ -60,8 +60,31 @@ describe('Seth 2 test-account access', () => {
 
     const accessGate = addHook.mock.calls[1]![1] as (request: {
       authenticatedUsername?: string;
-    }) => void;
-    expect(() => accessGate({})).toThrowError(expect.objectContaining({ code: 'FORBIDDEN' }));
+    }) => Promise<void>;
+    await expect(accessGate({})).rejects.toMatchObject({ code: 'FORBIDDEN' });
     expect(findUnique).not.toHaveBeenCalled();
+  });
+
+  it('completes the real Fastify preHandler chain', async () => {
+    const fastify = Fastify();
+    fastify.decorate('prisma', {} as FastifyInstance['prisma']);
+    fastify.decorate('authenticate', async (request) => {
+      request.userId = 'test-user';
+      request.authenticatedUsername = 'testplayer';
+    });
+
+    try {
+      await fastify.register(seth2Routes);
+      const response = await fastify.inject({
+        method: 'POST',
+        url: '/protocol',
+        payload: { type: 'ping' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ type: 'pong' });
+    } finally {
+      await fastify.close();
+    }
   });
 });

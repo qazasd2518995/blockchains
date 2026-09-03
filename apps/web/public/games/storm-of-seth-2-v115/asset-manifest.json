@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-08-14T23:52:31.653Z",
+  "capturedAt": "2026-09-03T16:55:44.758Z",
   "source": {
     "gameRevision": "361d567d94ac569664c82068a30b762e8d8438b8",
     "gameVersion": "1.1.5",
@@ -12448,7 +12448,7 @@
     {
       "path": "assets/resources/import/3e/3e8965eb-cf9e-4542-b1f5-93891a50a8c9.json",
       "bytes": 5183,
-      "sha256": "c87f70103417a3a1876da364edf2b9d5d211df0215509c76ee2052af7f4562af"
+      "sha256": "6b162efa6b083a0c947ebf8900cc334d728082264343a030846353332e75f202"
     },
     {
       "path": "assets/resources/import/45/459ab307-ecdc-45d1-8801-f32e2c814063@f9941.json",
@@ -12602,8 +12602,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 4174,
-      "sha256": "dc459eb542bc77ebdcfb19e3cce928ac7d2df4c73d330dd4c20b143f23949e49"
+      "bytes": 5389,
+      "sha256": "1994e774622c1f86cee48daf1cc96145b6f1d687dbec321a0f962be395c0f4e5"
     },
     {
       "path": "index.js",

@@ -13,6 +13,14 @@ const frameworkRoot = path.join(
 const manifest = JSON.parse(fs.readFileSync(path.join(gameRoot, 'asset-manifest.json'), 'utf8'));
 const gameLabelsSource = fs.readFileSync(path.join(webRoot, 'src/i18n/gameLabels.ts'), 'utf8');
 const sethPageSource = fs.readFileSync(path.join(webRoot, 'src/pages/games/Seth2Page.tsx'), 'utf8');
+const gameDocument = fs.readFileSync(path.join(gameRoot, 'index.html'), 'utf8');
+const portraitLoadingPrefab = fs.readFileSync(
+  path.join(
+    gameRoot,
+    'assets/resources/import/3e/3e8965eb-cf9e-4542-b1f5-93891a50a8c9.json',
+  ),
+  'utf8',
+);
 const sharedGamesSource = fs.readFileSync(
   path.resolve(webRoot, '../../packages/shared/src/games.ts'),
   'utf8',
@@ -26,6 +34,21 @@ assert.match(gameLabelsSource, /战神赛特 II：觉醒之力/);
 assert.match(gameLabelsSource, /Storm of Seth 2 – Awakening/);
 assert.match(sethPageSource, /title="戰神賽特 II：覺醒之力"/);
 assert.match(sharedGamesSource, /nameZh: '戰神賽特 II：覺醒之力'/);
+assert.ok(
+  portraitLoadingPrefab.includes('[5,105.42,30.24],[0,0.5,0.5]'),
+  'the portrait loading label must use a centered anchor',
+);
+assert.ok(
+  portraitLoadingPrefab.includes(
+    '[1,"b9hPePgi1BG5zkUKjQc93w",null,null,null,1,0],[1,0,-604.88,0]',
+  ),
+  'the portrait loading label must be positioned on the progress bar center line',
+);
+assert.match(
+  gameDocument,
+  /3e8965eb-cf9e-4542-b1f5-93891a50a8c9\.json[\s\S]*20260904-loading-center-1/,
+  'the corrected immutable prefab must use a revised request URL',
+);
 
 assert.deepEqual(manifest.source, {
   gameRevision: '361d567d94ac569664c82068a30b762e8d8438b8',

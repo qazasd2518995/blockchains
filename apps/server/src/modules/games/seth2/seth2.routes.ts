@@ -7,7 +7,7 @@ import { Seth2Service } from './seth2.service.js';
 export async function seth2Routes(fastify: FastifyInstance): Promise<void> {
   const service = new Seth2Service(fastify.prisma);
   fastify.addHook('preHandler', fastify.authenticate);
-  fastify.addHook('preHandler', (request) => {
+  fastify.addHook('preHandler', async (request) => {
     if (!isImportedGameAccessUsername(request.authenticatedUsername)) {
       throw new ApiError('FORBIDDEN', '賽特 2 目前僅開放指定測試帳號');
     }
