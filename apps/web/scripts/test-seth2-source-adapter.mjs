@@ -411,15 +411,19 @@ const orderedDispatch = wrapFrameworkDispatch((eventName, event) => {
   if (eventName === 'GameEvent:SHOW_SYMBOLS_IN_ANIM') event.complete();
 });
 orderedDispatch('GameEvent:SHOW_CHARACTER_FIRE', { data: null });
-assert.deepEqual(animationOrder, [
-  'GameEvent:SHOW_CHARACTER_FIRE',
-], 'character throw starts before multiplier balls land');
+assert.deepEqual(
+  animationOrder,
+  ['GameEvent:SHOW_CHARACTER_FIRE'],
+  'character throw starts before multiplier balls land',
+);
 orderedDispatch('GameEvent:SHOW_SYMBOLS_IN_ANIM', {
   complete: () => animationOrder.push('landing-complete'),
 });
-assert.deepEqual(animationOrder, [
-  'GameEvent:SHOW_CHARACTER_FIRE',
-], 'multiplier landing waits for the throw animation lead');
+assert.deepEqual(
+  animationOrder,
+  ['GameEvent:SHOW_CHARACTER_FIRE'],
+  'multiplier landing waits for the throw animation lead',
+);
 const delayedLanding = longTimers.find((timer) => timer.delay === 700);
 assert.ok(delayedLanding);
 delayedLanding.callback();
@@ -427,6 +431,30 @@ assert.deepEqual(animationOrder, [
   'GameEvent:SHOW_CHARACTER_FIRE',
   'GameEvent:SHOW_SYMBOLS_IN_ANIM',
   'landing-complete',
+]);
+
+const splitAnimationOrder = [];
+const splitDispatch = wrapFrameworkDispatch((eventName, event) => {
+  splitAnimationOrder.push(eventName);
+  if (eventName === 'GameEvent:SHOW_TIMES_B') event.complete();
+});
+const splitTimerStart = longTimers.length;
+splitDispatch('GameEvent:SHOW_CLONE_TIMES_MOVING', { data: { from: 5, to: [0] } });
+splitDispatch('GameEvent:SHOW_TIMES_B', {
+  complete: () => splitAnimationOrder.push('clone-complete'),
+});
+assert.deepEqual(
+  splitAnimationOrder,
+  ['GameEvent:SHOW_CLONE_TIMES_MOVING'],
+  'the real target multiplier must not overlap the moving split projectile',
+);
+const delayedSplitClone = longTimers.slice(splitTimerStart).find((timer) => timer.delay === 550);
+assert.ok(delayedSplitClone);
+delayedSplitClone.callback();
+assert.deepEqual(splitAnimationOrder, [
+  'GameEvent:SHOW_CLONE_TIMES_MOVING',
+  'GameEvent:SHOW_TIMES_B',
+  'clone-complete',
 ]);
 
 const audioResponse = structuredClone(response);

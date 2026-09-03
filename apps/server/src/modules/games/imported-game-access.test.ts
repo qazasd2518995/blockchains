@@ -7,7 +7,7 @@ import {
 } from '@bg/shared';
 import { hotlineBetSchema } from './hotline/hotline.schema.js';
 
-const IMPORTED_TEST_GAMES = [
+const IMPORTED_GAMES = [
   GameId.STORM_OF_SETH_2,
   GameId.POWER_OF_THOR_2,
   GameId.FRUIT_MARY,
@@ -15,7 +15,7 @@ const IMPORTED_TEST_GAMES = [
   ...H5_GAME_IDS,
 ] as const;
 
-describe('imported test-game access', () => {
+describe('imported game access', () => {
   it('recognizes the numbered testplayer account series', () => {
     for (const username of [
       'testplayer',
@@ -44,11 +44,12 @@ describe('imported test-game access', () => {
     }
   });
 
-  it('keeps every imported test game hidden from guests and regular members', () => {
-    for (const gameId of IMPORTED_TEST_GAMES) {
+  it('keeps shared imported-game visibility unchanged for the legacy lobby', () => {
+    for (const gameId of IMPORTED_GAMES) {
       expect(isGameVisibleForUsername(gameId, 'testplayer')).toBe(true);
       expect(isGameVisibleForUsername(gameId, 'testplayer6')).toBe(true);
-      expect(isGameVisibleForUsername(gameId, 'admin')).toBe(false);
+      expect(isGameVisibleForUsername(gameId, 'custom-member')).toBe(false);
+      expect(isGameVisibleForUsername(gameId, ' 自創會員 ')).toBe(false);
       expect(isGameVisibleForUsername(gameId, null)).toBe(false);
     }
   });

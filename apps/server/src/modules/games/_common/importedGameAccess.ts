@@ -1,14 +1,22 @@
 import { isImportedGameTestUsername } from '@bg/shared';
 
+type PlatformRealm = 'legacy' | 'qmoney';
+
 /**
- * Keep imported games closed to regular members while allowing the API control
- * matrix to create an isolated fixture account in a non-production database.
- * The prefix is ignored in production even if it is accidentally configured.
+ * Imported games are available to every authenticated Jin Baobao member. The
+ * legacy platform keeps its existing test allowlist and isolated control-test
+ * fixture support.
  */
-export function isImportedGameAccessUsername(username?: string | null): boolean {
-  if (isImportedGameTestUsername(username)) return true;
-  if (!username || process.env.NODE_ENV === 'production') return false;
+export function isImportedGameAccessUsername(
+  username: string | null | undefined,
+  realm: PlatformRealm,
+): boolean {
+  const normalized = username?.normalize('NFKC').trim();
+  if (!normalized) return false;
+  if (realm === 'qmoney') return true;
+  if (isImportedGameTestUsername(normalized)) return true;
+  if (process.env.NODE_ENV === 'production') return false;
 
   const prefix = process.env.CONTROL_API_FIXTURE_PREFIX?.trim();
-  return Boolean(prefix && username.startsWith(`${prefix}_`));
+  return Boolean(prefix && normalized.startsWith(`${prefix}_`));
 }

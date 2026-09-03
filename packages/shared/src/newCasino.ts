@@ -213,6 +213,12 @@ export const NEW_CASINO_GAMES: readonly NewCasinoGame[] = [
   ...TABLE_GAMES,
 ];
 
-export function getNewCasinoGamesForUsername(username?: string | null): readonly NewCasinoGame[] {
-  return isImportedGameTestUsername(username) ? NEW_CASINO_GAMES : [];
+export function getNewCasinoGamesForUsername(
+  username?: string | null,
+  access: 'test-accounts' | 'all-members' = 'test-accounts',
+): readonly NewCasinoGame[] {
+  const isMember = Boolean(username?.normalize('NFKC').trim());
+  return isMember && (access === 'all-members' || isImportedGameTestUsername(username))
+    ? NEW_CASINO_GAMES
+    : [];
 }

@@ -5,14 +5,42 @@ import { fileURLToPath } from 'node:url';
 
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const qmoneyRoot = path.join(webRoot, 'public', 'qmoney');
-const [html, css, app, integrationText, walletRoutes, publicAnnouncements, adminAnnouncements] = await Promise.all([
+const [
+  html,
+  css,
+  app,
+  integrationText,
+  walletRoutes,
+  publicAnnouncements,
+  adminAnnouncements,
+  routerSource,
+] = await Promise.all([
   readFile(path.join(qmoneyRoot, 'index.html'), 'utf8'),
   readFile(path.join(qmoneyRoot, 'styles.css'), 'utf8'),
   readFile(path.join(qmoneyRoot, 'app.js'), 'utf8'),
   readFile(path.join(qmoneyRoot, 'integration.json'), 'utf8'),
-  readFile(path.join(webRoot, '..', 'server', 'src', 'modules', 'wallet', 'wallet.routes.ts'), 'utf8'),
-  readFile(path.join(webRoot, '..', 'server', 'src', 'modules', 'public', 'announcements.routes.ts'), 'utf8'),
-  readFile(path.join(webRoot, '..', 'server', 'src', 'modules', 'admin', 'announcements', 'announcement.routes.ts'), 'utf8'),
+  readFile(
+    path.join(webRoot, '..', 'server', 'src', 'modules', 'wallet', 'wallet.routes.ts'),
+    'utf8',
+  ),
+  readFile(
+    path.join(webRoot, '..', 'server', 'src', 'modules', 'public', 'announcements.routes.ts'),
+    'utf8',
+  ),
+  readFile(
+    path.join(
+      webRoot,
+      '..',
+      'server',
+      'src',
+      'modules',
+      'admin',
+      'announcements',
+      'announcement.routes.ts',
+    ),
+    'utf8',
+  ),
+  readFile(path.join(webRoot, 'src', 'router.tsx'), 'utf8'),
 ]);
 
 // Parse the browser script without executing DOM-dependent code.
@@ -25,7 +53,7 @@ for (const marker of [
   'data-category="棋牌"',
   'data-action="notices"',
   'id="heroTrack"',
-  '/qmoney/app.js?v=20260904-performance-1',
+  '/qmoney/app.js?v=20260904-all-members-1',
   'class="is-booting"',
   'id="bootView"',
   '金寶寶｜遊戲大廳',
@@ -40,7 +68,10 @@ for (const marker of [
   assert.ok(html.includes(marker), `missing lobby marker: ${marker}`);
 }
 
-assert.ok(!html.includes('正在返回遊戲大廳'), 'link previews must not expose navigation status copy');
+assert.ok(
+  !html.includes('正在返回遊戲大廳'),
+  'link previews must not expose navigation status copy',
+);
 
 for (const removedShell of [
   'id="lineLogin"',
@@ -59,19 +90,52 @@ for (const removedShell of [
   assert.ok(!html.includes(removedShell), `retired shell must be absent: ${removedShell}`);
 }
 
-for (const fakeCopy of ['每日續存', '電子救援金', '完成任務送好禮', '封鎖名單', 'VIP等級', '幸運彩池']) {
-  assert.ok(!`${html}\n${app}`.includes(fakeCopy), `unsupported lobby copy must be removed: ${fakeCopy}`);
+for (const fakeCopy of [
+  '每日續存',
+  '電子救援金',
+  '完成任務送好禮',
+  '封鎖名單',
+  'VIP等級',
+  '幸運彩池',
+]) {
+  assert.ok(
+    !`${html}\n${app}`.includes(fakeCopy),
+    `unsupported lobby copy must be removed: ${fakeCopy}`,
+  );
 }
 
-assert.ok(!`${html}\n${css}\n${app}`.includes('錢女友'), 'legacy Qmoney display name must be fully replaced');
-assert.ok(!app.includes('獨立 Qmoney'), 'player-facing copy must not display the retired Qmoney name');
+assert.ok(
+  !`${html}\n${css}\n${app}`.includes('錢女友'),
+  'legacy Qmoney display name must be fully replaced',
+);
+assert.ok(
+  !app.includes('獨立 Qmoney'),
+  'player-facing copy must not display the retired Qmoney name',
+);
 assert.ok(!app.includes('Qmoney API'), 'player-facing errors must use the Jin Baobao service name');
 assert.ok(!app.includes('Qmoney 後台'), 'player-facing copy must use the Jin Baobao admin name');
-for (const internalLabel of ['JBB GAMES', 'JBB 棋牌', 'ATG', 'RSG', 'MEGA SLOT', 'MEGASLOT', '原版 H5']) {
-  assert.ok(!app.includes(internalLabel), `internal provider label must not be player-facing: ${internalLabel}`);
+for (const internalLabel of [
+  'JBB GAMES',
+  'JBB 棋牌',
+  'ATG',
+  'RSG',
+  'MEGA SLOT',
+  'MEGASLOT',
+  '原版 H5',
+]) {
+  assert.ok(
+    !app.includes(internalLabel),
+    `internal provider label must not be player-facing: ${internalLabel}`,
+  );
 }
-assert.ok(!app.includes('game.provider'), 'the player lobby must not render or search internal provider metadata');
-assert.ok(!css.includes('game-card-provider'), 'provider labels must not reserve space on game cards');
+assert.ok(
+  !app.includes('game.provider'),
+  'the player lobby must not render or search internal provider metadata',
+);
+assert.ok(
+  !css.includes('game-card-provider'),
+  'provider labels must not reserve space on game cards',
+);
 
 assert.match(
   app,
@@ -135,13 +199,28 @@ for (const marker of [
   '/wallet/transactions?',
   '/wallet/bets/',
   '/public/announcements?kind=marquee',
-  'TEST_PLAYER_PATTERN',
   'GAME_BGM_PREFERENCES_KEY',
   'GAME_SFX_PREFERENCES_KEY',
   'syncGameAudioPreferences',
 ]) {
   assert.ok(`${html}\n${css}\n${app}`.includes(marker), `missing integration marker: ${marker}`);
 }
+
+assert.doesNotMatch(
+  app,
+  /TEST_PLAYER_PATTERN|isTestPlayer|只開放測試帳號|testplayer1～testplayer6/,
+  'the production lobby must not retain a client-side test-account allowlist',
+);
+assert.match(
+  app,
+  /async function loadCatalog\(\) \{[\s\S]{0,180}state\.accessDenied = false;[\s\S]{0,180}apiRequest\("\/games\/catalog"\)/,
+  'every authenticated member must load the server catalog',
+);
+assert.match(
+  routerSource,
+  /if \(isQmoneyRealm && username\?\.normalize\('NFKC'\)\.trim\(\)\) return true;/,
+  'Jin Baobao game routes must allow every authenticated member',
+);
 
 for (const marker of [
   'data-hero-game=',
@@ -180,11 +259,26 @@ assert.match(
   'settings detail labels should not wrap',
 );
 
-assert.ok(walletRoutes.includes("fastify.get(\n    '/transactions'"), 'bet history must use the authenticated wallet ledger');
-assert.ok(walletRoutes.includes("where: { id: betId, userId: req.userId }"), 'bet details must remain isolated to the logged-in player');
-assert.ok(publicAnnouncements.includes("q.kind) where.kind = q.kind"), 'public marquee must read the configured announcement kind');
-assert.ok(adminAnnouncements.includes("fastify.post(\n    '/'"), 'the admin backend must support creating marquee announcements');
-assert.ok(adminAnnouncements.includes("'/:id/toggle'"), 'the admin backend must support enabling and disabling announcements');
+assert.ok(
+  walletRoutes.includes("fastify.get(\n    '/transactions'"),
+  'bet history must use the authenticated wallet ledger',
+);
+assert.ok(
+  walletRoutes.includes('where: { id: betId, userId: req.userId }'),
+  'bet details must remain isolated to the logged-in player',
+);
+assert.ok(
+  publicAnnouncements.includes('q.kind) where.kind = q.kind'),
+  'public marquee must read the configured announcement kind',
+);
+assert.ok(
+  adminAnnouncements.includes("fastify.post(\n    '/'"),
+  'the admin backend must support creating marquee announcements',
+);
+assert.ok(
+  adminAnnouncements.includes("'/:id/toggle'"),
+  'the admin backend must support enabling and disabling announcements',
+);
 
 for (const [pattern, message] of [
   [/let refreshInFlight = null;/, 'the Qmoney lobby must maintain one shared token refresh'],
@@ -274,7 +368,9 @@ for (const source of [html, css]) {
     referencedAssets.add(decodeURIComponent(match[1].split(/[?#]/u, 1)[0]));
   }
 }
-for (const match of app.matchAll(/["`]((?:imgs_soc|brand)\/[^"`$]+\.(?:webp|png|gif|svg|mp3))["`]/g)) {
+for (const match of app.matchAll(
+  /["`]((?:imgs_soc|brand)\/[^"`$]+\.(?:webp|png|gif|svg|mp3))["`]/g,
+)) {
   referencedAssets.add(match[1]);
 }
 

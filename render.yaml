@@ -425,8 +425,6 @@ services:
         value: local
       - key: QMONEY_ROOT
         value: 'true'
-      - key: VITE_QMONEY_TEST_ONLY
-        value: 'true'
       - key: VITE_PLATFORM_REALM
         value: qmoney
 

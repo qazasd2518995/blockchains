@@ -22,10 +22,10 @@ function makeRouteRegistrar() {
   return { fastify, authenticate, addHook, findUnique };
 }
 
-describe('H5 slot test-account access', () => {
+describe('H5 slot member access', () => {
   it('reuses the identity already loaded by authentication', async () => {
     const { fastify, authenticate, addHook, findUnique } = makeRouteRegistrar();
-    await h5SlotsRoutes(fastify);
+    await h5SlotsRoutes(fastify, { platformRealm: 'qmoney' });
 
     expect(addHook).toHaveBeenNthCalledWith(1, 'preHandler', authenticate);
     const accessGate = addHook.mock.calls[1]![1] as (request: {
@@ -33,24 +33,24 @@ describe('H5 slot test-account access', () => {
       authenticatedFrozen: boolean;
     }) => Promise<void>;
     await expect(
-      accessGate({ authenticatedUsername: 'testplayer4', authenticatedFrozen: false }),
+      accessGate({ authenticatedUsername: 'custom-created-member', authenticatedFrozen: false }),
     ).resolves.toBeUndefined();
     expect(findUnique).not.toHaveBeenCalled();
   });
 
-  it('keeps non-test and frozen accounts blocked without another user lookup', async () => {
+  it('keeps missing identities and frozen accounts blocked without another user lookup', async () => {
     const { fastify, addHook, findUnique } = makeRouteRegistrar();
-    await h5SlotsRoutes(fastify);
+    await h5SlotsRoutes(fastify, { platformRealm: 'qmoney' });
     const accessGate = addHook.mock.calls[1]![1] as (request: {
       authenticatedUsername: string;
       authenticatedFrozen: boolean;
     }) => Promise<void>;
 
     await expect(
-      accessGate({ authenticatedUsername: 'regular-member', authenticatedFrozen: false }),
+      accessGate({ authenticatedUsername: '', authenticatedFrozen: false }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     await expect(
-      accessGate({ authenticatedUsername: 'testplayer', authenticatedFrozen: true }),
+      accessGate({ authenticatedUsername: 'regular-member', authenticatedFrozen: true }),
     ).rejects.toMatchObject({ code: 'MEMBER_FROZEN' });
     expect(findUnique).not.toHaveBeenCalled();
   });

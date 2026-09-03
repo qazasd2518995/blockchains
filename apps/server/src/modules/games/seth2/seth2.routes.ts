@@ -1,15 +1,24 @@
 import type { FastifyInstance } from 'fastify';
+import { config } from '../../../config.js';
 import { ApiError } from '../../../utils/errors.js';
 import { isImportedGameAccessUsername } from '../_common/importedGameAccess.js';
 import { seth2ProtocolSchema, seth2SourceSchema } from './seth2.schema.js';
 import { Seth2Service } from './seth2.service.js';
 
-export async function seth2Routes(fastify: FastifyInstance): Promise<void> {
+interface Seth2RouteOptions {
+  platformRealm?: 'legacy' | 'qmoney';
+}
+
+export async function seth2Routes(
+  fastify: FastifyInstance,
+  options: Seth2RouteOptions = {},
+): Promise<void> {
   const service = new Seth2Service(fastify.prisma);
+  const platformRealm = options.platformRealm ?? config.PLATFORM_REALM;
   fastify.addHook('preHandler', fastify.authenticate);
   fastify.addHook('preHandler', async (request) => {
-    if (!isImportedGameAccessUsername(request.authenticatedUsername)) {
-      throw new ApiError('FORBIDDEN', '賽特 2 目前僅開放指定測試帳號');
+    if (!isImportedGameAccessUsername(request.authenticatedUsername, platformRealm)) {
+      throw new ApiError('FORBIDDEN', '會員身份無法使用賽特 2');
     }
   });
 

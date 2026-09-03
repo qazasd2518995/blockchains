@@ -17,27 +17,29 @@ function makeRouteRegistrar() {
   return { fastify, authenticate, addHook, findUnique };
 }
 
-describe('Thor 2 test-account access', () => {
+describe('Thor 2 member access', () => {
   it('reuses the username already loaded by authentication', async () => {
     const { fastify, authenticate, addHook, findUnique } = makeRouteRegistrar();
-    await thor2Routes(fastify);
+    await thor2Routes(fastify, { platformRealm: 'qmoney' });
 
     expect(addHook).toHaveBeenNthCalledWith(1, 'preHandler', authenticate);
     const accessGate = addHook.mock.calls[1]![1] as (request: {
       authenticatedUsername: string;
     }) => Promise<void>;
-    await expect(accessGate({ authenticatedUsername: 'testplayer3' })).resolves.toBeUndefined();
+    await expect(
+      accessGate({ authenticatedUsername: 'custom-created-member' }),
+    ).resolves.toBeUndefined();
     expect(findUnique).not.toHaveBeenCalled();
   });
 
-  it('blocks non-test accounts without another user lookup', async () => {
+  it('blocks a missing member identity without another user lookup', async () => {
     const { fastify, addHook, findUnique } = makeRouteRegistrar();
-    await thor2Routes(fastify);
+    await thor2Routes(fastify, { platformRealm: 'qmoney' });
     const accessGate = addHook.mock.calls[1]![1] as (request: {
       authenticatedUsername: string;
     }) => Promise<void>;
 
-    await expect(accessGate({ authenticatedUsername: 'regular-member' })).rejects.toMatchObject({
+    await expect(accessGate({ authenticatedUsername: '' })).rejects.toMatchObject({
       code: 'FORBIDDEN',
     });
     expect(findUnique).not.toHaveBeenCalled();

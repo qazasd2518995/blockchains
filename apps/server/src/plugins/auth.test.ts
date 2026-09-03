@@ -2,24 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { isGameplayRequestAllowedForRealm } from './auth.js';
 
 describe('qmoney gameplay access', () => {
-  it.each([
-    'testplayer',
-    'testplayer1',
-    'testplayer2',
-    'testplayer3',
-    'testplayer4',
-    'testplayer5',
-    'testplayer6',
-  ])('allows %s to call qmoney game APIs', (username) => {
-    expect(isGameplayRequestAllowedForRealm('/api/games/hotline/bet', username, 'qmoney')).toBe(
-      true,
-    );
-  });
+  it.each(['testplayer', 'regular-member', 'custom-created-member'])(
+    'allows authenticated member %s to call qmoney game APIs',
+    (username) => {
+      expect(isGameplayRequestAllowedForRealm('/api/games/hotline/bet', username, 'qmoney')).toBe(
+        true,
+      );
+    },
+  );
 
-  it('blocks regular qmoney members from direct game API calls', () => {
-    expect(
-      isGameplayRequestAllowedForRealm('/api/games/hotline/bet', 'regular-member', 'qmoney'),
-    ).toBe(false);
+  it('blocks a qmoney gameplay request without an authenticated username', () => {
     expect(
       isGameplayRequestAllowedForRealm('/api/games/crash/state?gameId=rocket', null, 'qmoney'),
     ).toBe(false);

@@ -16,12 +16,18 @@
   var UPDATE_TOTAL_WINNINGS = 'SlotFrameworkEvent:UPDATE_TOTAL_WINNINGS';
   var CREATE_SPIN_COMPLETE_FLOW = 'GameEvent:CREATE_SPIN_COMPLETE_FLOW';
   var SHOW_CHARACTER_FIRE = 'GameEvent:SHOW_CHARACTER_FIRE';
+  var SHOW_CLONE_TIMES_MOVING = 'GameEvent:SHOW_CLONE_TIMES_MOVING';
+  var SHOW_TIMES_B = 'GameEvent:SHOW_TIMES_B';
   var SYMBOL_LANDING_EVENTS = {
     'GameEvent:SHOW_SYMBOLS_IN_ANIM': true,
     'GameEvent:SHOW_NEW_SYMBOLS_IN_ANIM': true,
     'GameEvent:SHOW_SYMBOLS_QUICK_IN_ANIM': true,
   };
   var CHARACTER_FIRE_LEAD_MS = 700;
+  // The original moving multiplier prefab travels for 500 ms. Leave one
+  // mobile render frame before materializing the authoritative target symbol,
+  // so the projectile cannot look like an extra multiplier on the board.
+  var SPLIT_CLONE_TRAVEL_MS = 550;
   var GAME_ENTRY_BOOT_TIMEOUT_MS = 60000;
   var GAME_ENTRY_REQUIRED_UI_COUNT = 4;
   var TABLE_REFERENCE_REFRESH_MS = 5000;
@@ -45,6 +51,8 @@
   var capturedAudioContexts = [];
   var characterFireLeadUntil = 0;
   var pendingSymbolLandingTimer = 0;
+  var splitCloneTravelUntil = 0;
+  var pendingSplitCloneTimers = [];
 
   function installAudioContextCapture() {
     var NativeAudioContext = window.AudioContext || window.webkitAudioContext;
@@ -108,6 +116,27 @@
       var eventName = arguments[0];
       var event = arguments[1];
       if (eventName === CREATE_SPIN_COMPLETE_FLOW) advanceActiveSpinProgress();
+      if (eventName === SHOW_CLONE_TIMES_MOVING) {
+        splitCloneTravelUntil = Date.now() + SPLIT_CLONE_TRAVEL_MS;
+      }
+      if (eventName === SHOW_TIMES_B) {
+        var cloneDelay = splitCloneTravelUntil - Date.now();
+        if (cloneDelay > 0) {
+          var cloneReceiver = this;
+          var cloneArgs = Array.prototype.slice.call(arguments);
+          var cloneDeadline = splitCloneTravelUntil;
+          var cloneTimer = window.setTimeout(function () {
+            pendingSplitCloneTimers = pendingSplitCloneTimers.filter(function (timer) {
+              return timer !== cloneTimer;
+            });
+            if (splitCloneTravelUntil === cloneDeadline) splitCloneTravelUntil = 0;
+            dispatcher.apply(cloneReceiver, cloneArgs);
+          }, cloneDelay);
+          pendingSplitCloneTimers.push(cloneTimer);
+          return undefined;
+        }
+        splitCloneTravelUntil = 0;
+      }
       if (eventName === SHOW_CHARACTER_FIRE) {
         // Start the character/fireball immediately, then give it a visible
         // lead before the new multiplier symbol begins falling. The source
@@ -1223,6 +1252,16 @@
       window.clearTimeout(tableReferenceRefreshTimer);
       tableReferenceRefreshTimer = 0;
     }
+    if (pendingSymbolLandingTimer) {
+      window.clearTimeout(pendingSymbolLandingTimer);
+      pendingSymbolLandingTimer = 0;
+    }
+    pendingSplitCloneTimers.forEach(function (timer) {
+      window.clearTimeout(timer);
+    });
+    pendingSplitCloneTimers = [];
+    characterFireLeadUntil = 0;
+    splitCloneTravelUntil = 0;
     try {
       if (window.cc && window.cc.game && typeof window.cc.game.pause === 'function') {
         window.cc.game.pause();

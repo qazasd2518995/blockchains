@@ -10,7 +10,6 @@ import {
   createBrowserRouter,
   Navigate,
   Outlet,
-  redirect,
   useLocation,
   useRouteError,
 } from 'react-router-dom';
@@ -32,11 +31,8 @@ import {
   GameId,
   H5_GAMES,
   isGameVisibleForUsername,
-  isImportedGameTestUsername,
   LOCAL_TABLE_GAME_IDS,
 } from '@bg/shared';
-
-const QMONEY_TEST_ONLY = import.meta.env.VITE_QMONEY_TEST_ONLY === 'true';
 
 const ORIGINAL_AUDIO_GAME_PATHS = new Set([
   ...H5_GAMES.map((game) => `/games/${game.gameId}`),
@@ -150,12 +146,14 @@ function suspended(element: ReactNode): JSX.Element {
   return <Suspense fallback={<RouteLoading />}>{element}</Suspense>;
 }
 
-function TestGameAccessGuard({ gameId, children }: { gameId: string; children: ReactNode }) {
+function isGameAvailableToMember(gameId: string, username?: string | null): boolean {
+  if (isQmoneyRealm && username?.normalize('NFKC').trim()) return true;
+  return isGameVisibleForUsername(gameId, username);
+}
+
+function MemberGameAccessGuard({ gameId, children }: { gameId: string; children: ReactNode }) {
   const username = useAuthStore((state) => state.user?.username ?? null);
-  if (
-    (QMONEY_TEST_ONLY && !isImportedGameTestUsername(username)) ||
-    !isGameVisibleForUsername(gameId, username)
-  ) {
+  if (!isGameAvailableToMember(gameId, username)) {
     return <Navigate to={platformLobbyPath} replace />;
   }
   return <>{children}</>;
@@ -215,14 +213,10 @@ function gameRoute(path: string, gameId: string, element: ReactNode) {
   return {
     path,
     loader: () => {
-      const username = useAuthStore.getState().user?.username ?? null;
-      if (QMONEY_TEST_ONLY && !isImportedGameTestUsername(username)) {
-        return redirect('/qmoney/');
-      }
       warmGameAssets(gameId);
       return null;
     },
-    element: <TestGameAccessGuard gameId={gameId}>{suspended(element)}</TestGameAccessGuard>,
+    element: <MemberGameAccessGuard gameId={gameId}>{suspended(element)}</MemberGameAccessGuard>,
   };
 }
 
@@ -327,33 +321,33 @@ export const router = createBrowserRouter([
           gameRoute(
             '/games/storm-of-seth-2',
             GameId.STORM_OF_SETH_2,
-            <TestGameAccessGuard gameId={GameId.STORM_OF_SETH_2}>
+            <MemberGameAccessGuard gameId={GameId.STORM_OF_SETH_2}>
               <Seth2Page />
-            </TestGameAccessGuard>,
+            </MemberGameAccessGuard>,
           ),
           gameRoute('/games/power-of-thor-2', GameId.POWER_OF_THOR_2, <PowerOfThor2Page />),
           gameRoute(
             '/games/fruit-mary',
             GameId.FRUIT_MARY,
-            <TestGameAccessGuard gameId={GameId.FRUIT_MARY}>
+            <MemberGameAccessGuard gameId={GameId.FRUIT_MARY}>
               <FruitMaryPage />
-            </TestGameAccessGuard>,
+            </MemberGameAccessGuard>,
           ),
           {
             path: '/games/h5-slot-collection',
             element: (
-              <TestGameAccessGuard gameId={GameId.H5_SLOT_COLLECTION}>
+              <MemberGameAccessGuard gameId={GameId.H5_SLOT_COLLECTION}>
                 <Navigate to={`/games/${H5_GAMES[0]!.gameId}`} replace />
-              </TestGameAccessGuard>
+              </MemberGameAccessGuard>
             ),
           },
           ...H5_GAMES.map((game) =>
             gameRoute(
               `/games/${game.gameId}`,
               game.gameId,
-              <TestGameAccessGuard gameId={game.gameId}>
+              <MemberGameAccessGuard gameId={game.gameId}>
                 <H5SlotGamePage gameCode={game.code} />
-              </TestGameAccessGuard>,
+              </MemberGameAccessGuard>,
             ),
           ),
           gameRoute('/games/fruit-slot', 'fruit-slot', <HotlinePage theme="fruit" />),

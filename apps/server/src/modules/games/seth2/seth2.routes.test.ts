@@ -16,7 +16,7 @@ function makeRouteRegistrar() {
   return { fastify, authenticate, addHook, findUnique };
 }
 
-describe('Seth 2 test-account access', () => {
+describe('Seth 2 member access', () => {
   it.each([
     'testplayer',
     'testplayer1',
@@ -26,9 +26,11 @@ describe('Seth 2 test-account access', () => {
     'testplayer5',
     'testplayer6',
     ' TestPlayer3 ',
+    'memberA',
+    'custom-created-member',
   ])('allows %s through the route-level access gate', async (username) => {
     const { fastify, authenticate, addHook, findUnique } = makeRouteRegistrar();
-    await seth2Routes(fastify);
+    await seth2Routes(fastify, { platformRealm: 'qmoney' });
 
     expect(addHook).toHaveBeenNthCalledWith(1, 'preHandler', authenticate);
     const accessGate = addHook.mock.calls[1]![1] as (request: {
@@ -38,25 +40,9 @@ describe('Seth 2 test-account access', () => {
     expect(findUnique).not.toHaveBeenCalled();
   });
 
-  it.each(['memberA', 'admin', 'testplayer7', 'testplayer25'])(
-    'blocks %s before any Seth endpoint',
-    async (username) => {
-      const { fastify, addHook, findUnique } = makeRouteRegistrar();
-      await seth2Routes(fastify);
-
-      const accessGate = addHook.mock.calls[1]![1] as (request: {
-        authenticatedUsername: string;
-      }) => Promise<void>;
-      await expect(accessGate({ authenticatedUsername: username })).rejects.toMatchObject(
-        expect.objectContaining({ code: 'FORBIDDEN' }),
-      );
-      expect(findUnique).not.toHaveBeenCalled();
-    },
-  );
-
   it('rejects a request whose authenticated identity has no username', async () => {
     const { fastify, addHook, findUnique } = makeRouteRegistrar();
-    await seth2Routes(fastify);
+    await seth2Routes(fastify, { platformRealm: 'qmoney' });
 
     const accessGate = addHook.mock.calls[1]![1] as (request: {
       authenticatedUsername?: string;

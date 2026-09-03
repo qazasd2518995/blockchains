@@ -30,7 +30,7 @@ export function isGameplayRequestAllowedForRealm(
   const requestPath = requestUrl.split('?')[0] || '';
   const isGameplayRequest =
     requestPath.startsWith('/api/games/') && requestPath !== '/api/games/catalog';
-  return realm !== 'qmoney' || !isGameplayRequest || isImportedGameAccessUsername(username);
+  return realm !== 'qmoney' || !isGameplayRequest || isImportedGameAccessUsername(username, realm);
 }
 
 async function pluginFn(fastify: FastifyInstance): Promise<void> {
@@ -67,7 +67,7 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
       if (
         !isGameplayRequestAllowedForRealm(req.raw.url || '', user.username, config.PLATFORM_REALM)
       ) {
-        throw new ApiError('FORBIDDEN', 'This game is only available to test accounts');
+        throw new ApiError('FORBIDDEN', 'This member account cannot access games');
       }
       const authenticatedRequest = req as unknown as {
         userId: string;

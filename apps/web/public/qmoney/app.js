@@ -6,7 +6,6 @@ const PREFERENCES_STORAGE_KEY = "qmoney-lobby-preferences-v1";
 const GAME_BGM_PREFERENCES_KEY = "bg.bgm.prefs";
 const GAME_SFX_PREFERENCES_KEY = "bg.sfx.prefs";
 const RETURN_PATH = "/qmoney/";
-const TEST_PLAYER_PATTERN = /^testplayer(?:[1-6])?$/i;
 
 const elements = {
   loginView: document.querySelector("#loginView"),
@@ -46,7 +45,7 @@ const elements = {
 };
 
 const SETTINGS_COPY = {
-  terms: { title: "服務條款", body: "使用本服務前請確認您已符合所在地的法定年齡與相關規範。測試帳號、點數及遊戲結果僅限授權測試用途。" },
+  terms: { title: "服務條款", body: "使用本服務前請確認您已符合所在地的法定年齡與相關規範。會員點數及遊戲結果均以平台正式紀錄為準。" },
   privacy: { title: "隱私條款", body: "平台只會使用登入、會員、點數與遊戲紀錄資料來提供本服務及維護帳號安全；權杖儲存在目前裝置，不會顯示於畫面或記錄到前端日誌。" },
   rules: { title: "遊戲規章", body: "遊戲下注、派彩、免費遊戲及中斷續玩皆以伺服器正式結算結果為準。請勿重複送出下注或嘗試繞過帳號權限。" },
 };
@@ -171,10 +170,6 @@ function syncGameAudioPreferences() {
 function persistPreferences() {
   window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify({ musicOn: state.musicOn, soundOn: state.soundOn }));
   syncGameAudioPreferences();
-}
-
-function isTestPlayer() {
-  return TEST_PLAYER_PATTERN.test(String(state.session?.user?.username || "").normalize("NFKC").trim());
 }
 
 function apiErrorMessage(payload, status) {
@@ -350,7 +345,7 @@ function loginFormMarkup(captcha, message = "") {
   return `
     <img class="modal-icon" src="/qmoney/assets/brand/jin-baobao-avatar.webp" alt="">
     <h1 class="modal-title" id="modalTitle">會員登入</h1>
-    <p class="modal-subtitle">登入後使用金寶寶娛樂城的獨立會員點數、測試帳號權限與正式遊戲結算。</p>
+    <p class="modal-subtitle">登入後使用金寶寶娛樂城的會員點數與正式遊戲結算。</p>
     <form class="real-login-form" id="realLoginForm">
       <label><span>會員帳號</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" enterkeyhint="next" maxlength="40" required></label>
       <label><span>密碼</span><input name="password" type="password" autocomplete="current-password" enterkeyhint="next" required></label>
@@ -412,18 +407,13 @@ function bindLoginForm(captcha) {
 
 async function loadCatalog() {
   state.catalogError = "";
-  state.accessDenied = !isTestPlayer();
-  if (state.accessDenied) {
-    state.games = [];
-    renderHero();
-    renderGames();
-    return;
-  }
+  state.accessDenied = false;
   try {
     const result = await apiRequest("/games/catalog");
     state.games = Array.isArray(result.games) ? result.games : [];
   } catch (error) {
     state.games = [];
+    state.accessDenied = error.status === 403;
     state.catalogError = error.message;
   }
   renderHero();
@@ -580,11 +570,11 @@ function renderGames() {
   }
   elements.emptyState.hidden = visibleGames.length > 0;
   elements.emptyState.textContent = state.accessDenied
-    ? "此大廳遊戲目前只開放 testplayer、testplayer1～testplayer6 測試帳號"
+    ? "此帳號目前無法進入遊戲，請聯絡客服"
     : state.catalogError
       ? `遊戲目錄載入失敗：${state.catalogError}`
       : state.games.length === 0
-        ? "這個測試帳號目前沒有已開放的遊戲"
+        ? "目前沒有已開放的遊戲"
         : "這個分類目前沒有遊戲";
 }
 
@@ -605,7 +595,6 @@ function showGame(gameId) {
 function launchActiveGame() {
   const game = state.activeGame;
   if (!game || !state.session) return;
-  if (!isTestPlayer()) return showToast("此遊戲只開放測試帳號");
   if (typeof game.route !== "string" || !game.route.startsWith("/games/")) return showToast("遊戲啟動路徑無效");
   closeModal();
   elements.loadingGameName.textContent = `正在啟動 ${game.name}`;

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { getH5GameByCode, isH5GameCode, type H5GameCode } from '@bg/shared';
+import { config } from '../../../config.js';
 import { ApiError } from '../../../utils/errors.js';
 import {
   debitAndRecord,
@@ -49,12 +50,20 @@ export function getH5FishFreezeSkillCost(gameCode: H5GameCode): number | undefin
   return H5_FISH_FREEZE_SKILL_COSTS[gameCode];
 }
 
-export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
+interface H5SlotsRouteOptions {
+  platformRealm?: 'legacy' | 'qmoney';
+}
+
+export async function h5SlotsRoutes(
+  fastify: FastifyInstance,
+  options: H5SlotsRouteOptions = {},
+): Promise<void> {
   const service = new HotlineService(fastify.prisma);
+  const platformRealm = options.platformRealm ?? config.PLATFORM_REALM;
   fastify.addHook('preHandler', fastify.authenticate);
   fastify.addHook('preHandler', async (request) => {
-    if (!isImportedGameAccessUsername(request.authenticatedUsername)) {
-      throw new ApiError('FORBIDDEN', '此遊戲目前僅開放指定測試帳號');
+    if (!isImportedGameAccessUsername(request.authenticatedUsername, platformRealm)) {
+      throw new ApiError('FORBIDDEN', '會員身份無法使用此遊戲');
     }
     if (request.authenticatedFrozen) {
       throw new ApiError('MEMBER_FROZEN', 'Member account is frozen');

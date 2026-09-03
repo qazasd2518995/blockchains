@@ -109,7 +109,7 @@ export class FruitMaryService {
       const user = await lockUserAndCheckFunds(tx, userId, amount, GAME_ID, {
         limitAmounts: [amount],
       });
-      requireTestUser(user.username);
+      requireMemberUser(user.username);
 
       const seed = await new SeedHelper(tx).getActiveBundle(userId, GAME_ID);
       const originalOutcome = fruitMarySpin(seed.serverSeed, seed.clientSeed, seed.nonce, bets);
@@ -211,7 +211,7 @@ export class FruitMaryService {
       const user = await lockUserAndCheckFunds(tx, userId, new Prisma.Decimal(0), GAME_ID, {
         limitAmounts: [amount],
       });
-      requireTestUser(user.username);
+      requireMemberUser(user.username);
       const previous = await tx.bet.findFirst({
         where: { userId, gameId: GAME_ID },
         orderBy: { createdAt: 'desc' },
@@ -333,7 +333,7 @@ export class FruitMaryService {
       },
     });
     if (!user) throw new ApiError('UNAUTHORIZED', 'Authentication required');
-    requireTestUser(user.username);
+    requireMemberUser(user.username);
     if (user.frozenAt || user.disabledAt) {
       throw new ApiError('MEMBER_FROZEN', 'Member account is frozen');
     }
@@ -364,9 +364,9 @@ function normalizeBets(input: FruitMarySpinInput): FruitMaryBetSelection[] {
   });
 }
 
-function requireTestUser(username: string): void {
-  if (!isImportedGameAccessUsername(username)) {
-    throw new ApiError('FORBIDDEN', '此遊戲目前僅開放指定測試帳號');
+function requireMemberUser(username: string): void {
+  if (!isImportedGameAccessUsername(username, config.PLATFORM_REALM)) {
+    throw new ApiError('FORBIDDEN', '會員身份無法使用此遊戲');
   }
 }
 
