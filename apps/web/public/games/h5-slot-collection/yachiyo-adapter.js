@@ -1309,6 +1309,10 @@
     fishStreamToken += 1;
     activeSockets.slice().forEach(function (socket) {
       try {
+        // Intentional iframe disposal happens after the legacy scene has begun
+        // destroying its nodes. Do not invoke source UI disconnect handlers at
+        // that point; they can otherwise dereference already-removed dialogs.
+        socket.off('disconnect');
         socket.disconnect();
         socket.off();
       } catch (_error) {}

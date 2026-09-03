@@ -86,6 +86,19 @@ function resolveInsideRoot(urlPath) {
 }
 
 async function resolveFile(urlPath, acceptHeader) {
+  const hasFileExtension = path.posix.extname(urlPath) !== '';
+  const acceptsHtml =
+    !acceptHeader || acceptHeader.includes('text/html') || acceptHeader.includes('*/*');
+
+  // Player-facing game URLs are React routes. Some archived source games also
+  // live in a directory with the same slug, so resolving directories first
+  // would bypass the authenticated shell and serve the engine's index.html.
+  // Engine documents always use an explicit /index.html URL and remain static.
+  const isPlayerGameRoute = /^\/games\/[^/]+\/?$/.test(urlPath);
+  if (!hasFileExtension && acceptsHtml && isPlayerGameRoute) {
+    return resolveFallbackFile();
+  }
+
   let candidate = resolveInsideRoot(urlPath);
   if (!candidate) return { status: 403 };
 
@@ -100,10 +113,12 @@ async function resolveFile(urlPath, acceptHeader) {
     // The SPA fallback below handles browser routes; missing assets remain 404.
   }
 
-  const hasFileExtension = path.posix.extname(urlPath) !== '';
-  const acceptsHtml = !acceptHeader || acceptHeader.includes('text/html') || acceptHeader.includes('*/*');
   if (hasFileExtension || !acceptsHtml) return { status: 404 };
 
+  return resolveFallbackFile();
+}
+
+async function resolveFallbackFile() {
   const fallbackPath = resolveInsideRoot(`/${fallbackName}`);
   if (!fallbackPath) return { status: 500 };
   try {

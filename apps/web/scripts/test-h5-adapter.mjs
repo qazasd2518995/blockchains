@@ -226,6 +226,23 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
 }
 
 {
+  const adapter = loadAdapter('113');
+  const socket = adapter.createFakeSocket();
+  let disconnectEvents = 0;
+  socket.on('disconnect', () => {
+    disconnectEvents += 1;
+    throw new Error('destroyed legacy scene must not receive a disposal disconnect');
+  });
+  assert.equal(adapter.disposeGameForRemount(), true);
+  assert.equal(
+    disconnectEvents,
+    0,
+    'intentional iframe disposal must detach legacy disconnect UI handlers before closing sockets',
+  );
+  assert.equal(adapter.disposeGameForRemount(), false, 'iframe disposal must remain idempotent');
+}
+
+{
   const scene = {
     name: 'HotUpdate',
     active: true,
