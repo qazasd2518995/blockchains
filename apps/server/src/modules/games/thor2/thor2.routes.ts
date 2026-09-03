@@ -12,12 +12,7 @@ export async function thor2Routes(fastify: FastifyInstance): Promise<void> {
   const service = new Thor2Service(fastify.prisma);
   fastify.addHook('preHandler', fastify.authenticate);
   fastify.addHook('preHandler', async (request) => {
-    const user = await fastify.prisma.user.findUnique({
-      where: { id: request.userId },
-      select: { username: true },
-    });
-    if (!user) throw new ApiError('UNAUTHORIZED', 'Authentication required');
-    if (!isImportedGameAccessUsername(user.username)) {
+    if (!isImportedGameAccessUsername(request.authenticatedUsername)) {
       throw new ApiError('FORBIDDEN', '雷神之錘 2 目前僅開放指定測試帳號');
     }
   });

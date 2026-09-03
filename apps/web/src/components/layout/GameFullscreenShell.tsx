@@ -24,6 +24,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { ChangePasswordModal } from '@/components/layout/ChangePasswordModal';
 import { BettingLimitBadge } from '@/components/game/BettingLimitBadge';
 import { ResponsiveImage } from '@/lib/optimizedImages';
+import { useProactiveGameTokenRefresh } from '@/hooks/useProactiveGameTokenRefresh';
 
 const MEGA_SLOT_GAME_IDS = new Set([
   'thunder-slot',
@@ -56,6 +57,7 @@ function useCurrentGameMeta() {
 }
 
 export function GameFullscreenShell() {
+  useProactiveGameTokenRefresh();
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
   const game = useCurrentGameMeta();

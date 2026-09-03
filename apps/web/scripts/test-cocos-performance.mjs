@@ -153,6 +153,17 @@ const gameManifestSource = fs.readFileSync(
   path.join(webRoot, 'src/lib/gameAssetManifest.ts'),
   'utf8',
 );
+const routerSource = fs.readFileSync(path.join(webRoot, 'src/router.tsx'), 'utf8');
+const gameRouteSource = routerSource.slice(
+  routerSource.indexOf('function gameRoute'),
+  routerSource.indexOf('function RouteViewportReset'),
+);
+assert.match(gameRouteSource, /warmGameAssets\(gameId\)/);
+assert.doesNotMatch(
+  gameRouteSource,
+  /await preloadGameAssets\(gameId\)/,
+  'route rendering must not wait for image decoding before mounting the game page',
+);
 assert.match(gameManifestSource, /yachiyo-adapter\.js\?v=46/);
 assert.match(gameManifestSource, /fruit-mary-adapter\.js\?v=13/);
 assert.match(gameManifestSource, /seth2-local-adapter\.js\?v=20260901-auth-recovery-1/);
@@ -167,5 +178,23 @@ const thor2PageSource = fs.readFileSync(
 );
 assert.match(thor2PageSource, /holdWalletBalanceRefresh/);
 assert.match(thor2PageSource, /contain: 'layout paint'/);
+
+const proactiveRefreshSource = fs.readFileSync(
+  path.join(webRoot, 'src/hooks/useProactiveGameTokenRefresh.ts'),
+  'utf8',
+);
+for (const shellFile of ['QmoneyGameShell.tsx', 'GameFullscreenShell.tsx']) {
+  const shellSource = fs.readFileSync(
+    path.join(webRoot, 'src/components/layout', shellFile),
+    'utf8',
+  );
+  assert.match(
+    shellSource,
+    /useProactiveGameTokenRefresh\(\)/,
+    `${shellFile} must refresh authentication before a game request receives a 401`,
+  );
+}
+assert.match(proactiveRefreshSource, /visibilitychange/);
+assert.match(proactiveRefreshSource, /refreshAccessTokenProactively/);
 
 console.log('Cocos preload, adaptive mobile rendering, and cache contracts passed.');

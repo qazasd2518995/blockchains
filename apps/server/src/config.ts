@@ -44,6 +44,7 @@ const envSchema = z.object({
     .default(defaultLogLevel),
   PRISMA_QUERY_LOG: booleanEnv,
   SLOW_REQUEST_MS: z.coerce.number().int().positive().default(1000),
+  GAME_SLOW_REQUEST_MS: z.coerce.number().int().positive().default(300),
   CORS_ORIGIN: z
     .string()
     .default(defaultCorsOrigins)

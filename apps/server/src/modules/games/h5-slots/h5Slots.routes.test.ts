@@ -1,10 +1,60 @@
-import { describe, expect, it } from 'vitest';
+import type { FastifyInstance } from 'fastify';
+import { describe, expect, it, vi } from 'vitest';
 import {
   H5_FISH_FREEZE_DURATION_MS,
   getH5BuyFreeCostMultiplier,
   getH5EnhancedBetMultiplier,
   getH5FishFreezeSkillCost,
+  h5SlotsRoutes,
 } from './h5Slots.routes.js';
+
+function makeRouteRegistrar() {
+  const authenticate = vi.fn();
+  const addHook = vi.fn();
+  const findUnique = vi.fn();
+  const fastify = {
+    prisma: { user: { findUnique } },
+    authenticate,
+    addHook,
+    get: vi.fn(),
+    post: vi.fn(),
+  } as unknown as FastifyInstance;
+  return { fastify, authenticate, addHook, findUnique };
+}
+
+describe('H5 slot test-account access', () => {
+  it('reuses the identity already loaded by authentication', async () => {
+    const { fastify, authenticate, addHook, findUnique } = makeRouteRegistrar();
+    await h5SlotsRoutes(fastify);
+
+    expect(addHook).toHaveBeenNthCalledWith(1, 'preHandler', authenticate);
+    const accessGate = addHook.mock.calls[1]![1] as (request: {
+      authenticatedUsername: string;
+      authenticatedFrozen: boolean;
+    }) => Promise<void>;
+    await expect(
+      accessGate({ authenticatedUsername: 'testplayer4', authenticatedFrozen: false }),
+    ).resolves.toBeUndefined();
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
+  it('keeps non-test and frozen accounts blocked without another user lookup', async () => {
+    const { fastify, addHook, findUnique } = makeRouteRegistrar();
+    await h5SlotsRoutes(fastify);
+    const accessGate = addHook.mock.calls[1]![1] as (request: {
+      authenticatedUsername: string;
+      authenticatedFrozen: boolean;
+    }) => Promise<void>;
+
+    await expect(
+      accessGate({ authenticatedUsername: 'regular-member', authenticatedFrozen: false }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(
+      accessGate({ authenticatedUsername: 'testplayer', authenticatedFrozen: true }),
+    ).rejects.toMatchObject({ code: 'MEMBER_FROZEN' });
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+});
 
 describe('H5 slot buy-free pricing', () => {
   it('matches the prices shown by Caishen Wins and Gates of Olympus', () => {

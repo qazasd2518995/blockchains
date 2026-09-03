@@ -14,6 +14,17 @@ function pathnameOf(request: FastifyRequest): string {
   return request.url.split('?')[0] ?? request.url;
 }
 
+export function getSlowRequestThresholdMs(
+  requestUrl: string,
+  defaultThresholdMs: number,
+  gameThresholdMs: number,
+): number {
+  const pathname = requestUrl.split('?')[0] ?? requestUrl;
+  return pathname.startsWith('/api/games/')
+    ? Math.min(defaultThresholdMs, gameThresholdMs)
+    : defaultThresholdMs;
+}
+
 function hasObjectContent(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && Object.keys(value).length > 0;
 }

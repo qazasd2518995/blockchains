@@ -11,6 +11,7 @@ declare module 'fastify' {
   interface FastifyRequest {
     userId: string;
     authenticatedUsername: string;
+    authenticatedFrozen: boolean;
   }
 }
 
@@ -71,9 +72,11 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
       const authenticatedRequest = req as unknown as {
         userId: string;
         authenticatedUsername: string;
+        authenticatedFrozen: boolean;
       };
       authenticatedRequest.userId = user.id;
       authenticatedRequest.authenticatedUsername = user.username;
+      authenticatedRequest.authenticatedFrozen = Boolean(user.frozenAt);
     } catch (error) {
       if (error instanceof ApiError) throw error;
       throw new ApiError('UNAUTHORIZED', 'Authentication required');

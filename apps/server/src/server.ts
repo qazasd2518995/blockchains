@@ -5,7 +5,8 @@ import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
 import { ZodError } from 'zod';
 
-import { config, isAllowedOrigin } from './config.js';
+import { config } from './config.js';
+import { corsOptions } from './cors.js';
 import {
   MAX_BET_AMOUNT,
   MIN_BET_AMOUNT,
@@ -44,6 +45,7 @@ import { ApiError, errorCodeToStatus, publicErrorMessage } from './utils/errors.
 import {
   getRequestLogContext,
   getSafeRequestPayload,
+  getSlowRequestThresholdMs,
   hasRequestErrorLogged,
   markRequestErrorLogged,
   markRequestStart,
@@ -143,6 +145,7 @@ export async function buildServer(): Promise<FastifyInstance> {
       logLevel: server.log.level,
       prismaQueryLog: config.PRISMA_QUERY_LOG,
       slowRequestMs: config.SLOW_REQUEST_MS,
+      gameSlowRequestMs: config.GAME_SLOW_REQUEST_MS,
     },
     'Server logging configured',
   );
@@ -169,7 +172,12 @@ export async function buildServer(): Promise<FastifyInstance> {
       return;
     }
 
-    if (durationMs !== undefined && durationMs >= config.SLOW_REQUEST_MS) {
+    const slowRequestThresholdMs = getSlowRequestThresholdMs(
+      request.url,
+      config.SLOW_REQUEST_MS,
+      config.GAME_SLOW_REQUEST_MS,
+    );
+    if (durationMs !== undefined && durationMs >= slowRequestThresholdMs) {
       request.log.warn({ ...context, payload }, 'Slow request completed');
       return;
     }
@@ -238,12 +246,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   });
 
   await server.register(helmet, { contentSecurityPolicy: false });
-  await server.register(cors, {
-    origin: (origin, cb) => {
-      cb(null, isAllowedOrigin(origin));
-    },
-    credentials: true,
-  });
+  await server.register(cors, corsOptions);
   await server.register(rateLimit, {
     max: 600,
     timeWindow: '1 minute',

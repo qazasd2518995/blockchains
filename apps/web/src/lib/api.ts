@@ -51,6 +51,14 @@ function shouldRefreshBeforeRequest(token: string | null): boolean {
   return expiresAt - Date.now() <= TOKEN_REFRESH_SKEW_MS;
 }
 
+export function getAccessTokenRefreshDelayMs(
+  token: string | null,
+  nowMs = Date.now(),
+): number | null {
+  const expiresAt = getJwtExpiresAtMs(token);
+  return expiresAt === null ? null : Math.max(0, expiresAt - nowMs - TOKEN_REFRESH_SKEW_MS);
+}
+
 async function refreshUserTokens(refreshToken: string): Promise<TokenPair> {
   if (!refreshInFlight) {
     refreshInFlight = axios
@@ -63,6 +71,23 @@ async function refreshUserTokens(refreshToken: string): Promise<TokenPair> {
       });
   }
   return refreshInFlight;
+}
+
+export async function refreshAccessTokenProactively(): Promise<void> {
+  const auth = useAuthStore.getState();
+  const attemptedRefreshToken = auth.refreshToken;
+  if (
+    !auth.accessToken ||
+    !attemptedRefreshToken ||
+    !shouldRefreshBeforeRequest(auth.accessToken)
+  ) {
+    return;
+  }
+
+  const data = await refreshUserTokens(attemptedRefreshToken);
+  const latest = useAuthStore.getState();
+  if (latest.refreshToken !== attemptedRefreshToken) return;
+  latest.setTokens(data.accessToken, data.refreshToken);
 }
 
 function getApiErrorCode(error: unknown): string | null {

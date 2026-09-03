@@ -6,6 +6,7 @@ import { AudioMenu } from '@/components/layout/AudioMenu';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 import { getLocalizedGameTitle } from '@/i18n/gameLabels';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useProactiveGameTokenRefresh } from '@/hooks/useProactiveGameTokenRefresh';
 
 const MEGA_SLOT_GAME_IDS = new Set([
   'thunder-slot',
@@ -50,6 +51,7 @@ function initialFloatingPosition(): FloatingPosition {
 }
 
 export function QmoneyGameShell() {
+  useProactiveGameTokenRefresh();
   const shellRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const suppressClickRef = useRef(false);

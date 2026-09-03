@@ -25,7 +25,7 @@ for (const marker of [
   'data-category="棋牌"',
   'data-action="notices"',
   'id="heroTrack"',
-  '/qmoney/app.js?v=20260901-mobile-viewport-6',
+  '/qmoney/app.js?v=20260904-performance-1',
   'class="is-booting"',
   'id="bootView"',
   '金寶寶｜遊戲大廳',
@@ -108,6 +108,23 @@ assert.match(
   /function releaseMobileInputViewport\(\)[^]*document\.activeElement\.blur\(\)[^]*window\.scrollTo\(0, 0\)/,
   'entering the lobby must release the login focus and restore the viewport origin',
 );
+assert.match(
+  app,
+  /window\.requestAnimationFrame\(\(\) => window\.location\.assign\(target\)\)/,
+  'game navigation should start after the loading overlay receives a paint opportunity',
+);
+assert.doesNotMatch(
+  app,
+  /setTimeout\(\(\) => window\.location\.assign\(target\),\s*320\)/,
+  'game navigation must not include an artificial 320ms delay',
+);
+assert.match(
+  html,
+  /<script src="\/qmoney\/config\.js" defer><\/script>/,
+  'the generated API configuration must not block HTML parsing',
+);
+assert.match(app, /decoding="async" fetchpriority="\$\{index === 0 \? "high" : "low"\}"/);
+assert.match(app, /loading="lazy" decoding="async"/);
 
 for (const marker of [
   'lobbypopframebg.webp',

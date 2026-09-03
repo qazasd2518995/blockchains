@@ -350,7 +350,9 @@ export function preloadGameAssets(
 
 export function warmGameAssets(gameId: string): void {
   warmGameRouteModule(gameId);
-  void preloadGameAssets(gameId, { includeNonCritical: false, usePixi: false });
+  void preloadGameAssets(gameId, { includeNonCritical: false, usePixi: false }).catch(
+    () => undefined,
+  );
 }
 
 function warmGameRouteModule(gameId: string): void {

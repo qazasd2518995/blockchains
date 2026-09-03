@@ -545,7 +545,7 @@ function renderHero() {
 
   elements.heroTrack.innerHTML = games.map((game, index) => `
     <button class="hero-slide${index === 0 ? " is-active" : ""}" type="button" data-hero-game="${escapeHtml(game.id)}" aria-label="立即遊玩 ${escapeHtml(game.name)}">
-      <img src="${escapeHtml(game.cover)}" alt="" loading="${index === 0 ? "eager" : "lazy"}">
+      <img src="${escapeHtml(game.cover)}" alt="" loading="${index === 0 ? "eager" : "lazy"}" decoding="async" fetchpriority="${index === 0 ? "high" : "low"}">
       <span class="hero-slide-copy"><small>${escapeHtml(game.category)}</small><strong>${escapeHtml(game.name)}</strong><em>立即遊玩</em></span>
     </button>`).join("");
   elements.carouselDots.innerHTML = games.map((game, index) => `<button class="${index === 0 ? "is-active" : ""}" type="button" data-slide="${index}" aria-label="顯示 ${escapeHtml(game.name)}"></button>`).join("");
@@ -569,7 +569,7 @@ function renderGames() {
     launch.dataset.game = game.id;
     launch.setAttribute("aria-label", `開啟 ${game.name}`);
     launch.innerHTML = `
-      <div class="game-card-image">${game.badge ? `<span class="game-badge">${escapeHtml(game.badge)}</span>` : ""}<img src="${escapeHtml(game.cover)}" alt="${escapeHtml(game.name)}" loading="lazy"></div>
+      <div class="game-card-image">${game.badge ? `<span class="game-badge">${escapeHtml(game.badge)}</span>` : ""}<img src="${escapeHtml(game.cover)}" alt="${escapeHtml(game.name)}" loading="lazy" decoding="async"></div>
       <div class="game-card-copy"><span class="game-card-title">${escapeHtml(game.name)}</span></div>`;
     launch.querySelector("img")?.addEventListener("error", (event) => {
       event.currentTarget.hidden = true;
@@ -614,7 +614,7 @@ function launchActiveGame() {
   const target = new URL(game.route, window.location.origin);
   target.searchParams.set("returnTo", RETURN_PATH);
   target.searchParams.set("returnLabel", "金寶寶遊戲大廳");
-  window.setTimeout(() => window.location.assign(target), 320);
+  window.requestAnimationFrame(() => window.location.assign(target));
 }
 
 function showSettings(page = "root") {

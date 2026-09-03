@@ -19,7 +19,7 @@ import { AuthGuard } from '@/components/layout/AuthGuard';
 import { GameFullscreenShell } from '@/components/layout/GameFullscreenShell';
 import { QmoneyGameShell } from '@/components/layout/QmoneyGameShell';
 import { GuestGuard } from '@/components/layout/GuestGuard';
-import { preloadGameAssets } from '@/lib/gameAssetManifest';
+import { warmGameAssets } from '@/lib/gameAssetManifest';
 import { useTranslation } from '@/i18n/useTranslation';
 import type { Locale } from '@/i18n/types';
 import { PlatformBgm } from '@/lib/platformBgm';
@@ -214,12 +214,12 @@ function RuntimeErrorScreen({
 function gameRoute(path: string, gameId: string, element: ReactNode) {
   return {
     path,
-    loader: async () => {
+    loader: () => {
       const username = useAuthStore.getState().user?.username ?? null;
       if (QMONEY_TEST_ONLY && !isImportedGameTestUsername(username)) {
         return redirect('/qmoney/');
       }
-      await preloadGameAssets(gameId);
+      warmGameAssets(gameId);
       return null;
     },
     element: <TestGameAccessGuard gameId={gameId}>{suspended(element)}</TestGameAccessGuard>,

@@ -52,31 +52,21 @@ export function getH5FishFreezeSkillCost(gameCode: H5GameCode): number | undefin
 export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
   const service = new HotlineService(fastify.prisma);
   fastify.addHook('preHandler', fastify.authenticate);
-
-  async function requireTestUser(userId: string) {
-    const user = await fastify.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        username: true,
-        displayName: true,
-        balance: true,
-        frozenAt: true,
-        disabledAt: true,
-      },
-    });
-    if (!user) throw new ApiError('UNAUTHORIZED', 'Authentication required');
-    if (!isImportedGameAccessUsername(user.username)) {
+  fastify.addHook('preHandler', async (request) => {
+    if (!isImportedGameAccessUsername(request.authenticatedUsername)) {
       throw new ApiError('FORBIDDEN', '此遊戲目前僅開放指定測試帳號');
     }
-    if (user.frozenAt || user.disabledAt) {
+    if (request.authenticatedFrozen) {
       throw new ApiError('MEMBER_FROZEN', 'Member account is frozen');
     }
-    return user;
-  }
+  });
 
   fastify.get('/session', async (request) => {
-    const user = await requireTestUser(request.userId);
+    const user = await fastify.prisma.user.findUnique({
+      where: { id: request.userId },
+      select: { id: true, username: true, displayName: true, balance: true },
+    });
+    if (!user) throw new ApiError('UNAUTHORIZED', 'Authentication required');
     const requestedCode = (request.query as { gameCode?: string }).gameCode;
     const requestedGame =
       requestedCode && isH5GameCode(requestedCode) ? getH5GameByCode(requestedCode) : undefined;
@@ -108,7 +98,6 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.post('/spin', async (request) => {
-    await requireTestUser(request.userId);
     const input = h5SlotSpinSchema.parse(request.body);
     const game = getH5GameByCode(input.gameCode);
     const buyFeatureCostMultiplier = getH5BuyFreeCostMultiplier(input.gameCode);
@@ -152,7 +141,6 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.post('/select-free-mode', async (request) => {
-    await requireTestUser(request.userId);
     const input = h5BountyFreeModeSchema.parse(request.body);
     const result = await service.selectSourceFreeMode(
       request.userId,
@@ -164,20 +152,17 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.post('/caishen/gamble-free', async (request) => {
-    await requireTestUser(request.userId);
     const input = h5CaishenFreeGambleSchema.parse(request.body);
     return service.gambleCaishenFree(request.userId, input.betId, input.type);
   });
 
   fastify.post('/caishen/collect-free', async (request) => {
-    await requireTestUser(request.userId);
     const input = h5CaishenFreeDecisionSchema.parse(request.body);
     const result = await service.collectCaishenFree(request.userId, input.betId);
     return { ...result, gameCode: input.gameCode };
   });
 
   fastify.post('/complete-feature', async (request) => {
-    await requireTestUser(request.userId);
     const input = h5FeatureCompleteSchema.parse(request.body);
     const game = getH5GameByCode(input.gameCode);
     const newBalance = await service.completeDeferredFeature(
@@ -189,7 +174,6 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.post('/fish/skill', async (request) => {
-    const user = await requireTestUser(request.userId);
     const input = h5FishSkillSchema.parse(request.body);
     const skillCost = getH5FishFreezeSkillCost(input.gameCode);
     if (skillCost === undefined) {
@@ -209,7 +193,7 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
     });
     return {
       ResultCode: 1,
-      userId: user.id,
+      userId: request.userId,
       skillId: input.skillId,
       cost: skillCost,
       durationMs: H5_FISH_FREEZE_DURATION_MS,
@@ -218,7 +202,6 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.get('/history', async (request) => {
-    await requireTestUser(request.userId);
     const requestedCode = (request.query as { gameCode?: string }).gameCode;
     if (!requestedCode || !isH5GameCode(requestedCode)) {
       throw new ApiError('INVALID_ACTION', '缺少有效的遊戲代碼');

@@ -1,5 +1,5 @@
-const VERSION = 'bg-assets-v9-game-runtime-20260831';
-const DEBUG_VERSION = 'game-runtime-cache-20260831-01';
+const VERSION = 'bg-assets-v10-game-cache-first-20260904';
+const DEBUG_VERSION = 'game-runtime-cache-20260904-01';
 const IMAGE_CACHE = `${VERSION}:images`;
 const GAME_CACHE = `${VERSION}:games`;
 const IMAGE_MAX_ENTRIES = 420;
@@ -56,7 +56,7 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (isGameAssetRequest(url, request)) {
-    event.respondWith(staleWhileRevalidate(request, GAME_CACHE, GAME_MAX_ENTRIES, event));
+    event.respondWith(cacheFirst(request, GAME_CACHE, GAME_MAX_ENTRIES, event));
     return;
   }
 
@@ -64,6 +64,23 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(staleWhileRevalidate(request, IMAGE_CACHE, IMAGE_MAX_ENTRIES, event));
   }
 });
+
+async function cacheFirst(request, cacheName, maxEntries, event) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  const response = await fetch(request);
+  if (isCacheable(response)) {
+    event.waitUntil(
+      cache
+        .put(request, response.clone())
+        .then(() => trimCache(cache, maxEntries))
+        .catch(() => undefined),
+    );
+  }
+  return response;
+}
 
 function isGameAssetRequest(url, request) {
   return (
