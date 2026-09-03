@@ -29,10 +29,18 @@ for (const marker of [
   'class="is-booting"',
   'id="bootView"',
   '金寶寶｜遊戲大廳',
+  '熱門拉霸、捕魚與棋牌精彩集結。登入金寶寶，開啟專屬娛樂時光。',
+  'property="og:title" content="金寶寶｜精彩遊戲，一站暢玩"',
+  'property="og:description"',
+  'name="twitter:description"',
+  'https://bg-qmoney-production.up.railway.app/qmoney/assets/brand/jin-baobao-social.png?v=20260903',
+  '精彩遊戲即將登場…',
   '/qmoney/assets/brand/jin-baobao-avatar.webp',
 ]) {
   assert.ok(html.includes(marker), `missing lobby marker: ${marker}`);
 }
+
+assert.ok(!html.includes('正在返回遊戲大廳'), 'link previews must not expose navigation status copy');
 
 for (const removedShell of [
   'id="lineLogin"',
@@ -246,7 +254,7 @@ assert.ok(!`${html}\n${css}\n${app}`.includes('/Users/justin/qmoney77-frontend-a
 const referencedAssets = new Set();
 for (const source of [html, css]) {
   for (const match of source.matchAll(/\/qmoney\/assets\/([^"')\s]+)/g)) {
-    referencedAssets.add(decodeURIComponent(match[1]));
+    referencedAssets.add(decodeURIComponent(match[1].split(/[?#]/u, 1)[0]));
   }
 }
 for (const match of app.matchAll(/["`]((?:imgs_soc|brand)\/[^"`$]+\.(?:webp|png|gif|svg|mp3))["`]/g)) {

@@ -15,6 +15,11 @@ if (realm === 'qmoney') {
 
   await assertIndexContains([
     '<title>金寶寶代理後台</title>',
+    '<html lang="zh-Hant">',
+    '<meta name="description" content="金寶寶專屬代理營運中心，整合帳號管理、點數轉帳、報表統計與營運設定。" />',
+    '<meta property="og:title" content="金寶寶代理後台｜營運管理中心" />',
+    '<meta property="og:description" content="金寶寶專屬代理營運中心，整合帳號管理、點數轉帳、報表統計與營運設定。" />',
+    'https://bg-qmoney-admin-production.up.railway.app/brand/jin-baobao-social.png?v=20260903',
     '/brand/jin-baobao-avatar.webp',
   ]);
   await assertNoForbiddenText([/八千代/u, /錢女友/u, /yachiyo/iu]);
@@ -22,6 +27,7 @@ if (realm === 'qmoney') {
   await Promise.all([
     removeGenerated('brand/jin-baobao-avatar.webp'),
     removeGenerated('brand/jin-baobao-mascot.webp'),
+    removeGenerated('brand/jin-baobao-social.png'),
   ]);
   await assertIndexContains(['<title>八千代代理後台</title>', '/brand/yachiyo-emblem.png']);
 }

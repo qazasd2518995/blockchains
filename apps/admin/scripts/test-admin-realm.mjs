@@ -48,6 +48,10 @@ assertContains(viteConfig, [
   "env.VITE_ADMIN_REALM === 'qmoney'",
   'apiRealm !== realm',
   './src/brand/${realm}.ts',
+  '金寶寶專屬代理營運中心，整合帳號管理、點數轉帳、報表統計與營運設定。',
+  'https://bg-qmoney-admin-production.up.railway.app/admin/login',
+  'og:description',
+  'twitter:description',
 ]);
 assertContains(renderConfig, [
   'name: bg-qmoney-api',

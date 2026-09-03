@@ -37,12 +37,43 @@ function adminBrandHtmlPlugin(realm: 'legacy' | 'qmoney'): Plugin {
   const icon = isQmoney ? '/brand/jin-baobao-avatar.webp' : '/brand/yachiyo-emblem.png';
   const iconType = isQmoney ? 'image/webp' : 'image/png';
   const themeColor = isQmoney ? '#7447d8' : '#093040';
+  const description = isQmoney
+    ? '金寶寶專屬代理營運中心，整合帳號管理、點數轉帳、報表統計與營運設定。'
+    : '專屬代理營運中心，整合帳號管理、點數轉帳、報表統計與營運設定。';
+  const canonicalUrl = isQmoney
+    ? 'https://bg-qmoney-admin-production.up.railway.app/admin/login'
+    : 'https://bg-admin-production.up.railway.app/admin/login';
+  const socialImageUrl = isQmoney
+    ? 'https://bg-qmoney-admin-production.up.railway.app/brand/jin-baobao-social.png?v=20260903'
+    : 'https://bg-admin-production.up.railway.app/brand/yachiyo-emblem.png?v=20260903';
+  const socialImageType = 'image/png';
+  const socialMeta = [
+    `<meta name="description" content="${description}" />`,
+    `<link rel="canonical" href="${canonicalUrl}" />`,
+    '<meta property="og:locale" content="zh_TW" />',
+    '<meta property="og:type" content="website" />',
+    `<meta property="og:site_name" content="${title}" />`,
+    `<meta property="og:title" content="${title}｜營運管理中心" />`,
+    `<meta property="og:description" content="${description}" />`,
+    `<meta property="og:url" content="${canonicalUrl}" />`,
+    `<meta property="og:image" content="${socialImageUrl}" />`,
+    `<meta property="og:image:type" content="${socialImageType}" />`,
+    '<meta property="og:image:width" content="248" />',
+    '<meta property="og:image:height" content="248" />',
+    `<meta property="og:image:alt" content="${title}品牌角色" />`,
+    '<meta name="twitter:card" content="summary" />',
+    `<meta name="twitter:title" content="${title}｜營運管理中心" />`,
+    `<meta name="twitter:description" content="${description}" />`,
+    `<meta name="twitter:image" content="${socialImageUrl}" />`,
+  ].join('\n    ');
 
   return {
     name: 'admin-brand-html',
     transformIndexHtml(html) {
       return html
+        .replace('<html lang="zh-Hans">', `<html lang="${isQmoney ? 'zh-Hant' : 'zh-Hans'}">`)
         .replace('<title>代理後台</title>', `<title>${title}</title>`)
+        .replace('<!-- admin-brand-meta -->', socialMeta)
         .replace(
           '<link rel="icon" data-admin-brand-icon href="/favicon.png" />',
           `<link rel="icon" data-admin-brand-icon type="${iconType}" href="${icon}" />`,
