@@ -304,7 +304,9 @@ export class Thor2Service {
           newBalance: user.balance.toFixed(2),
         };
       }
-      await lockUserAndCheckFunds(tx, userId, stake, GAME_ID, { limitAmounts: [baseBet] });
+      const member = await lockUserAndCheckFunds(tx, userId, stake, GAME_ID, {
+        limitAmounts: [baseBet],
+      });
       const pending = await tx.bet.findFirst({
         where: {
           userId,
@@ -440,6 +442,7 @@ export class Thor2Service {
         bet.id,
         originalResult as unknown as Prisma.InputJsonValue,
         finalResult as unknown as Prisma.InputJsonValue,
+        { member, balance },
       );
       return { ...publicResult, newBalance: balance.toFixed(2) };
     });

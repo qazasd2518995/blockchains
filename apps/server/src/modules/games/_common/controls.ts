@@ -25,8 +25,164 @@ import {
   listControlIncludedAgentDescendants,
 } from '../../../utils/hierarchy.js';
 import { resolveDelegatedControlZoneForAgent } from '../../admin/controls/controlZone.service.js';
+import { getLockedGameUser } from './BaseGameService.js';
 
 type Db = Prisma.TransactionClient;
+
+interface TransactionControlLookupCache {
+  excludedLines: Map<string, Promise<boolean>>;
+  controlZones: Map<string, Promise<string | null>>;
+  agentAncestors: Map<string, Promise<string[]>>;
+  targetedControls: Map<string, Promise<boolean>>;
+}
+
+const transactionControlLookupCaches = new WeakMap<object, TransactionControlLookupCache>();
+
+function transactionControlLookupCache(tx: Db): TransactionControlLookupCache {
+  let cache = transactionControlLookupCaches.get(tx);
+  if (!cache) {
+    cache = {
+      excludedLines: new Map(),
+      controlZones: new Map(),
+      agentAncestors: new Map(),
+      targetedControls: new Map(),
+    };
+    transactionControlLookupCaches.set(tx, cache);
+  }
+  return cache;
+}
+
+function cachedControlExcludedLine(tx: Db, member: MemberScope): Promise<boolean> {
+  if (!member.agentId) return Promise.resolve(false);
+  const cache = transactionControlLookupCache(tx).excludedLines;
+  let lookup = cache.get(member.agentId);
+  if (!lookup) {
+    lookup = isMemberInControlExcludedLine(tx, member);
+    cache.set(member.agentId, lookup);
+  }
+  return lookup;
+}
+
+function cachedControlZone(tx: Db, agentId: string | null): Promise<string | null> {
+  if (!agentId) return Promise.resolve(null);
+  const cache = transactionControlLookupCache(tx).controlZones;
+  let lookup = cache.get(agentId);
+  if (!lookup) {
+    lookup = resolveDelegatedControlZoneForAgent(tx, agentId);
+    cache.set(agentId, lookup);
+  }
+  return lookup;
+}
+
+function cachedAgentAncestors(tx: Db, agentId: string | null): Promise<string[]> {
+  if (!agentId) return Promise.resolve([]);
+  const cache = transactionControlLookupCache(tx).agentAncestors;
+  let lookup = cache.get(agentId);
+  if (!lookup) {
+    lookup = getAgentAncestors(tx, agentId);
+    cache.set(agentId, lookup);
+  }
+  return lookup;
+}
+
+function cachedHasTargetedControls(tx: Db, member: MemberScope): Promise<boolean> {
+  const cache = transactionControlLookupCache(tx).targetedControls;
+  let lookup = cache.get(member.id);
+  if (!lookup) {
+    lookup = hasTargetedControls(tx, member);
+    cache.set(member.id, lookup);
+  }
+  return lookup;
+}
+
+async function hasTargetedControls(tx: Db, member: MemberScope): Promise<boolean> {
+  const rows = await tx.$queryRaw<Array<{ hasTargetedControls: boolean }>>(Prisma.sql`
+    WITH RECURSIVE agent_ancestors AS (
+      SELECT id, "parentId"
+      FROM "Agent"
+      WHERE id = ${member.agentId}
+      UNION ALL
+      SELECT agent.id, agent."parentId"
+      FROM "Agent" agent
+      JOIN agent_ancestors ancestor ON ancestor."parentId" = agent.id
+    )
+    SELECT (
+      EXISTS (
+        SELECT 1
+        FROM "WinLossControl"
+        WHERE "isActive" = true
+          AND "isCompleted" = false
+          AND (
+            ("controlMode" = 'SINGLE_MEMBER' AND (
+              "targetId" = ${member.id} OR "targetUsername" = ${member.username}
+            ))
+            OR ("controlMode" = 'AGENT_LINE' AND "targetId" IN (
+              SELECT id FROM agent_ancestors
+            ))
+          )
+      )
+      OR EXISTS (
+        SELECT 1 FROM "MemberWinCapControl"
+        WHERE "memberId" = ${member.id} AND "isActive" = true
+      )
+      OR EXISTS (
+        SELECT 1 FROM "AgentLineWinCap"
+        WHERE "isActive" = true AND "agentId" IN (SELECT id FROM agent_ancestors)
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM "MemberDepositControl"
+        WHERE "isActive" = true
+          AND "isCompleted" = false
+          AND (
+            ("scope" = 'MEMBER' AND (
+              "memberId" = ${member.id} OR "memberUsername" = ${member.username}
+            ))
+            OR ("scope" = 'AGENT_LINE' AND "targetAgentId" IN (
+              SELECT id FROM agent_ancestors
+            ))
+          )
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM "ManualDetectionControl"
+        WHERE "isActive" = true
+          AND "isCompleted" = false
+          AND (
+            ("scope" = 'MEMBER' AND (
+              "targetMemberId" = ${member.id} OR "targetMemberUsername" = ${member.username}
+            ))
+            OR ("scope" = 'AGENT_LINE' AND "targetAgentId" IN (
+              SELECT id FROM agent_ancestors
+            ))
+          )
+      )
+      OR EXISTS (
+        SELECT 1 FROM "MemberAutoBalanceControl"
+        WHERE "memberId" = ${member.id} AND "isActive" = true
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM "BurstControl"
+        WHERE "isActive" = true
+          AND (
+            ("scope" = 'MEMBER' AND (
+              "targetMemberId" = ${member.id} OR "targetMemberUsername" = ${member.username}
+            ))
+            OR ("scope" = 'AGENT_LINE' AND "targetAgentId" IN (
+              SELECT id FROM agent_ancestors
+            ))
+          )
+      )
+    ) AS "hasTargetedControls"
+  `);
+  return rows[0]?.hasTargetedControls ?? true;
+}
+
+async function hasCachedNoTargetedControls(tx: Db, userId: string): Promise<boolean> {
+  const lookup = transactionControlLookupCache(tx).targetedControls.get(userId);
+  return lookup ? !(await lookup) : false;
+}
 
 const ZERO = new Prisma.Decimal(0);
 const ONE = new Prisma.Decimal(1);
@@ -271,10 +427,12 @@ export async function applyControls(
   predicted: PredictedResult,
   options: ControlOptions = {},
 ): Promise<ControlOutcome> {
-  const member = await tx.user.findUnique({
-    where: { id: userId },
-    select: { id: true, agentId: true, username: true },
-  });
+  const member =
+    getLockedGameUser(tx, userId) ??
+    (await tx.user.findUnique({
+      where: { id: userId },
+      select: { id: true, agentId: true, username: true },
+    }));
   if (!member) return { ...predicted, controlled: false };
 
   const decision = await findControlDecision(tx, member, gameId, predicted, options);
@@ -324,11 +482,14 @@ export async function applyGlobalMemberDailyWinCap(
   predicted: PredictedResult,
   gameId?: string,
 ): Promise<ControlOutcome | null> {
-  const member = await tx.user.findUnique({
-    where: { id: userId },
-    select: { id: true, username: true, agentId: true },
-  });
+  const member =
+    getLockedGameUser(tx, userId) ??
+    (await tx.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, agentId: true },
+    }));
   if (!member) return null;
+  if (await cachedControlExcludedLine(tx, member)) return null;
   if (await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId)) return null;
 
   const decision = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
@@ -346,11 +507,14 @@ export async function getGlobalMemberDailyWinCapGuard(
   amount: Prisma.Decimal,
   gameId?: string,
 ): Promise<GlobalMemberDailyWinCapGuard | null> {
-  const member = await tx.user.findUnique({
-    where: { id: userId },
-    select: { id: true, username: true, agentId: true },
-  });
+  const member =
+    getLockedGameUser(tx, userId) ??
+    (await tx.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, agentId: true },
+    }));
   if (!member || amount.lessThanOrEqualTo(0)) return null;
+  if (await cachedControlExcludedLine(tx, member)) return null;
   if (await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId)) return null;
 
   const bound = await getGlobalMemberWinCapPayoutBound(tx, member.id, amount);
@@ -378,13 +542,19 @@ export async function finalizeControls(
   betId: string | null,
   originalResult: Prisma.InputJsonValue,
   finalResult: Prisma.InputJsonValue,
+  settlementContext?: { member?: MemberScope; balance: Prisma.Decimal },
 ): Promise<void> {
   assertFinalizedControlResultContract(final);
-  const member = await tx.user.findUnique({
-    where: { id: userId },
-    select: { id: true, username: true, agentId: true, balance: true },
-  });
+  const settledIdentity = settlementContext?.member ?? getLockedGameUser(tx, userId);
+  const member =
+    settlementContext && settledIdentity?.id === userId
+      ? { ...settledIdentity, balance: settlementContext.balance }
+      : await tx.user.findUnique({
+          where: { id: userId },
+          select: { id: true, username: true, agentId: true, balance: true },
+        });
   if (!member) return;
+  if (!outcome.controlled && (await hasCachedNoTargetedControls(tx, userId))) return;
 
   await updateMemberWinCap(tx, member.id, final);
   await updateAgentLineCaps(tx, member.agentId, final);
@@ -463,7 +633,7 @@ async function resolveControlLogZone(
     return control?.controlZoneRootAgentId ?? null;
   }
   if (reason.startsWith('auto_balance_')) {
-    return resolveDelegatedControlZoneForAgent(tx, member.agentId);
+    return cachedControlZone(tx, member.agentId);
   }
   const control = await tx.winLossControl.findUnique({
     where: { id: controlId },
@@ -534,22 +704,30 @@ async function findControlDecision(
   predicted: PredictedResult,
   options: ControlOptions,
 ): Promise<ControlDecisionLookup> {
+  const isControlExcludedLine = await cachedControlExcludedLine(tx, member);
+  if (isControlExcludedLine && !(await cachedHasTargetedControls(tx, member))) {
+    const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
+    return accidentalBurstCap ?? CONTROL_PATH_NATURAL;
+  }
+
   if (options.burstGuardOnly) {
     const burst = await findBurstDecision(tx, member, gameId, predicted, options);
     if (isControlInterventionMiss(burst)) return null;
     if (burst) return burst;
     const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
     if (accidentalBurstCap) return accidentalBurstCap;
-    if (!(await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId))) {
+    if (
+      !isControlExcludedLine &&
+      !(await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId))
+    ) {
       const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
       if (isControlInterventionMiss(globalWinCap)) return CONTROL_INTERVENTION_MISS;
       if (globalWinCap) return globalWinCap;
     }
-    return null;
+    return isControlExcludedLine ? CONTROL_PATH_NATURAL : null;
   }
 
-  const isControlExcludedLine = await isMemberInControlExcludedLine(tx, member);
-  const controlZoneRootAgentId = await resolveDelegatedControlZoneForAgent(tx, member.agentId);
+  const controlZoneRootAgentId = await cachedControlZone(tx, member.agentId);
 
   const burst = await findBurstDecision(tx, member, gameId, predicted, options);
   if (isControlInterventionMiss(burst)) return null;
@@ -560,28 +738,16 @@ async function findControlDecision(
   if (isControlPathNatural(onlineReward)) return CONTROL_PATH_NATURAL;
   if (onlineReward) return onlineReward;
 
-  const targetedWinLoss = await findWinLossDecision(
+  // The database query already returns every active control in the zone. Ranking
+  // once with the correct scope preserves targeted priority without fetching the
+  // same rows (and agent ancestry) a second time.
+  const explicitWinLoss = await findWinLossDecision(
     tx,
     member,
     predicted,
-    'targeted',
+    isControlExcludedLine ? 'targeted' : 'all',
     controlZoneRootAgentId,
   );
-  if (isControlInterventionMiss(targetedWinLoss)) return null;
-  if (isControlPathNatural(targetedWinLoss)) return CONTROL_PATH_NATURAL;
-  if (targetedWinLoss?.desired === 'WIN' && targetedWinLoss.reason === 'win_control') {
-    return targetedWinLoss;
-  }
-
-  const explicitWinLoss =
-    targetedWinLoss ??
-    (await findWinLossDecision(
-      tx,
-      member,
-      predicted,
-      isControlExcludedLine ? 'targeted' : 'all',
-      controlZoneRootAgentId,
-    ));
   if (isControlInterventionMiss(explicitWinLoss)) return null;
   if (isControlPathNatural(explicitWinLoss)) return CONTROL_PATH_NATURAL;
   if (explicitWinLoss) return explicitWinLoss;
@@ -603,13 +769,12 @@ async function findControlDecision(
   if (depositControl) return depositControl;
 
   if (!stopAfterDepositMiss) {
-    const targetedManual = await findManualDetectionDecision(tx, member, predicted, 'targeted');
-    if (isControlInterventionMiss(targetedManual)) return null;
-    if (targetedManual) return targetedManual;
-
-    const globalManual = await findManualDetectionDecision(tx, member, predicted, 'global');
-    if (isControlInterventionMiss(globalManual)) return null;
-    if (globalManual) return globalManual;
+    // The resolver already ranks member and agent-line controls ahead of the
+    // global rule, so one lookup preserves the same priority and intervention
+    // semantics without loading the same controls twice.
+    const manual = await findManualDetectionDecision(tx, member, predicted);
+    if (isControlInterventionMiss(manual)) return null;
+    if (manual) return manual;
   } else {
     return CONTROL_PATH_NATURAL;
   }
@@ -623,7 +788,10 @@ async function findControlDecision(
     return CONTROL_PATH_NATURAL;
   }
 
-  if (!(await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId))) {
+  if (
+    !isControlExcludedLine &&
+    !(await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId))
+  ) {
     const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
     if (isControlInterventionMiss(globalWinCap)) return CONTROL_INTERVENTION_MISS;
     if (isControlPathNatural(globalWinCap)) return CONTROL_PATH_NATURAL;
@@ -633,7 +801,7 @@ async function findControlDecision(
   const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
   if (accidentalBurstCap) return accidentalBurstCap;
 
-  return null;
+  return isControlExcludedLine ? CONTROL_PATH_NATURAL : null;
 }
 
 type WinLossDecisionScope = 'all' | 'member' | 'agent_line' | 'targeted' | 'global';
@@ -714,7 +882,7 @@ async function findWinLossDecision(
   });
   if (controls.length === 0) return null;
 
-  const ancestors = member.agentId ? await getAgentAncestors(tx, member.agentId) : [];
+  const ancestors = await cachedAgentAncestors(tx, member.agentId);
   const selected = rankWinLossControls(controls, member.id, ancestors, scope);
   if (!selected) return null;
   if (
@@ -1438,7 +1606,7 @@ async function getAgentLineCapPayoutBound(
   amount: Prisma.Decimal,
 ): Promise<CapPayoutBound | undefined> {
   if (!agentId) return undefined;
-  const ancestors = await getAgentAncestors(tx, agentId);
+  const ancestors = await cachedAgentAncestors(tx, agentId);
   if (ancestors.length === 0) return undefined;
 
   const controls = await tx.agentLineWinCap.findMany({
@@ -1464,7 +1632,7 @@ async function findAgentLineCapDecision(
   predicted: PredictedResult,
 ): Promise<ControlDecision | null> {
   if (!agentId) return null;
-  const ancestors = await getAgentAncestors(tx, agentId);
+  const ancestors = await cachedAgentAncestors(tx, agentId);
   if (ancestors.length === 0) return null;
 
   const controls = await tx.agentLineWinCap.findMany({
@@ -1578,7 +1746,7 @@ async function findApplicableDepositControl(
     controlZoneRootAgentId: true,
     createdAt: true,
   };
-  const controlZoneRootAgentId = await resolveDelegatedControlZoneForAgent(tx, member.agentId);
+  const controlZoneRootAgentId = await cachedControlZone(tx, member.agentId);
 
   if (!delegate.findMany) {
     const legacy = await delegate.findFirst?.({
@@ -1629,7 +1797,7 @@ async function findApplicableDepositControl(
   const memberControl = controls.find((control) => control.scope === 'MEMBER');
   if (memberControl) return activeDepositControlForMember(tx, member.id, memberControl);
 
-  const ancestors = member.agentId ? await getAgentAncestors(tx, member.agentId) : [];
+  const ancestors = await cachedAgentAncestors(tx, member.agentId);
   const lineControl =
     controls
       .filter(
@@ -2496,7 +2664,7 @@ async function updateAgentLineCaps(
   final: FinalizedControlResult,
 ): Promise<void> {
   if (!agentId) return;
-  const ancestors = await getAgentAncestors(tx, agentId);
+  const ancestors = await cachedAgentAncestors(tx, agentId);
   if (ancestors.length === 0) return;
   const controls = await tx.agentLineWinCap.findMany({
     where: { agentId: { in: ancestors }, isActive: true },
@@ -2583,7 +2751,7 @@ async function completeDepositControlIfReached(
   member: { id: string; username: string; agentId: string | null },
   currentBalance: Prisma.Decimal,
 ): Promise<void> {
-  const controlZoneRootAgentId = await resolveDelegatedControlZoneForAgent(tx, member.agentId);
+  const controlZoneRootAgentId = await cachedControlZone(tx, member.agentId);
   let completedAny = false;
   if (tx.memberDepositLifecycleState?.findMany) {
     const lifecycleStates = await tx.memberDepositLifecycleState.findMany({
@@ -2659,7 +2827,7 @@ async function enforceAutoBalanceBankerGuard(
   outcome: ControlOutcome,
 ): Promise<void> {
   if (isBankerGuardExemptOutcome(outcome) || isImportedGameTestUsername(member.username)) return;
-  if (member.agentId && (await isMemberInControlExcludedLine(tx, member))) return;
+  if (await cachedControlExcludedLine(tx, member)) return;
 
   const control = (await tx.memberAutoBalanceControl.findUnique({
     where: { memberId: member.id },
@@ -2919,7 +3087,7 @@ async function findApplicableLossTargetControls(
     currentLossAmount: Prisma.Decimal;
   }>
 > {
-  const controlZoneRootAgentId = await resolveDelegatedControlZoneForAgent(tx, member.agentId);
+  const controlZoneRootAgentId = await cachedControlZone(tx, member.agentId);
   const controls = await tx.winLossControl.findMany({
     where: {
       isActive: true,
@@ -2940,7 +3108,7 @@ async function findApplicableLossTargetControls(
   });
   if (controls.length === 0) return [];
 
-  const ancestors = member.agentId ? await getAgentAncestors(tx, member.agentId) : [];
+  const ancestors = await cachedAgentAncestors(tx, member.agentId);
   return controls.filter((control) => {
     if (control.controlMode === 'SINGLE_MEMBER') {
       return control.targetId === member.id || control.targetUsername === member.username;

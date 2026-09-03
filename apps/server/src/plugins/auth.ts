@@ -10,6 +10,7 @@ declare module 'fastify' {
   }
   interface FastifyRequest {
     userId: string;
+    authenticatedUsername: string;
   }
 }
 
@@ -67,7 +68,12 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
       ) {
         throw new ApiError('FORBIDDEN', 'This game is only available to test accounts');
       }
-      (req as unknown as { userId: string }).userId = user.id;
+      const authenticatedRequest = req as unknown as {
+        userId: string;
+        authenticatedUsername: string;
+      };
+      authenticatedRequest.userId = user.id;
+      authenticatedRequest.authenticatedUsername = user.username;
     } catch (error) {
       if (error instanceof ApiError) throw error;
       throw new ApiError('UNAUTHORIZED', 'Authentication required');

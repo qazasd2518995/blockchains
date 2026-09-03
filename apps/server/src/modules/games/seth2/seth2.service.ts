@@ -31,6 +31,7 @@ import {
 import {
   SeedHelper,
   creditAndRecord,
+  checkLockedUserFunds,
   debitAndRecord,
   lockUserAndCheckFunds,
   runLockedTransaction,
@@ -679,7 +680,7 @@ export class Seth2Service {
         }
         return stored;
       }
-      await lockUserAndCheckFunds(tx, userId, new Prisma.Decimal(0), GAME_ID, {
+      checkLockedUserFunds(user, new Prisma.Decimal(0), GAME_ID, {
         limitAmounts: [requestedBaseAmount],
       });
       const activeSequence = await tx.seth2FeatureSequence.findFirst({
@@ -710,7 +711,7 @@ export class Seth2Service {
         ? new Prisma.Decimal(currentSession.betAmount)
         : requestedBaseAmount;
       if (freeSpin && !baseAmount.equals(requestedBaseAmount)) {
-        await lockUserAndCheckFunds(tx, userId, new Prisma.Decimal(0), GAME_ID, {
+        checkLockedUserFunds(user, new Prisma.Decimal(0), GAME_ID, {
           limitAmounts: [baseAmount],
         });
       }
@@ -1131,6 +1132,7 @@ export class Seth2Service {
         bet.id,
         originalResult as unknown as Prisma.InputJsonValue,
         finalResult as unknown as Prisma.InputJsonValue,
+        { member: user, balance: newBalance },
       );
 
       return {

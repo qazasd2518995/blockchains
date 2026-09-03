@@ -5,6 +5,7 @@ import {
   __controlsTestHooks,
   applyControls,
   assertFinalizedControlResultContract,
+  finalizeControls,
   forceControlOutcomeToLoss,
   isBurstControlEligible,
   multiplierExceedsControlCeiling,
@@ -12,6 +13,7 @@ import {
   rankWinLossControls,
   resolveGameMatchedCashoutControl,
 } from './controls.js';
+import { lockUserAndCheckFunds } from './BaseGameService.js';
 
 describe('settlement result contract', () => {
   it('accepts the four-decimal multiplier rounding used by every game service', () => {
@@ -375,6 +377,145 @@ describe('rankWinLossControls priority', () => {
 });
 
 describe('win/loss control-zone isolation', () => {
+  it('reuses the locked member and skips empty excluded-line finalizers', async () => {
+    const user = {
+      id: 'member-fast-round',
+      username: 'testplayer',
+      agentId: 'excluded-agent',
+      balance: new Prisma.Decimal(1_000),
+      displayName: 'Player',
+      disabledAt: null,
+      frozenAt: null,
+      bettingLimits: {},
+      bettingLimitLevel: 'range_10_5000',
+    };
+    let queryCount = 0;
+    const queryRaw = vi.fn(async () => {
+      queryCount += 1;
+      if (queryCount === 1) return [user];
+      if (queryCount === 2) return [{ exists: true }];
+      return [{ hasTargetedControls: false }];
+    });
+    const userFindUnique = vi.fn(async () => {
+      throw new Error('the locked member must not be loaded again');
+    });
+    const tx = { $queryRaw: queryRaw, user: { findUnique: userFindUnique } };
+    const amount = new Prisma.Decimal(100);
+
+    await lockUserAndCheckFunds(tx as never, user.id, amount, GameId.DICE);
+    const outcome = await applyControls(
+      tx as never,
+      user.id,
+      GameId.DICE,
+      predictedResult(100, 0, 0),
+    );
+    await finalizeControls(
+      tx as never,
+      user.id,
+      GameId.DICE,
+      predictedResult(100, 0, 0),
+      { won: false, amount, multiplier: new Prisma.Decimal(0), payout: new Prisma.Decimal(0) },
+      outcome,
+      null,
+      {},
+      {},
+      { balance: new Prisma.Decimal(900) },
+    );
+
+    expect(outcome.controlled).toBe(false);
+    expect(queryRaw).toHaveBeenCalledTimes(3);
+    expect(userFindUnique).not.toHaveBeenCalled();
+  });
+
+  it('uses one targeted-control preflight for an inactive excluded line', async () => {
+    const queryRaw = vi
+      .fn()
+      .mockResolvedValueOnce([{ exists: true }])
+      .mockResolvedValueOnce([{ hasTargetedControls: false }]);
+    const tx = { $queryRaw: queryRaw };
+
+    const decision = await __controlsTestHooks.findControlDecision(
+      tx as never,
+      { id: 'member-fast', username: 'testplayer', agentId: 'excluded-agent' },
+      GameId.DICE,
+      predictedResult(100, 0, 0),
+      {},
+    );
+
+    expect(typeof decision).toBe('symbol');
+    expect(queryRaw).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips the global daily cap pipeline for a control-excluded member line', async () => {
+    const userFindUnique = vi.fn(async () => null);
+    let hierarchyQueryCount = 0;
+    const tx = {
+      $queryRaw: vi.fn(async () => {
+        hierarchyQueryCount += 1;
+        return hierarchyQueryCount === 1 ? [{ exists: true }] : [];
+      }),
+      user: { findUnique: userFindUnique },
+      winLossControl: { findMany: vi.fn(async () => []) },
+      memberWinCapControl: { findFirst: vi.fn(async () => null) },
+      agentLineWinCap: { findMany: vi.fn(async () => []) },
+      memberDepositControl: {
+        findFirst: vi.fn(async () => null),
+        findMany: vi.fn(async () => []),
+      },
+      manualDetectionControl: { findMany: vi.fn(async () => []) },
+      memberAutoBalanceControl: { findUnique: vi.fn(async () => null) },
+      bet: {
+        aggregate: vi.fn(async () => {
+          throw new Error('global daily cap must not run for an excluded line');
+        }),
+      },
+    };
+
+    const decision = await __controlsTestHooks.findControlDecision(
+      tx as never,
+      { id: 'member-1', username: 'testplayer', agentId: 'excluded-agent' },
+      GameId.DICE,
+      predictedResult(100, 0, 0),
+      {},
+    );
+
+    expect(typeof decision).toBe('symbol');
+    expect(userFindUnique).toHaveBeenCalledTimes(1);
+    expect(tx.manualDetectionControl.findMany).toHaveBeenCalledTimes(1);
+    expect(tx.bet.aggregate).not.toHaveBeenCalled();
+  });
+
+  it('loads active controls only once when a global rule is the first match', async () => {
+    const findMany = vi.fn().mockResolvedValue([
+      winLossControl({
+        id: 'global-win',
+        controlMode: 'NORMAL',
+        targetId: null,
+        winControl: true,
+      }),
+    ]);
+    const tx = {
+      user: { findUnique: vi.fn(async () => ({ agentId: null })) },
+      memberDepositControl: { findFirst: vi.fn(async () => null) },
+      winLossControl: { findMany },
+    };
+
+    const decision = await __controlsTestHooks.findControlDecision(
+      tx as never,
+      { id: 'member-1', username: 'member-1', agentId: null },
+      GameId.DICE,
+      predictedResult(10, 0, 0),
+      {},
+    );
+
+    expect(findMany).toHaveBeenCalledTimes(1);
+    expect(decision).toMatchObject({
+      desired: 'WIN',
+      controlId: 'global-win',
+      reason: 'win_control',
+    });
+  });
+
   it('queries only the delegated zone assigned to the member line', async () => {
     const findMany = vi.fn().mockResolvedValue([
       winLossControl({

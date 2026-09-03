@@ -111,7 +111,7 @@ export async function isMemberInControlExcludedLine(
   member: { username?: string | null; agentId?: string | null },
 ): Promise<boolean> {
   let agentId = member.agentId ?? null;
-  if (!agentId && member.username) {
+  if (!Object.prototype.hasOwnProperty.call(member, 'agentId') && member.username) {
     const row = await db.user.findUnique({
       where: { username: member.username },
       select: { agentId: true },

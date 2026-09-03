@@ -126,10 +126,10 @@ export class DiceService {
         },
       });
 
-      await debitAndRecord(tx, userId, amount, bet.id);
+      const debitedBalance = await debitAndRecord(tx, userId, amount, bet.id);
       const newBalance = finalWon
         ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
-        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+        : debitedBalance;
       await finalizeControls(
         tx,
         userId,
@@ -145,6 +145,7 @@ export class DiceService {
         bet.id,
         originalResult,
         finalResult,
+        { balance: newBalance },
       );
 
       return {

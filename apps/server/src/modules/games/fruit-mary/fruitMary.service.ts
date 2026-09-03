@@ -159,13 +159,16 @@ export class FruitMaryService {
         },
       });
 
-      await debitAndRecord(tx, userId, amount, bet.id, { gameId: GAME_ID, kind: 'wheel' });
+      const debitedBalance = await debitAndRecord(tx, userId, amount, bet.id, {
+        gameId: GAME_ID,
+        kind: 'wheel',
+      });
       const balance = finalPayout.greaterThan(0)
         ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN', {
             gameId: GAME_ID,
             kind: 'wheel',
           })
-        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+        : debitedBalance;
 
       await finalizeControls(
         tx,
@@ -177,6 +180,7 @@ export class FruitMaryService {
         bet.id,
         originalResult as unknown as Prisma.InputJsonValue,
         finalResult as unknown as Prisma.InputJsonValue,
+        { member: user, balance },
       );
 
       const firstPosition = finalOutcome.positions[0] ?? 10;
@@ -257,13 +261,16 @@ export class FruitMaryService {
           resultData: result as unknown as Prisma.InputJsonValue,
         },
       });
-      await debitAndRecord(tx, userId, amount, bet.id, { gameId: GAME_ID, kind: 'gamble' });
+      const debitedBalance = await debitAndRecord(tx, userId, amount, bet.id, {
+        gameId: GAME_ID,
+        kind: 'gamble',
+      });
       const balance = finalPayout.greaterThan(0)
         ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN', {
             gameId: GAME_ID,
             kind: 'gamble',
           })
-        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+        : debitedBalance;
       await finalizeControls(
         tx,
         userId,
@@ -274,6 +281,7 @@ export class FruitMaryService {
         bet.id,
         originalOutcome as unknown as Prisma.InputJsonValue,
         result as unknown as Prisma.InputJsonValue,
+        { member: user, balance },
       );
       return {
         code: 1,

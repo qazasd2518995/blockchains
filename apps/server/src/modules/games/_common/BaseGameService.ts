@@ -15,6 +15,8 @@ const RETRYABLE_ACTIVE_STATE_UNIQUE_INDEXES = new Set([
   'Seth2FeatureSequence_one_ready_per_user_key',
 ]);
 
+const lockedUserSnapshots = new WeakMap<object, Map<string, LockedGameUser>>();
+
 function formatBetLimit(value: number): string {
   return value.toLocaleString('en-US', {
     maximumFractionDigits: 2,
@@ -112,53 +114,49 @@ export class SeedHelper {
   }
 }
 
-export async function lockUserAndCheckFunds(
-  tx: Prisma.TransactionClient,
-  userId: string,
-  amount: Prisma.Decimal,
-  gameId?: string,
-  options: { limitAmounts?: Prisma.Decimal[]; skipBetValidation?: boolean } = {},
-): Promise<{
+export interface LockedGameUser {
   id: string;
   username: string;
   agentId: string | null;
   balance: Prisma.Decimal;
   displayName: string | null;
-}> {
-  const [user] = await tx.$queryRaw<
-    Array<{
-      id: string;
-      username: string;
-      agentId: string | null;
-      balance: Prisma.Decimal;
-      displayName: string | null;
-      disabledAt: Date | null;
-      frozenAt: Date | null;
-      bettingLimits: Prisma.JsonValue;
-      bettingLimitLevel: string;
-    }>
-  >`
-    SELECT
-      id,
-      username,
-      "agentId",
-      balance,
-      "displayName",
-      "disabledAt",
-      "frozenAt",
-      "bettingLimits",
-      "bettingLimitLevel"
-    FROM "User"
-    WHERE id = ${userId}
-    FOR UPDATE
-  `;
-  if (!user) {
-    throw new ApiError('UNAUTHORIZED', 'Authentication required');
+  disabledAt: Date | null;
+  frozenAt: Date | null;
+  bettingLimits: Prisma.JsonValue;
+  bettingLimitLevel: string;
+}
+
+export function getLockedGameUser(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): LockedGameUser | undefined {
+  return lockedUserSnapshots.get(tx)?.get(userId);
+}
+
+function rememberLockedGameUser(tx: Prisma.TransactionClient, user: LockedGameUser): void {
+  let snapshots = lockedUserSnapshots.get(tx);
+  if (!snapshots) {
+    snapshots = new Map();
+    lockedUserSnapshots.set(tx, snapshots);
   }
+  snapshots.set(user.id, user);
+}
+
+interface FundsCheckOptions {
+  limitAmounts?: Prisma.Decimal[];
+  skipBetValidation?: boolean;
+}
+
+export function checkLockedUserFunds(
+  user: LockedGameUser,
+  amount: Prisma.Decimal,
+  gameId?: string,
+  options: FundsCheckOptions = {},
+): void {
   if (user.disabledAt || user.frozenAt) {
     throw new ApiError('MEMBER_FROZEN', 'Member account is frozen');
   }
-  if (options.skipBetValidation) return user;
+  if (options.skipBetValidation) return;
   const configuredLimit = getBettingLimitForGame(
     user.bettingLimits,
     gameId,
@@ -186,6 +184,35 @@ export async function lockUserAndCheckFunds(
   if (user.balance.lessThan(amount)) {
     throw new ApiError('INSUFFICIENT_FUNDS', 'Insufficient balance');
   }
+}
+
+export async function lockUserAndCheckFunds(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  amount: Prisma.Decimal,
+  gameId?: string,
+  options: FundsCheckOptions = {},
+): Promise<LockedGameUser> {
+  const [user] = await tx.$queryRaw<LockedGameUser[]>`
+    SELECT
+      id,
+      username,
+      "agentId",
+      balance,
+      "displayName",
+      "disabledAt",
+      "frozenAt",
+      "bettingLimits",
+      "bettingLimitLevel"
+    FROM "User"
+    WHERE id = ${userId}
+    FOR UPDATE
+  `;
+  if (!user) {
+    throw new ApiError('UNAUTHORIZED', 'Authentication required');
+  }
+  checkLockedUserFunds(user, amount, gameId, options);
+  rememberLockedGameUser(tx, user);
   return user;
 }
 

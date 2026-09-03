@@ -745,7 +745,7 @@ export class HotlineService {
       : sourceStakeAmount(baseAmount, options.stakeMultiplier);
 
     return runLockedTransaction(this.prisma, async (tx) => {
-      await lockUserAndCheckFunds(tx, userId, stakeAmount, gameId, {
+      const member = await lockUserAndCheckFunds(tx, userId, stakeAmount, gameId, {
         limitAmounts: [baseAmount],
       });
       if (H5_DEFERRED_PAYOUT_GAME_IDS.has(gameId)) {
@@ -1095,6 +1095,7 @@ export class HotlineService {
         bet.id,
         originalResult as unknown as Prisma.InputJsonValue,
         finalResult as unknown as Prisma.InputJsonValue,
+        { member, balance: newBalance },
       );
       const jackpot =
         isHotlineMegaGame(gameId) ||

@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
-import { resolvePlatformRootAgentId } from './hierarchy.js';
+import { isMemberInControlExcludedLine, resolvePlatformRootAgentId } from './hierarchy.js';
 
 describe('resolvePlatformRootAgentId', () => {
   it('selects only an active super admin as the platform operation root', async () => {
@@ -26,5 +26,25 @@ describe('resolvePlatformRootAgentId', () => {
     await expect(resolvePlatformRootAgentId(db, 'authenticated-root')).resolves.toBe(
       'authenticated-root',
     );
+  });
+});
+
+describe('isMemberInControlExcludedLine', () => {
+  it('does not reload a member whose null agent assignment is already known', async () => {
+    const findUnique = vi.fn();
+    const db = { user: { findUnique } } as unknown as PrismaClient;
+
+    await expect(
+      isMemberInControlExcludedLine(db, { username: 'member-1', agentId: null }),
+    ).resolves.toBe(false);
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
+  it('keeps the username lookup fallback when the caller did not load agentId', async () => {
+    const findUnique = vi.fn(async () => ({ agentId: null }));
+    const db = { user: { findUnique } } as unknown as PrismaClient;
+
+    await expect(isMemberInControlExcludedLine(db, { username: 'member-1' })).resolves.toBe(false);
+    expect(findUnique).toHaveBeenCalledTimes(1);
   });
 });

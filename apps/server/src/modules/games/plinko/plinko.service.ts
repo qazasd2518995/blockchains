@@ -144,10 +144,10 @@ export class PlinkoService {
         resultData: finalResult,
       },
     });
-    await debitAndRecord(tx, userId, amount, bet.id);
+    const debitedBalance = await debitAndRecord(tx, userId, amount, bet.id);
     const newBalance = finalPayout.greaterThan(0)
       ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
-      : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+      : debitedBalance;
     await finalizeControls(
       tx,
       userId,
@@ -163,6 +163,7 @@ export class PlinkoService {
       bet.id,
       originalResult,
       finalResult,
+      { balance: newBalance },
     );
 
     return {

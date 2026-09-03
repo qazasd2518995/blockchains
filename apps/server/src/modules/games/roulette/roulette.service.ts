@@ -94,10 +94,10 @@ export class RouletteService {
           resultData: finalResult as unknown as Prisma.InputJsonValue,
         },
       });
-      await debitAndRecord(tx, userId, amountD, bet.id);
+      const debitedBalance = await debitAndRecord(tx, userId, amountD, bet.id);
       const newBalance = finalPayoutD.greaterThan(0)
         ? await creditAndRecord(tx, userId, finalPayoutD, bet.id, 'BET_WIN')
-        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+        : debitedBalance;
       await finalizeControls(
         tx,
         userId,
@@ -118,6 +118,7 @@ export class RouletteService {
         bet.id,
         originalResult as unknown as Prisma.InputJsonValue,
         finalResult as unknown as Prisma.InputJsonValue,
+        { balance: newBalance },
       );
 
       return {

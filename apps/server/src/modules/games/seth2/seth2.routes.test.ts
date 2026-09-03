@@ -2,10 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import { describe, expect, it, vi } from 'vitest';
 import { seth2Routes } from './seth2.routes.js';
 
-function makeRouteRegistrar(username: string | null) {
+function makeRouteRegistrar() {
   const authenticate = vi.fn();
   const addHook = vi.fn();
-  const findUnique = vi.fn(async () => (username === null ? null : { username }));
+  const findUnique = vi.fn();
   const fastify = {
     prisma: { user: { findUnique } },
     authenticate,
@@ -27,40 +27,41 @@ describe('Seth 2 test-account access', () => {
     'testplayer6',
     ' TestPlayer3 ',
   ])('allows %s through the route-level access gate', async (username) => {
-    const { fastify, authenticate, addHook } = makeRouteRegistrar(username);
+    const { fastify, authenticate, addHook, findUnique } = makeRouteRegistrar();
     await seth2Routes(fastify);
 
     expect(addHook).toHaveBeenNthCalledWith(1, 'preHandler', authenticate);
-    const accessGate = addHook.mock.calls[1]![1] as (request: { userId: string }) => Promise<void>;
-    await expect(accessGate({ userId: 'user-1' })).resolves.toBeUndefined();
+    const accessGate = addHook.mock.calls[1]![1] as (request: {
+      authenticatedUsername: string;
+    }) => void;
+    expect(() => accessGate({ authenticatedUsername: username })).not.toThrow();
+    expect(findUnique).not.toHaveBeenCalled();
   });
 
   it.each(['memberA', 'admin', 'testplayer7', 'testplayer25'])(
     'blocks %s before any Seth endpoint',
     async (username) => {
-      const { fastify, addHook, findUnique } = makeRouteRegistrar(username);
+      const { fastify, addHook, findUnique } = makeRouteRegistrar();
       await seth2Routes(fastify);
 
       const accessGate = addHook.mock.calls[1]![1] as (request: {
-        userId: string;
-      }) => Promise<void>;
-      await expect(accessGate({ userId: 'regular-user' })).rejects.toMatchObject({
-        code: 'FORBIDDEN',
-      });
-      expect(findUnique).toHaveBeenCalledWith({
-        where: { id: 'regular-user' },
-        select: { username: true },
-      });
+        authenticatedUsername: string;
+      }) => void;
+      expect(() => accessGate({ authenticatedUsername: username })).toThrowError(
+        expect.objectContaining({ code: 'FORBIDDEN' }),
+      );
+      expect(findUnique).not.toHaveBeenCalled();
     },
   );
 
-  it('rejects a stale authenticated user that no longer exists', async () => {
-    const { fastify, addHook } = makeRouteRegistrar(null);
+  it('rejects a request whose authenticated identity has no username', async () => {
+    const { fastify, addHook, findUnique } = makeRouteRegistrar();
     await seth2Routes(fastify);
 
-    const accessGate = addHook.mock.calls[1]![1] as (request: { userId: string }) => Promise<void>;
-    await expect(accessGate({ userId: 'missing-user' })).rejects.toMatchObject({
-      code: 'UNAUTHORIZED',
-    });
+    const accessGate = addHook.mock.calls[1]![1] as (request: {
+      authenticatedUsername?: string;
+    }) => void;
+    expect(() => accessGate({})).toThrowError(expect.objectContaining({ code: 'FORBIDDEN' }));
+    expect(findUnique).not.toHaveBeenCalled();
   });
 });

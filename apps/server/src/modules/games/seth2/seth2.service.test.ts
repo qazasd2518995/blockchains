@@ -964,20 +964,24 @@ describe('Seth2 idempotent settlement replay', () => {
   it('returns the stored wallet result before any second Bet or wallet mutation', async () => {
     const returnData = seth2SpinForFactor('stored', 'client', 1, 18, 10, 'base').returnData;
     let createdBets = 0;
+    let userLocks = 0;
     const tx = {
-      $queryRaw: async () => [
-        {
-          id: 'user-1',
-          username: 'player',
-          agentId: null,
-          balance: new Prisma.Decimal('999.00'),
-          displayName: 'Player',
-          disabledAt: null,
-          frozenAt: null,
-          bettingLimits: {},
-          bettingLimitLevel: 'range_10_5000',
-        },
-      ],
+      $queryRaw: async () => {
+        userLocks += 1;
+        return [
+          {
+            id: 'user-1',
+            username: 'player',
+            agentId: null,
+            balance: new Prisma.Decimal('999.00'),
+            displayName: 'Player',
+            disabledAt: null,
+            frozenAt: null,
+            bettingLimits: {},
+            bettingLimitLevel: 'range_10_5000',
+          },
+        ];
+      },
       bet: {
         findFirst: async () => ({
           id: 'stored-bet',
@@ -1011,6 +1015,7 @@ describe('Seth2 idempotent settlement replay', () => {
 
     expect(settlement).toMatchObject({ spinId: 'stored-bet', balance: 1_161 });
     expect(createdBets).toBe(0);
+    expect(userLocks).toBe(1);
   });
 });
 

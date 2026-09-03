@@ -136,10 +136,10 @@ export class BaccaratService {
         },
       });
 
-      await debitAndRecord(tx, userId, amount, bet.id);
+      const debitedBalance = await debitAndRecord(tx, userId, amount, bet.id);
       const newBalance = finalRound.payout.greaterThan(0)
         ? await creditAndRecord(tx, userId, finalRound.payout, bet.id, 'BET_WIN')
-        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+        : debitedBalance;
 
       await finalizeControls(
         tx,
@@ -156,6 +156,7 @@ export class BaccaratService {
         bet.id,
         originalResult,
         finalResult,
+        { balance: newBalance },
       );
 
       return toBetResult(finalRound, {

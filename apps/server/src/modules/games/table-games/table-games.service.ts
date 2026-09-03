@@ -435,6 +435,7 @@ export class LocalTableService {
           bet.id,
           toResultData(natural, { ...controlled, controlled: false }),
           toResultData(finalRound, effectiveControl),
+          { member, balance: newBalance },
         );
       }
 
