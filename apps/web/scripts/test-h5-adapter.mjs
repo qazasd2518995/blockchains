@@ -1241,6 +1241,49 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
 }
 
 {
+  let serverBalance = 7;
+  const requests = [];
+  const storedValues = {
+    'bg-auth': JSON.stringify({
+      state: { accessToken: 'test-access', refreshToken: 'test-refresh' },
+      version: 0,
+    }),
+  };
+  const adapter = loadAdapter('12', storedValues, {
+    fetch: async (url, init) => {
+      requests.push({ url, init });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ user: { id: 'player-1', balance: serverBalance } }),
+      };
+    },
+  });
+  const socket = adapter.createFakeSocket();
+  let visibleShots = 0;
+  socket.on('fishShoot', () => {
+    visibleShots += 1;
+  });
+  socket.emit('LoginGame', '{}');
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  socket.emit(
+    'fishShoot',
+    JSON.stringify({ userid: 'player-1', bet: 5, bulletId: 'seven-points-fifty-cannon' }),
+  );
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(
+    requests.filter((request) => request.init.method === 'POST').length,
+    0,
+    'a 50-point cannon must not settle when only 7 points remain',
+  );
+  assert.equal(visibleShots, 0, 'an unaffordable 50-point shot must not create a visual bullet');
+  assert.deepEqual(
+    { ...adapter.getFishSettlementState() },
+    { availableBalance: 7, pendingSettlements: 0, maxPendingSettlements: 4 },
+  );
+}
+
+{
   let serverBalance = 35;
   const requests = [];
   const storedValues = {

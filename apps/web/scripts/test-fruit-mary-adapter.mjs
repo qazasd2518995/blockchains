@@ -13,7 +13,7 @@ const pageSource = fs.readFileSync(pagePath, 'utf8');
 const indexSource = fs.readFileSync(indexPath, 'utf8');
 assert.match(
   indexSource,
-  /fruit-mary-adapter\.js\?v=15/,
+  /fruit-mary-adapter\.js\?v=16/,
   'Fruit Mary must load the settlement-safe adapter revision',
 );
 assert.match(
@@ -50,6 +50,11 @@ assert.match(
   adapterSource,
   /!collectingWin && \(settlementInFlight \|\| Date\.now\(\) < nextFruitMarySpinAt\)/,
   'Fruit Mary must ignore repeated start taps without blocking win collection',
+);
+assert.match(
+  adapterSource,
+  /!collectingWin && playLogic && playLogic\._playing/,
+  'Fruit Mary must never start another paid round while the previous presentation is active',
 );
 assert.match(
   pageSource,
@@ -133,16 +138,38 @@ const {
   createBridgeXHR,
   fruitMaryBetIsWithinLimit,
   fruitMaryPayoutMultiplier,
+  fruitMarySettlementRoundAmount,
   normalizeFruitMaryGambleAllocation,
   normalizeFruitMaryAllocation,
   patchFruitMaryAudioManager,
   patchFruitMaryMenuLogic,
   patchFruitMaryPlayLogic,
+  reconcilePendingFruitMaryBalance,
   missAnimationCompletionTimeoutMs,
   restoreFruitMaryAutoButtonState,
   shortBonusCompletionIndex,
   updateFruitMaryBetLimits,
 } = context.__YachiyoFruitMaryAdapterTest;
+
+assert.equal(
+  fruitMarySettlementRoundAmount(
+    'spin',
+    { data: { money: [10, 4] } },
+    JSON.stringify({ fruits: [[4, 1]], money: 1 }),
+  ),
+  140,
+  'the authoritative spin allocation is derived from the credited payout',
+);
+assert.equal(
+  fruitMarySettlementRoundAmount('gamble', { data: 8 }, JSON.stringify({ balance: 40, size: 2 })),
+  80,
+  'a winning gamble keeps exactly the doubled wager in the current-round display',
+);
+assert.equal(
+  fruitMarySettlementRoundAmount('gamble', { data: 7 }, JSON.stringify({ balance: 40, size: 2 })),
+  0,
+  'a losing gamble clears the current-round display',
+);
 
 assert.equal(
   missAnimationCompletionTimeoutMs,
@@ -245,11 +272,13 @@ const currentRoundNode = numberNode(40);
 const balanceNode = numberNode(60);
 let collectCalls = 0;
 let animatedWin = 0;
+let setAllNoCalls = 0;
+const menuPlayLogic = { _playing: false };
 const menuLogic = {
   _kaishiBiDdaxiao_bool: true,
   shuzibenlun: currentRoundNode,
   shuziyue: balanceNode,
-  node: { getComponent: () => ({ _playing: false }) },
+  node: { getComponent: (name) => (name === 'PlayLogic' ? menuPlayLogic : null) },
   unscheduled: [],
   unschedule(callback) {
     this.unscheduled.push(callback);
@@ -260,6 +289,11 @@ const menuLogic = {
     this.startBt.node.active = true;
     this.unStartBt.node.active = false;
     this.isAutoPut_bool = false;
+  },
+  initButton() {},
+  setBidaxiao() {},
+  setAllNo() {
+    setAllNoCalls += 1;
   },
   startBt: { node: { active: true, opacity: 255 }, interactable: true },
   unStartBt: { node: { active: false, opacity: 255 }, interactable: false },
@@ -280,6 +314,12 @@ const menuLogic = {
   },
 };
 assert.equal(patchFruitMaryMenuLogic(menuLogic), true);
+menuLogic._kaishiBiDdaxiao_bool = false;
+menuPlayLogic._playing = true;
+menuLogic.clickKaishi();
+assert.equal(collectCalls, 0, 'a running presentation blocks a second paid round');
+menuPlayLogic._playing = false;
+menuLogic._kaishiBiDdaxiao_bool = true;
 menuLogic.addWinNum(1);
 assert.equal(animatedWin, 100, 'animated score uses the same room denomination as settlement');
 menuLogic.addWinNum(20);
@@ -431,6 +471,8 @@ assert.equal(
 );
 assert.equal(JSON.parse(second.responseText).code, 0);
 assert.match(JSON.parse(second.responseText).message, /仍在結算/);
+menuLogic.initButton();
+assert.equal(setAllNoCalls, 1, 'the source timeout cannot unlock buttons during settlement');
 
 pendingFetches[0].resolve({
   ok: true,
@@ -439,6 +481,15 @@ pendingFetches[0].resolve({
 });
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(JSON.parse(first.responseText).code, 1);
+menuLogic.setBidaxiao();
+assert.equal(reconcilePendingFruitMaryBalance(menuLogic), false);
+assert.equal(currentRoundNode.box.getNum(), 100);
+assert.equal(balanceNode.box.getNum(), 0);
+assert.equal(
+  currentRoundNode.box.getNum() + balanceNode.box.getNum(),
+  100,
+  'source-game score boxes must equal the authoritative server balance after a spin',
+);
 assert.equal(
   parentMessages.some((message) => message.type === 'fruit-mary:balance'),
   true,
@@ -447,6 +498,42 @@ assert.equal(
   parentMessages.some((message) => message.type === 'fruit-mary:busy' && message.busy === false),
   true,
   'the platform shell must be released after Fruit Mary settlement',
+);
+
+const losingGamble = createBridgeXHR();
+losingGamble.open('POST', 'https://legacy.test/index/game/size');
+losingGamble.send(JSON.stringify({ balance: 40, size: 2 }));
+await new Promise((resolve) => setTimeout(resolve, 0));
+pendingFetches[1].resolve({
+  ok: true,
+  status: 200,
+  json: async () => ({ code: 1, data: 7, balance: 60, spinId: 'gamble-loss' }),
+});
+await new Promise((resolve) => setTimeout(resolve, 0));
+menuLogic.initButton();
+assert.equal(reconcilePendingFruitMaryBalance(menuLogic), false);
+assert.equal(currentRoundNode.box.getNum(), 0);
+assert.equal(balanceNode.box.getNum(), 60);
+assert.equal(context.cc.vv.UserInfo.balance, 60);
+
+const winningGamble = createBridgeXHR();
+winningGamble.open('POST', 'https://legacy.test/index/game/size');
+winningGamble.send(JSON.stringify({ balance: 40, size: 2 }));
+await new Promise((resolve) => setTimeout(resolve, 0));
+pendingFetches[2].resolve({
+  ok: true,
+  status: 200,
+  json: async () => ({ code: 1, data: 8, balance: 140, spinId: 'gamble-win' }),
+});
+await new Promise((resolve) => setTimeout(resolve, 0));
+menuLogic.setBidaxiao();
+assert.equal(reconcilePendingFruitMaryBalance(menuLogic), false);
+assert.equal(currentRoundNode.box.getNum(), 80);
+assert.equal(balanceNode.box.getNum(), 60);
+assert.equal(
+  currentRoundNode.box.getNum() + balanceNode.box.getNum(),
+  140,
+  'winning gamble display must equal the authoritative server balance',
 );
 
 console.log('Fruit Mary settlement and animation recovery tests passed.');

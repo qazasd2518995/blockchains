@@ -30,6 +30,8 @@
   var gameCanvasContextLost = false;
   var renderFailureReported = false;
   var sourceReadyAt = 0;
+  var fruitMaryAuthoritativeBalance = null;
+  var pendingFruitMarySettlement = null;
 
   function parentStorage() {
     try {
@@ -262,10 +264,20 @@
       return { method: 'POST', url: gameApi + '/authorize' };
     }
     if (path.endsWith('/index/game/get_gift')) {
-      return { method: 'POST', url: gameApi + '/spin', kind: 'settlement' };
+      return {
+        method: 'POST',
+        url: gameApi + '/spin',
+        kind: 'settlement',
+        settlementType: 'spin',
+      };
     }
     if (path.endsWith('/index/game/size')) {
-      return { method: 'POST', url: gameApi + '/gamble', kind: 'settlement' };
+      return {
+        method: 'POST',
+        url: gameApi + '/gamble',
+        kind: 'settlement',
+        settlementType: 'gamble',
+      };
     }
     if (path.endsWith('/index/game/gamelog')) {
       return { method: 'POST', url: gameApi + '/history' };
@@ -353,9 +365,11 @@
         if (route.kind === 'session' && payload.data && payload.data.info) {
           renderFailureReported = false;
           sourceReadyAt = Date.now();
-          notifyParent('fruit-mary:ready', { balance: Number(payload.data.info.gold || 0) });
+          fruitMaryAuthoritativeBalance = normalizeFruitMaryBalance(payload.data.info.gold);
+          notifyParent('fruit-mary:ready', { balance: fruitMaryAuthoritativeBalance });
         }
         if (route.kind === 'settlement' && payload.balance !== undefined) {
+          rememberFruitMarySettlement(route.settlementType, payload, body);
           nextFruitMarySpinAt = Date.now() + FRUIT_MARY_SPIN_PAUSE_MS;
           if (fruitMaryCooldownTimer) window.clearTimeout(fruitMaryCooldownTimer);
           fruitMaryCooldownTimer = window.setTimeout(function () {
@@ -522,6 +536,12 @@
     return Math.max(0, Math.floor(parsed));
   }
 
+  function normalizeFruitMaryBalance(value) {
+    var parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 0;
+    return Math.max(0, Math.round(parsed * 100) / 100);
+  }
+
   function normalizeFruitMaryAllocation(currentRound, balance, requestedRound) {
     var current = safeAllocationNumber(currentRound);
     var availableBalance = safeAllocationNumber(balance);
@@ -552,6 +572,64 @@
       balance,
       Math.min(safeAllocationNumber(requestedRound), fruitMaryMaximumGambleAmount()),
     );
+  }
+
+  function parseFruitMaryRequestBody(body) {
+    if (!body) return {};
+    if (typeof body === 'object') return body;
+    try {
+      return JSON.parse(body);
+    } catch (_error) {
+      return {};
+    }
+  }
+
+  function fruitMarySettlementRoundAmount(settlementType, payload, body) {
+    if (settlementType === 'spin') {
+      var payouts = payload && payload.data && payload.data.money;
+      if (!Array.isArray(payouts)) return 0;
+      return payouts.reduce(function (total, payout) {
+        return total + safeAllocationNumber(payout) * fruitMaryDenomination;
+      }, 0);
+    }
+    if (settlementType === 'gamble') {
+      var request = parseFruitMaryRequestBody(body);
+      var amount = safeAllocationNumber(request.balance);
+      var choice = Number(request.size);
+      var number = Number(payload && payload.data);
+      var won = (choice === 1 && number < 8) || (choice === 2 && number >= 8);
+      return won ? amount * 2 : 0;
+    }
+    return 0;
+  }
+
+  function rememberFruitMarySettlement(settlementType, payload, body) {
+    var authoritativeBalance = normalizeFruitMaryBalance(payload && payload.balance);
+    var currentRound = fruitMarySettlementRoundAmount(settlementType, payload, body);
+    fruitMaryAuthoritativeBalance = authoritativeBalance;
+    pendingFruitMarySettlement = {
+      balance: authoritativeBalance,
+      currentRound: Math.min(authoritativeBalance, currentRound),
+      spinId: payload && payload.spinId ? String(payload.spinId) : '',
+    };
+    return pendingFruitMarySettlement;
+  }
+
+  function reconcilePendingFruitMaryBalance(menuLogic) {
+    if (!pendingFruitMarySettlement || !menuLogic) return false;
+    var currentBox = numberBox(menuLogic.shuzibenlun);
+    var balanceBox = numberBox(menuLogic.shuziyue);
+    if (!currentBox || !balanceBox) return false;
+    var settlement = pendingFruitMarySettlement;
+    var currentRound = Math.min(settlement.balance, settlement.currentRound);
+    var availableBalance = settlement.balance - currentRound;
+    currentBox.setNum(String(currentRound));
+    balanceBox.setNum(String(availableBalance));
+    if (window.cc && window.cc.vv && window.cc.vv.UserInfo) {
+      window.cc.vv.UserInfo.balance = availableBalance;
+    }
+    pendingFruitMarySettlement = null;
+    return true;
   }
 
   function fruitMaryBetUnits(menuLogic, includeStoredBet) {
@@ -810,10 +888,32 @@
       }
     }
 
+    if (typeof menuLogic.initButton === 'function') {
+      var originalInitButton = menuLogic.initButton;
+      menuLogic.initButton = function () {
+        var result = originalInitButton.apply(this, arguments);
+        reconcilePendingFruitMaryBalance(this);
+        if (settlementInFlight && typeof this.setAllNo === 'function') this.setAllNo();
+        return result;
+      };
+    }
+    if (typeof menuLogic.setBidaxiao === 'function') {
+      var originalSetBidaxiao = menuLogic.setBidaxiao;
+      menuLogic.setBidaxiao = function () {
+        var result = originalSetBidaxiao.apply(this, arguments);
+        reconcilePendingFruitMaryBalance(this);
+        return result;
+      };
+    }
+
     var originalClickKaishi = menuLogic.clickKaishi;
     if (typeof originalClickKaishi === 'function') {
       menuLogic.clickKaishi = function () {
         var collectingWin = Boolean(this._kaishiBiDdaxiao_bool);
+        var playLogic = this.node && this.node.getComponent
+          ? this.node.getComponent('PlayLogic')
+          : null;
+        if (!collectingWin && playLogic && playLogic._playing) return undefined;
         if (!collectingWin && (settlementInFlight || Date.now() < nextFruitMarySpinAt)) {
           return undefined;
         }
@@ -1002,7 +1102,14 @@
             window.clearTimeout(component.__yachiyoAnimationTimer);
             component.__yachiyoAnimationTimer = null;
           }
-          if (typeof done === 'function') return done.apply(component, arguments);
+          var result;
+          if (typeof done === 'function') result = done.apply(component, arguments);
+          var menuLogic =
+            component.node &&
+            component.node.getComponent &&
+            component.node.getComponent('MenuLogic');
+          reconcilePendingFruitMaryBalance(menuLogic);
+          return result;
         }
         var isMissPresentation = Number(type) === -1;
         component.__yachiyoAnimationTimer = window.setTimeout(function () {
@@ -1206,6 +1313,9 @@
     adjustFruitMaryAllocation: adjustFruitMaryAllocation,
     normalizeFruitMaryAllocation: normalizeFruitMaryAllocation,
     normalizeFruitMaryGambleAllocation: normalizeFruitMaryGambleAllocation,
+    fruitMarySettlementRoundAmount: fruitMarySettlementRoundAmount,
+    rememberFruitMarySettlement: rememberFruitMarySettlement,
+    reconcilePendingFruitMaryBalance: reconcilePendingFruitMaryBalance,
     updateFruitMaryBetLimits: updateFruitMaryBetLimits,
     fruitMaryBetIsWithinLimit: fruitMaryBetIsWithinLimit,
     fruitMaryPayoutMultiplier: fruitMaryPayoutMultiplier,
