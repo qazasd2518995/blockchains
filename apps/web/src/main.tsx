@@ -79,7 +79,7 @@ ReactDOM.createRoot(root).render(
     <I18nProvider>
       <AudioUnlocker />
       <ErrorBoundary>
-        <RouterProvider router={router} future={{ v7_startTransition: true }} />
+        <RouterProvider router={router} />
         {!isQmoneyRealm && <AddToHomeScreenPrompt />}
       </ErrorBoundary>
     </I18nProvider>

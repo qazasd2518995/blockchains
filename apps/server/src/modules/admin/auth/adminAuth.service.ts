@@ -271,6 +271,7 @@ export class AdminAuthService {
     agent: {
       id: string;
       username: string;
+      role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
       twoFactorRequired: boolean;
       twoFactorEnabled: boolean;
       twoFactorSecret: string | null;
@@ -284,7 +285,7 @@ export class AdminAuthService {
     otpauthUrl: string | null;
     message: string;
   }> {
-    if (!agent.twoFactorRequired) {
+    if (!shouldRequireAdminTwoFactor(agent, config.NODE_ENV)) {
       return {
         verified: true,
         setupRequired: false,
@@ -371,6 +372,15 @@ export class AdminAuthService {
     });
     return secret;
   }
+}
+
+export function shouldRequireAdminTwoFactor(
+  agent: { role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT'; twoFactorRequired: boolean },
+  environment: 'development' | 'test' | 'production' = config.NODE_ENV,
+): boolean {
+  // Production management accounts always receive the existing guided TOTP
+  // setup flow on their next login. Development/test accounts remain opt-in.
+  return environment === 'production' || agent.twoFactorRequired;
 }
 
 export function hashRefresh(token: string): string {

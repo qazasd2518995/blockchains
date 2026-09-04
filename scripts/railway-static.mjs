@@ -162,7 +162,63 @@ function sendText(response, statusCode, message) {
   response.end(message);
 }
 
+function contentSecurityPolicy(urlPath) {
+  const isGameEngineAsset = /^\/games\/[^/]+\/.+/.test(urlPath);
+  if (isGameEngineAsset) {
+    // Archived Cocos/Pixi engines require eval/blob workers and inline styles.
+    // Keep that compatibility isolated to explicit engine asset URLs.
+    return [
+      "default-src 'self' data: blob: https:",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:",
+      "style-src 'self' 'unsafe-inline' https:",
+      "connect-src 'self' https: wss: ws:",
+      "img-src 'self' data: blob: https:",
+      "media-src 'self' data: blob: https:",
+      "font-src 'self' data: https:",
+      "worker-src 'self' blob:",
+      "frame-src 'self' https:",
+      "frame-ancestors 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; ');
+  }
+  return [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "connect-src 'self' https: wss:",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' data: blob:",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "worker-src 'self' blob:",
+    "frame-src 'self' https:",
+    "frame-ancestors 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; ');
+}
+
+function applySecurityHeaders(response, urlPath) {
+  response.setHeader('Content-Security-Policy', contentSecurityPolicy(urlPath));
+  response.setHeader('Permissions-Policy', 'camera=(), geolocation=(), microphone=(), payment=()');
+  response.setHeader('Referrer-Policy', 'no-referrer');
+  response.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  response.setHeader('X-Content-Type-Options', 'nosniff');
+  response.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  response.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+}
+
+function containsPrivatePathSegment(urlPath) {
+  return urlPath
+    .split('/')
+    .filter(Boolean)
+    .some((segment) => segment.startsWith('.'));
+}
+
 const server = http.createServer(async (request, response) => {
+  applySecurityHeaders(response, '/');
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     response.setHeader('Allow', 'GET, HEAD');
     sendText(response, 405, 'Method Not Allowed');
@@ -179,6 +235,12 @@ const server = http.createServer(async (request, response) => {
 
   if (urlPath.includes('\0')) {
     sendText(response, 400, 'Bad Request');
+    return;
+  }
+
+  applySecurityHeaders(response, urlPath);
+  if (containsPrivatePathSegment(urlPath)) {
+    sendText(response, 404, 'Not Found');
     return;
   }
 
@@ -211,7 +273,6 @@ const server = http.createServer(async (request, response) => {
     'Content-Type': contentTypes.get(extension) || 'application/octet-stream',
     ETag: etag,
     'Last-Modified': result.fileStat.mtime.toUTCString(),
-    'X-Content-Type-Options': 'nosniff',
   };
 
   if (request.headers['if-none-match'] === etag) {

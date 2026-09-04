@@ -6,7 +6,8 @@ export interface LoginRequest {
 }
 
 export interface CaptchaResponse {
-  captchaCode: string;
+  /** Render-only image. The answer is never returned as machine-readable text. */
+  captchaImage: string;
   captchaToken: string;
   expiresAt: string;
 }

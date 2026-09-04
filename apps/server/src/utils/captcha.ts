@@ -24,7 +24,7 @@ export class CaptchaService {
       nonce: randomBytes(16).toString('hex'),
     };
     return {
-      captchaCode,
+      captchaImage: renderCaptchaImage(captchaCode),
       captchaToken: signCaptchaPayload(payload),
       expiresAt: new Date(exp).toISOString(),
     };
@@ -45,11 +45,12 @@ export class CaptchaService {
     if (this.usedNonces.has(payload.nonce)) {
       throw new ApiError('INVALID_CAPTCHA', 'Verification code already used');
     }
+    // A challenge gets exactly one attempt. Recording the nonce before the
+    // comparison prevents brute-forcing all 10,000 values against one token.
+    this.usedNonces.set(payload.nonce, payload.exp);
     if (!safeEqual(hashCaptchaCode(captchaCode), payload.codeHash)) {
       throw new ApiError('INVALID_CAPTCHA', 'Invalid verification code');
     }
-
-    this.usedNonces.set(payload.nonce, payload.exp);
   }
 
   private cleanupNonces(now: number): void {
@@ -61,6 +62,31 @@ export class CaptchaService {
       if (exp < now) this.usedNonces.delete(nonce);
     }
   }
+}
+
+function renderCaptchaImage(code: string): string {
+  const glyphs = [...code]
+    .map((digit, index) => {
+      const x = 18 + index * 24 + randomInt(-2, 3);
+      const y = 34 + randomInt(-3, 4);
+      const rotation = randomInt(-14, 15);
+      return `<text x="${x}" y="${y}" transform="rotate(${rotation} ${x} ${y})">${digit}</text>`;
+    })
+    .join('');
+  const noise = Array.from({ length: 6 }, () => {
+    const x1 = randomInt(0, 112);
+    const y1 = randomInt(3, 45);
+    const x2 = randomInt(0, 112);
+    const y2 = randomInt(3, 45);
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+  }).join('');
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="112" height="48" viewBox="0 0 112 48">` +
+    `<rect width="112" height="48" rx="8" fill="#f6fbfd"/>` +
+    `<g stroke="#186073" stroke-opacity=".23" stroke-width="1">${noise}</g>` +
+    `<g fill="#135267" font-family="ui-monospace,monospace" font-size="25" font-weight="800">${glyphs}</g>` +
+    `</svg>`;
+  return `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
 }
 
 function signCaptchaPayload(payload: CaptchaTokenPayload): string {

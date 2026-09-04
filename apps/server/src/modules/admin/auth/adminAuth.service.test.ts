@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import bcrypt from 'bcrypt';
-import { AdminAuthService } from './adminAuth.service.js';
+import { AdminAuthService, shouldRequireAdminTwoFactor } from './adminAuth.service.js';
 import { ApiError } from '../../../utils/errors.js';
 
 describe('AdminAuthService.refresh', () => {
@@ -65,6 +65,31 @@ describe('AdminAuthService.refresh', () => {
       code: 'SESSION_REPLACED',
     } satisfies Partial<ApiError>);
     expect(tx.agentRefreshToken.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('shouldRequireAdminTwoFactor', () => {
+  it('requires TOTP for every production management account', () => {
+    for (const role of ['SUPER_ADMIN', 'AGENT', 'SUB_ACCOUNT'] as const) {
+      expect(shouldRequireAdminTwoFactor({ role, twoFactorRequired: false }, 'production')).toBe(
+        true,
+      );
+    }
+  });
+
+  it('keeps explicit requirements active outside production', () => {
+    expect(
+      shouldRequireAdminTwoFactor(
+        { role: 'AGENT', twoFactorRequired: true },
+        'development',
+      ),
+    ).toBe(true);
+    expect(
+      shouldRequireAdminTwoFactor(
+        { role: 'AGENT', twoFactorRequired: false },
+        'development',
+      ),
+    ).toBe(false);
   });
 });
 

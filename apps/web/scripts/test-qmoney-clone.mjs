@@ -52,8 +52,9 @@ for (const marker of [
   'data-category="捕魚"',
   'data-category="棋牌"',
   'data-action="notices"',
+  'data-action="resume-pending"',
   'id="heroTrack"',
-  '/qmoney/app.js?v=20260904-all-members-1',
+  '/qmoney/app.js?v=20260904-final-review-1',
   'class="is-booting"',
   'id="bootView"',
   '金寶寶｜遊戲大廳',
@@ -195,6 +196,7 @@ for (const marker of [
   'lobbypopbg.webp',
   '/auth/login',
   '/games/catalog',
+  '/games/catalog/pending',
   '/wallet/balance',
   '/wallet/transactions?',
   '/wallet/bets/',
@@ -205,6 +207,32 @@ for (const marker of [
 ]) {
   assert.ok(`${html}\n${css}\n${app}`.includes(marker), `missing integration marker: ${marker}`);
 }
+
+assert.match(
+  app,
+  /captcha\.captchaImage/,
+  'the login dialog must render the server CAPTCHA image instead of a plaintext answer',
+);
+assert.doesNotMatch(
+  app,
+  /captcha\.captchaCode/,
+  'the login dialog must not expect a machine-readable CAPTCHA answer',
+);
+assert.equal(
+  (html.match(/<audio[^>]+preload="none"/g) ?? []).length,
+  6,
+  'lobby audio must wait for a user gesture instead of delaying the first load',
+);
+assert.match(
+  app,
+  /navigator\.userActivation && !navigator\.userActivation\.hasBeenActive/,
+  'blocked autoplay must not trigger an eager music download',
+);
+assert.match(
+  app,
+  /async function loadPendingRounds\(\)[^]*apiRequest\("\/games\/catalog\/pending"\)[^]*renderPendingRound\(\)/,
+  'the lobby must discover and display resumable held rounds',
+);
 
 assert.doesNotMatch(
   app,

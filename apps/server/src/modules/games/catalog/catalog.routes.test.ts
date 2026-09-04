@@ -1,19 +1,21 @@
 import type { FastifyInstance } from 'fastify';
+import { Prisma } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
-import { gameCatalogRoutes } from './catalog.routes.js';
+import { gameCatalogRoutes, pendingCatalogGameId } from './catalog.routes.js';
 
 function registrar(username: string, role = 'PLAYER') {
-  let handler: ((request: { userId: string }) => Promise<unknown>) | undefined;
-  const get = vi.fn((_path, _options, routeHandler) => {
-    handler = routeHandler;
+  const handlers = new Map<string, (request: { userId: string }) => Promise<unknown>>();
+  const get = vi.fn((path, _options, routeHandler) => {
+    handlers.set(path, routeHandler);
   });
   const findUnique = vi.fn(async () => ({ username, role, disabledAt: null }));
+  const findMany = vi.fn(async () => []);
   const fastify = {
     authenticate: vi.fn(),
     get,
-    prisma: { user: { findUnique } },
+    prisma: { user: { findUnique }, bet: { findMany } },
   } as unknown as FastifyInstance;
-  return { fastify, findUnique, readHandler: () => handler };
+  return { fastify, findUnique, findMany, readHandler: (path = '/') => handlers.get(path) };
 }
 
 describe('new casino game catalog', () => {
@@ -133,5 +135,48 @@ describe('new casino game catalog', () => {
     };
 
     expect(result.games).toEqual([]);
+  });
+});
+
+describe('pending game recovery catalog', () => {
+  it('maps the classic Blackjack table back to its lobby game', () => {
+    expect(
+      pendingCatalogGameId({ gameId: 'blackjack', blackjackRound: { tableId: 'classic' } }),
+    ).toBe('blackjack-table-2');
+    expect(
+      pendingCatalogGameId({ gameId: 'blackjack', blackjackRound: { tableId: 'royal' } }),
+    ).toBe('blackjack');
+  });
+
+  it('returns only pending rounds that are available in the current lobby', async () => {
+    const registration = registrar('regular-member');
+    registration.findMany.mockResolvedValue([
+      {
+        id: 'classic-bet',
+        gameId: 'blackjack',
+        amount: new Prisma.Decimal(100),
+        createdAt: new Date('2026-09-04T00:00:00.000Z'),
+        blackjackRound: { tableId: 'classic' },
+      },
+      {
+        id: 'hidden-bet',
+        gameId: 'chicken-road',
+        amount: new Prisma.Decimal(50),
+        createdAt: new Date('2026-09-03T00:00:00.000Z'),
+        blackjackRound: null,
+      },
+    ] as never);
+    await gameCatalogRoutes(registration.fastify, { platformRealm: 'qmoney' });
+
+    const result = (await registration.readHandler('/pending')?.({ userId: 'user-1' })) as {
+      count: number;
+      heldAmount: string;
+      rounds: Array<{ gameId: string }>;
+    };
+    expect(result).toMatchObject({
+      count: 1,
+      heldAmount: '100.00',
+      rounds: [{ gameId: 'blackjack-table-2' }],
+    });
   });
 });

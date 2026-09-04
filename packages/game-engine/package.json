@@ -20,7 +20,7 @@
   "devDependencies": {
     "@bg/tsconfig": "workspace:*",
     "gsap": "^3.12.5",
-    "pixi.js": "^8.2.0",
+    "pixi.js": "^8.20.1",
     "typescript": "^5.5.0"
   }
 }

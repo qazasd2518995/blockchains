@@ -64,6 +64,7 @@ try {
   const sourceDocument = await fetch(`${baseUrl}/games/storm-of-seth-2/index.html`);
   assert.equal(sourceDocument.status, 200);
   assert.match(await sourceDocument.text(), /SOURCE_ENGINE/);
+  assert.match(sourceDocument.headers.get('content-security-policy') ?? '', /'unsafe-eval'/);
 
   const sourceAsset = await fetch(`${baseUrl}/games/storm-of-seth-2/engine.js`);
   assert.equal(sourceAsset.status, 200);
@@ -71,6 +72,17 @@ try {
 
   const missingAsset = await fetch(`${baseUrl}/games/storm-of-seth-2/missing.js`);
   assert.equal(missingAsset.status, 404);
+
+  const rootDocument = await fetch(`${baseUrl}/index.html`);
+  assert.equal(rootDocument.headers.get('strict-transport-security'), 'max-age=31536000; includeSubDomains');
+  assert.equal(rootDocument.headers.get('x-frame-options'), 'SAMEORIGIN');
+  assert.equal(rootDocument.headers.get('referrer-policy'), 'no-referrer');
+  assert.doesNotMatch(rootDocument.headers.get('content-security-policy') ?? '', /'unsafe-eval'/);
+
+  const privatePath = await fetch(`${baseUrl}/.git/config`, {
+    headers: { Accept: 'text/html' },
+  });
+  assert.equal(privatePath.status, 404);
 } finally {
   if (child && child.exitCode === null) {
     child.kill('SIGTERM');

@@ -37,9 +37,15 @@ function signBaccaratLaunchToken(payload: Record<string, unknown>): string {
 export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   const service = new AuthService(fastify.prisma, fastify.jwt);
 
-  fastify.get('/captcha', async () => {
-    return service.issueCaptcha();
-  });
+  fastify.get(
+    '/captcha',
+    {
+      config: {
+        rateLimit: { max: 30, timeWindow: '1 minute', keyGenerator: (req) => `captcha:${req.ip}` },
+      },
+    },
+    async () => service.issueCaptcha(),
+  );
 
   // 公開註冊已停用：會員帳號僅能由代理後台建立
   fastify.post('/register', async (req, reply) => {
@@ -61,10 +67,23 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
     });
   });
 
-  fastify.post('/login', async (req) => {
-    const body = loginSchema.parse(req.body);
-    return service.login(body);
-  });
+  fastify.post(
+    '/login',
+    {
+      config: {
+        rateLimit: {
+          max: 15,
+          timeWindow: '1 minute',
+          hook: 'preHandler',
+          keyGenerator: (req) => `login:${req.ip}`,
+        },
+      },
+    },
+    async (req) => {
+      const body = loginSchema.parse(req.body);
+      return service.login(body);
+    },
+  );
 
   fastify.post('/refresh', async (req) => {
     const body = refreshSchema.parse(req.body);

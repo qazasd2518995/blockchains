@@ -53,6 +53,7 @@ import {
   shouldDebugRequest,
   shouldSkipRequestLog,
 } from './utils/requestLogging.js';
+import { authenticatedRateLimitKey } from './utils/rateLimitKey.js';
 
 const SLOT_DEBUG_BUILD = 'mega-slot-mobile-debug-20260527-01';
 const SLOT_DEBUG_SW_VERSION = 'yachiyo-assets-v5-mega-slot-20260527';
@@ -228,7 +229,8 @@ export async function buildServer(): Promise<FastifyInstance> {
       reply.code(400).send(response);
       return;
     }
-    const statusCode = error.statusCode ?? 500;
+    const unknownError = error as { statusCode?: number; message?: string };
+    const statusCode = unknownError.statusCode ?? 500;
     markRequestErrorLogged(request);
     request.log.error(
       {
@@ -241,23 +243,23 @@ export async function buildServer(): Promise<FastifyInstance> {
     );
     reply.code(statusCode).send({
       code: statusCode === 400 ? 'INVALID_BET' : 'INTERNAL',
-      message: publicErrorMessage(statusCode, error.message),
+      message: publicErrorMessage(statusCode, unknownError.message),
     });
   });
 
   await server.register(helmet, { contentSecurityPolicy: false });
   await server.register(cors, corsOptions);
-  await server.register(rateLimit, {
-    max: 600,
-    timeWindow: '1 minute',
-    keyGenerator: (req) => {
-      const user = (req as unknown as { user?: { sub?: string } }).user;
-      return user?.sub ?? req.ip;
-    },
-  });
   await server.register(jwt, {
     secret: config.JWT_SECRET,
     sign: { expiresIn: config.JWT_ACCESS_TTL },
+  });
+  await server.register(rateLimit, {
+    max: 600,
+    timeWindow: '1 minute',
+    keyGenerator: (request) =>
+      authenticatedRateLimitKey(request, (token) => server.jwt.verify(token)),
+    errorResponseBuilder: () =>
+      new ApiError('RATE_LIMITED', '操作過於頻繁，請稍候再試'),
   });
 
   await server.register(prismaPlugin);

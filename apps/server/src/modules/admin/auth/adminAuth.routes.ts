@@ -10,14 +10,37 @@ import { ApiError } from '../../../utils/errors.js';
 export async function adminAuthRoutes(fastify: FastifyInstance): Promise<void> {
   const service = new AdminAuthService(fastify.prisma, fastify.jwt);
 
-  fastify.get('/captcha', async () => {
-    return service.issueCaptcha();
-  });
+  fastify.get(
+    '/captcha',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+          keyGenerator: (req) => `admin-captcha:${req.ip}`,
+        },
+      },
+    },
+    async () => service.issueCaptcha(),
+  );
 
-  fastify.post('/login', async (req) => {
-    const body = adminLoginSchema.parse(req.body);
-    return service.login(body);
-  });
+  fastify.post(
+    '/login',
+    {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: '1 minute',
+          hook: 'preHandler',
+          keyGenerator: (req) => `admin-login:${req.ip}`,
+        },
+      },
+    },
+    async (req) => {
+      const body = adminLoginSchema.parse(req.body);
+      return service.login(body);
+    },
+  );
 
   fastify.post('/refresh', async (req) => {
     const body = adminRefreshSchema.parse(req.body);

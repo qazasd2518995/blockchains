@@ -45,7 +45,7 @@
     <link rel="icon" href="/qmoney/assets/favicon.ico">
     <link rel="stylesheet" href="/qmoney/styles.css?v=20260901-mobile-viewport-6">
     <script src="/qmoney/config.js" defer></script>
-    <script src="/qmoney/app.js?v=20260904-all-members-1" defer></script>
+    <script src="/qmoney/app.js?v=20260904-final-review-1" defer></script>
   </head>
   <body class="is-booting">
     <div class="app-frame" id="appFrame">
@@ -93,6 +93,11 @@
           <button class="announcement-ticker" type="button" data-action="notices" aria-label="查看公告">
             <span class="ticker-speaker">🔊</span>
             <span class="ticker-window"><span id="tickerTrack">正在讀取系統公告…</span></span>
+          </button>
+
+          <button class="pending-game-notice" id="pendingGameNotice" type="button" data-action="resume-pending" hidden>
+            <span><small>未完成遊戲</small><strong id="pendingGameText">已保留本局點數</strong></span>
+            <em>繼續遊戲 ›</em>
           </button>
 
           <nav class="category-tabs" id="categoryTabs" aria-label="遊戲分類">
@@ -143,11 +148,11 @@
       <div class="toast" id="toast" role="status" aria-live="polite"></div>
     </div>
 
-    <audio id="loginMusic" src="/qmoney/assets/imgs_soc/mp3/login_page.mp3" preload="metadata" loop></audio>
-    <audio id="lobbyMusic" src="/qmoney/assets/imgs_soc/mp3/lobby_page.mp3" preload="metadata" loop></audio>
-    <audio id="clickTab" data-volume="0.602" src="/qmoney/assets/imgs_soc/mp3/click_tab.mp3" preload="auto"></audio>
-    <audio id="clickGame" src="/qmoney/assets/imgs_soc/mp3/click_game.mp3" preload="auto"></audio>
-    <audio id="clickConfirm" src="/qmoney/assets/imgs_soc/mp3/click_confirm.mp3" preload="auto"></audio>
-    <audio id="clickCancel" src="/qmoney/assets/imgs_soc/mp3/click_cancel.mp3" preload="auto"></audio>
+    <audio id="loginMusic" src="/qmoney/assets/imgs_soc/mp3/login_page.mp3" preload="none" loop></audio>
+    <audio id="lobbyMusic" src="/qmoney/assets/imgs_soc/mp3/lobby_page.mp3" preload="none" loop></audio>
+    <audio id="clickTab" data-volume="0.602" src="/qmoney/assets/imgs_soc/mp3/click_tab.mp3" preload="none"></audio>
+    <audio id="clickGame" src="/qmoney/assets/imgs_soc/mp3/click_game.mp3" preload="none"></audio>
+    <audio id="clickConfirm" src="/qmoney/assets/imgs_soc/mp3/click_confirm.mp3" preload="none"></audio>
+    <audio id="clickCancel" src="/qmoney/assets/imgs_soc/mp3/click_cancel.mp3" preload="none"></audio>
   </body>
 </html>

@@ -257,10 +257,23 @@ export function AdminLoginPage(): JSX.Element {
                     type="button"
                     onClick={() => void refreshCaptcha()}
                     disabled={captchaLoading}
-                    className="rounded-[8px] border border-[#186073]/28 bg-[#F6FBFD] px-3 py-2.5 font-mono text-[18px] font-black tracking-[0.18em] text-[#186073] transition hover:bg-[#EAF6FA] disabled:cursor-wait disabled:opacity-60"
+                    className="flex min-h-11 items-center justify-center overflow-hidden rounded-[8px] border border-[#186073]/28 bg-[#F6FBFD] transition hover:bg-[#EAF6FA] disabled:cursor-wait disabled:opacity-60"
                     aria-label={t.auth.captchaReload}
                   >
-                    {captchaLoading ? '----' : (captcha?.captchaCode ?? '----')}
+                    {captchaLoading || !captcha ? (
+                      <span className="font-mono text-[18px] font-black tracking-[0.18em] text-[#186073]">
+                        ----
+                      </span>
+                    ) : (
+                      <img
+                        src={captcha.captchaImage}
+                        alt="驗證碼圖片，點擊可更新"
+                        width={112}
+                        height={48}
+                        draggable={false}
+                        className="h-11 w-full object-cover"
+                      />
+                    )}
                   </button>
                 </div>
               </Field>

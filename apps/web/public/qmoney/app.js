@@ -30,6 +30,8 @@ const elements = {
   balanceValue: document.querySelector("#balanceValue"),
   balanceButton: document.querySelector(".balance-row"),
   tickerTrack: document.querySelector("#tickerTrack"),
+  pendingGameNotice: document.querySelector("#pendingGameNotice"),
+  pendingGameText: document.querySelector("#pendingGameText"),
   heroCarousel: document.querySelector("#heroCarousel"),
   heroTrack: document.querySelector("#heroTrack"),
   carouselDots: document.querySelector("#carouselDots"),
@@ -62,6 +64,8 @@ const state = {
   activeGame: null,
   catalogError: "",
   accessDenied: false,
+  pendingRound: null,
+  pendingRoundCount: 0,
   notices: [],
   history: {
     period: "7d",
@@ -298,6 +302,10 @@ function syncMusic(scene = state.musicScene) {
     for (const track of Object.values(tracks)) track.pause();
     return;
   }
+  // Do not turn a blocked autoplay attempt into an eager MP3 download. The
+  // first pointer/keyboard interaction calls syncMusic again and starts the
+  // exact same full-quality track.
+  if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
   activeTrack.volume = 0.36;
   activeTrack.play()?.catch(() => {});
 }
@@ -349,7 +357,7 @@ function loginFormMarkup(captcha, message = "") {
     <form class="real-login-form" id="realLoginForm">
       <label><span>會員帳號</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" enterkeyhint="next" maxlength="40" required></label>
       <label><span>密碼</span><input name="password" type="password" autocomplete="current-password" enterkeyhint="next" required></label>
-      <label><span>驗證碼</span><div class="captcha-row"><input name="captchaCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{4}" enterkeyhint="done" maxlength="4" required><button type="button" data-login-action="captcha" aria-label="更新驗證碼">${escapeHtml(captcha.captchaCode)}</button></div></label>
+      <label><span>驗證碼</span><div class="captcha-row"><input name="captchaCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{4}" enterkeyhint="done" maxlength="4" required><button type="button" data-login-action="captcha" aria-label="更新驗證碼"><img src="${escapeHtml(captcha.captchaImage)}" alt="驗證碼圖片，點擊可更新" width="112" height="48" draggable="false"></button></div></label>
       <p class="form-error" id="loginError" ${message ? "" : "hidden"}>${escapeHtml(message)}</p>
       <button class="modal-button modal-button--pink" type="submit"><span>登入遊戲大廳</span></button>
     </form>`;
@@ -458,6 +466,30 @@ async function refreshBalance(quiet = false) {
   }
 }
 
+async function loadPendingRounds() {
+  if (!state.session) return;
+  try {
+    const result = await apiRequest("/games/catalog/pending");
+    const rounds = Array.isArray(result?.rounds) ? result.rounds : [];
+    state.pendingRound = rounds[0] || null;
+    state.pendingRoundCount = Number(result?.count || 0);
+  } catch {
+    // Recovery discovery is advisory and must never prevent lobby entry.
+    state.pendingRound = null;
+    state.pendingRoundCount = 0;
+  }
+  renderPendingRound();
+}
+
+function renderPendingRound() {
+  const round = state.pendingRound;
+  const game = round ? state.games.find((item) => item.id === round.gameId) : null;
+  elements.pendingGameNotice.hidden = !round || !game;
+  if (!round || !game) return;
+  const suffix = state.pendingRoundCount > 1 ? `，另有 ${state.pendingRoundCount - 1} 局` : "";
+  elements.pendingGameText.textContent = `${game.name} · 保留 ${formatAmount(round.amount)} 點${suffix}`;
+}
+
 function finishInitialView() {
   document.body.classList.remove("is-booting");
 }
@@ -486,6 +518,7 @@ async function enterLobby() {
   if (!state.session) return showLoginForm();
   activateLobbyView();
   await Promise.all([loadCatalog(), refreshBalance(true), loadAnnouncements()]);
+  await loadPendingRounds();
   window.clearInterval(state.balanceTimer);
   state.balanceTimer = window.setInterval(() => {
     if (document.visibilityState === "visible") void refreshBalance(true);
@@ -496,6 +529,9 @@ async function enterLobby() {
 function showLoginView() {
   state.isLobby = false;
   state.games = [];
+  state.pendingRound = null;
+  state.pendingRoundCount = 0;
+  elements.pendingGameNotice.hidden = true;
   window.clearInterval(state.balanceTimer);
   elements.lobbyView.classList.remove("is-active");
   elements.loginView.classList.add("is-active");
@@ -846,11 +882,13 @@ elements.lobbyView.addEventListener("click", (event) => {
   if (action === "settings") showSettings();
   else if (action === "notices") showNotices();
   else if (action === "refresh-balance") void refreshBalance();
+  else if (action === "resume-pending" && state.pendingRound) showGame(state.pendingRound.gameId);
   else if (action === "scroll-top") elements.lobbyScroll.scrollTo({ top: 0, behavior: "smooth" });
 });
 
 document.querySelector("#webLogin").addEventListener("click", () => void showLoginForm());
 document.addEventListener("pointerdown", () => syncMusic(state.isLobby ? "lobby" : "login"), { once: true, capture: true });
+document.addEventListener("keydown", () => syncMusic(state.isLobby ? "lobby" : "login"), { once: true, capture: true });
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeModal(); });
 window.addEventListener("pageshow", () => {
   const preferences = readPreferences();
@@ -859,7 +897,10 @@ window.addEventListener("pageshow", () => {
   syncGameAudioPreferences();
   syncMusic(state.isLobby ? "lobby" : "login");
   elements.loadingOverlay.hidden = true;
-  if (state.isLobby) void refreshBalance(true);
+  if (state.isLobby) {
+    void refreshBalance(true);
+    void loadPendingRounds();
+  }
 });
 window.addEventListener("storage", (event) => {
   if (event.key !== AUTH_STORAGE_KEY) return;
