@@ -179,7 +179,7 @@ const SETH2_SHELL_ASSETS: readonly CocosShellAsset[] = [
   { src: '/games/storm-of-seth-2-v115/application.js', as: 'script' },
   { src: '/games/storm-of-seth-2-v115/src/settings.json', as: 'fetch' },
   {
-    src: '/games/storm-of-seth-2-v115/src/seth2-local-adapter.js?v=20260901-auth-recovery-1',
+    src: '/games/storm-of-seth-2-v115/src/seth2-local-adapter.js?v=20260905-split-completion-2',
     as: 'script',
   },
   { src: '/games/storm-of-seth-2-v115/cocos-js/cc.js', as: 'script' },

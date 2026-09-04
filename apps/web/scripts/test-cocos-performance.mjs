@@ -168,7 +168,7 @@ assert.doesNotMatch(
 );
 assert.match(gameManifestSource, /yachiyo-adapter\.js\?v=46/);
 assert.match(gameManifestSource, /fruit-mary-adapter\.js\?v=17/);
-assert.match(gameManifestSource, /seth2-local-adapter\.js\?v=20260901-auth-recovery-1/);
+assert.match(gameManifestSource, /seth2-local-adapter\.js\?v=20260905-split-completion-2/);
 assert.match(gameManifestSource, /thor2-original-adapter\.js\?v=20260901-auth-recovery-1/);
 assert.match(gameManifestSource, /main\.649de\.js\?v=5/);
 assert.match(gameManifestSource, /THOR2_SHELL_ASSETS/);

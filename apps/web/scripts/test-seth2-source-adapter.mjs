@@ -158,6 +158,7 @@ const {
   applyAudioPreferences,
   prefetchInitialResponse,
   publicError,
+  guardEffectsViewClass,
   guardBigwinClass,
   wrapFrameworkDispatch,
   findIntroView,
@@ -433,29 +434,51 @@ assert.deepEqual(animationOrder, [
   'landing-complete',
 ]);
 
+let completeSplitProjectile;
+function EffectsView() {}
+EffectsView.prototype.showCloneTimesMoving = function (_from, _targets, complete) {
+  completeSplitProjectile = complete;
+};
+assert.equal(guardEffectsViewClass(EffectsView), true);
+const guardedEffectsView = new EffectsView();
 const splitAnimationOrder = [];
 const splitDispatch = wrapFrameworkDispatch((eventName, event) => {
   splitAnimationOrder.push(eventName);
+  if (eventName === 'GameEvent:SHOW_CLONE_TIMES_MOVING') {
+    guardedEffectsView.showCloneTimesMoving(5, [0], () => {
+      splitAnimationOrder.push('projectile-complete');
+    });
+  }
   if (eventName === 'GameEvent:SHOW_TIMES_B') event.complete();
 });
-const splitTimerStart = longTimers.length;
 splitDispatch('GameEvent:SHOW_CLONE_TIMES_MOVING', { data: { from: 5, to: [0] } });
+assert.deepEqual(
+  splitAnimationOrder,
+  [],
+  'the projectile waits for the source split_B hand-off instead of flying too early',
+);
 splitDispatch('GameEvent:SHOW_TIMES_B', {
   complete: () => splitAnimationOrder.push('clone-complete'),
 });
 assert.deepEqual(
   splitAnimationOrder,
   ['GameEvent:SHOW_CLONE_TIMES_MOVING'],
-  'the real target multiplier must not overlap the moving split projectile',
+  'the target multiplier stays hidden while the real projectile is moving',
 );
-const delayedSplitClone = longTimers.slice(splitTimerStart).find((timer) => timer.delay === 550);
-assert.ok(delayedSplitClone);
-delayedSplitClone.callback();
+assert.equal(typeof completeSplitProjectile, 'function');
+completeSplitProjectile();
 assert.deepEqual(splitAnimationOrder, [
   'GameEvent:SHOW_CLONE_TIMES_MOVING',
+  'projectile-complete',
   'GameEvent:SHOW_TIMES_B',
   'clone-complete',
 ]);
+completeSplitProjectile();
+assert.equal(
+  splitAnimationOrder.filter((event) => event === 'GameEvent:SHOW_TIMES_B').length,
+  1,
+  'duplicate Cocos completion callbacks cannot materialize a second target ball',
+);
 
 const audioResponse = structuredClone(response);
 applyAudioPreferences(audioResponse);

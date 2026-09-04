@@ -24,10 +24,13 @@
     'GameEvent:SHOW_SYMBOLS_QUICK_IN_ANIM': true,
   };
   var CHARACTER_FIRE_LEAD_MS = 700;
-  // The original moving multiplier prefab travels for 500 ms. Leave one
-  // mobile render frame before materializing the authoritative target symbol,
-  // so the projectile cannot look like an extra multiplier on the board.
-  var SPLIT_CLONE_TRAVEL_MS = 550;
+  // The source game starts the moving clone while its source symbol is still
+  // playing split_A. On slower mobile renderers the projectile can therefore
+  // finish before split_B asks to create the authoritative target symbol. Do
+  // not guess that timing: hold the projectile until split_B is ready and use
+  // the effect's real completion callback before materializing the target.
+  var SPLIT_CLONE_START_FALLBACK_MS = 2000;
+  var SPLIT_CLONE_COMPLETE_FALLBACK_MS = 4000;
   var GAME_ENTRY_BOOT_TIMEOUT_MS = 60000;
   var GAME_ENTRY_REQUIRED_UI_COUNT = 4;
   var TABLE_REFERENCE_REFRESH_MS = 5000;
@@ -51,12 +54,17 @@
   var capturedAudioContexts = [];
   var characterFireLeadUntil = 0;
   var pendingSymbolLandingTimer = 0;
-  var splitCloneTravelUntil = 0;
-  var pendingSplitCloneTimers = [];
+  var splitCloneSequence = 0;
+  var splitCloneMoving = false;
+  var queuedSplitMovingDispatch = null;
+  var pendingSplitTargetDispatches = [];
+  var splitCloneStartFallbackTimer = 0;
+  var splitCloneCompleteFallbackTimer = 0;
 
   function installAudioContextCapture() {
     var NativeAudioContext = window.AudioContext || window.webkitAudioContext;
-    if (typeof NativeAudioContext !== 'function' || NativeAudioContext.__yachiyoAudioCapture) return;
+    if (typeof NativeAudioContext !== 'function' || NativeAudioContext.__yachiyoAudioCapture)
+      return;
 
     function CapturedAudioContext() {
       var args = Array.prototype.slice.call(arguments);
@@ -110,6 +118,101 @@
 
   installAudioContextCapture();
 
+  function clearSplitCloneTimer(timer) {
+    if (timer) window.clearTimeout(timer);
+    return 0;
+  }
+
+  function finishSplitCloneTravel(sequence) {
+    if (sequence !== undefined && sequence !== splitCloneSequence) return false;
+    splitCloneMoving = false;
+    splitCloneCompleteFallbackTimer = clearSplitCloneTimer(splitCloneCompleteFallbackTimer);
+    var targetDispatches = pendingSplitTargetDispatches.splice(0);
+    targetDispatches.forEach(function (pending) {
+      pending.dispatcher.apply(pending.receiver, pending.args);
+    });
+    return targetDispatches.length > 0;
+  }
+
+  function startQueuedSplitMoving() {
+    var pending = queuedSplitMovingDispatch;
+    if (!pending) return false;
+    queuedSplitMovingDispatch = null;
+    splitCloneStartFallbackTimer = clearSplitCloneTimer(splitCloneStartFallbackTimer);
+    splitCloneMoving = true;
+    var sequence = pending.sequence;
+    splitCloneCompleteFallbackTimer = clearSplitCloneTimer(splitCloneCompleteFallbackTimer);
+    splitCloneCompleteFallbackTimer = window.setTimeout(function () {
+      finishSplitCloneTravel(sequence);
+    }, SPLIT_CLONE_COMPLETE_FALLBACK_MS);
+    pending.dispatcher.apply(pending.receiver, pending.args);
+    return true;
+  }
+
+  function queueSplitMovingDispatch(dispatcher, receiver, args) {
+    if (queuedSplitMovingDispatch || splitCloneMoving || pendingSplitTargetDispatches.length > 0) {
+      finishSplitCloneTravel();
+    }
+    splitCloneSequence += 1;
+    var sequence = splitCloneSequence;
+    queuedSplitMovingDispatch = {
+      dispatcher: dispatcher,
+      receiver: receiver,
+      args: args,
+      sequence: sequence,
+    };
+    splitCloneStartFallbackTimer = clearSplitCloneTimer(splitCloneStartFallbackTimer);
+    splitCloneStartFallbackTimer = window.setTimeout(function () {
+      if (queuedSplitMovingDispatch && queuedSplitMovingDispatch.sequence === sequence) {
+        startQueuedSplitMoving();
+      }
+    }, SPLIT_CLONE_START_FALLBACK_MS);
+  }
+
+  function guardEffectsViewClass(EffectsView) {
+    var prototype = EffectsView && EffectsView.prototype;
+    if (!prototype || prototype.__yachiyoSplitCompletionGuard) return Boolean(prototype);
+    var originalShowCloneTimesMoving = prototype.showCloneTimesMoving;
+    if (typeof originalShowCloneTimesMoving !== 'function') return false;
+
+    prototype.showCloneTimesMoving = function (from, targets, originalComplete) {
+      var completed = false;
+      var sequence = splitCloneSequence;
+      return originalShowCloneTimesMoving.call(this, from, targets, function () {
+        if (completed) return undefined;
+        completed = true;
+        var result;
+        try {
+          if (typeof originalComplete === 'function') {
+            result = originalComplete.apply(this, arguments);
+          }
+        } finally {
+          finishSplitCloneTravel(sequence);
+        }
+        return result;
+      });
+    };
+    prototype.__yachiyoSplitCompletionGuard = true;
+    return true;
+  }
+
+  function installEffectsViewSplitGuard(attempt) {
+    var tries = Number(attempt || 0);
+    var loader = window.System;
+    var moduleId = 'chunks:///_virtual/EffectsView.ts';
+    try {
+      var loaded = loader && typeof loader.get === 'function' ? loader.get(moduleId) : null;
+      if (loaded && guardEffectsViewClass(loaded.EffectsView || loaded.default)) return;
+    } catch (_error) {
+      // The effect module may be registered but not executed yet.
+    }
+    if (tries < 240) {
+      window.setTimeout(function () {
+        installEffectsViewSplitGuard(tries + 1);
+      }, 250);
+    }
+  }
+
   function wrapFrameworkDispatch(dispatcher) {
     if (typeof dispatcher !== 'function' || dispatcher.__yachiyoTotalWinGuard) return dispatcher;
     function guardedDispatch() {
@@ -117,25 +220,22 @@
       var event = arguments[1];
       if (eventName === CREATE_SPIN_COMPLETE_FLOW) advanceActiveSpinProgress();
       if (eventName === SHOW_CLONE_TIMES_MOVING) {
-        splitCloneTravelUntil = Date.now() + SPLIT_CLONE_TRAVEL_MS;
+        queueSplitMovingDispatch(dispatcher, this, Array.prototype.slice.call(arguments));
+        return undefined;
       }
       if (eventName === SHOW_TIMES_B) {
-        var cloneDelay = splitCloneTravelUntil - Date.now();
-        if (cloneDelay > 0) {
-          var cloneReceiver = this;
-          var cloneArgs = Array.prototype.slice.call(arguments);
-          var cloneDeadline = splitCloneTravelUntil;
-          var cloneTimer = window.setTimeout(function () {
-            pendingSplitCloneTimers = pendingSplitCloneTimers.filter(function (timer) {
-              return timer !== cloneTimer;
-            });
-            if (splitCloneTravelUntil === cloneDeadline) splitCloneTravelUntil = 0;
-            dispatcher.apply(cloneReceiver, cloneArgs);
-          }, cloneDelay);
-          pendingSplitCloneTimers.push(cloneTimer);
+        // split_B is the source animation's exact hand-off point. Start the
+        // held projectile now, then keep the real target multiplier hidden
+        // until EffectsView reports that every projectile has been destroyed.
+        startQueuedSplitMoving();
+        if (splitCloneMoving) {
+          pendingSplitTargetDispatches.push({
+            dispatcher: dispatcher,
+            receiver: this,
+            args: Array.prototype.slice.call(arguments),
+          });
           return undefined;
         }
-        splitCloneTravelUntil = 0;
       }
       if (eventName === SHOW_CHARACTER_FIRE) {
         // Start the character/fireball immediately, then give it a visible
@@ -361,6 +461,7 @@
 
   protectPlatformStorage();
   installFrameworkDispatchGuard();
+  installEffectsViewSplitGuard(0);
   installBigwinCompletionGuard(0);
   installGameViewInitializationGuard(0);
 
@@ -1256,12 +1357,13 @@
       window.clearTimeout(pendingSymbolLandingTimer);
       pendingSymbolLandingTimer = 0;
     }
-    pendingSplitCloneTimers.forEach(function (timer) {
-      window.clearTimeout(timer);
-    });
-    pendingSplitCloneTimers = [];
+    splitCloneStartFallbackTimer = clearSplitCloneTimer(splitCloneStartFallbackTimer);
+    splitCloneCompleteFallbackTimer = clearSplitCloneTimer(splitCloneCompleteFallbackTimer);
+    queuedSplitMovingDispatch = null;
+    pendingSplitTargetDispatches = [];
+    splitCloneMoving = false;
+    splitCloneSequence += 1;
     characterFireLeadUntil = 0;
-    splitCloneTravelUntil = 0;
     try {
       if (window.cc && window.cc.game && typeof window.cc.game.pause === 'function') {
         window.cc.game.pause();
@@ -1715,6 +1817,7 @@
     collectFeatureSequence: collectFeatureSequence,
     prefetchInitialResponse: prefetchInitialResponse,
     publicError: publicError,
+    guardEffectsViewClass: guardEffectsViewClass,
     guardBigwinClass: guardBigwinClass,
     wrapFrameworkDispatch: wrapFrameworkDispatch,
     findIntroView: findIntroView,
