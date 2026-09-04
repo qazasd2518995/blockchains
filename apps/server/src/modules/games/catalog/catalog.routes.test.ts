@@ -1,7 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
-import { gameCatalogRoutes, pendingCatalogGameId } from './catalog.routes.js';
+import {
+  blackjackCatalogGameId,
+  gameCatalogRoutes,
+  pendingCatalogGameId,
+} from './catalog.routes.js';
 
 function registrar(username: string, role = 'PLAYER') {
   const handlers = new Map<string, (request: { userId: string }) => Promise<unknown>>();
@@ -10,12 +14,32 @@ function registrar(username: string, role = 'PLAYER') {
   });
   const findUnique = vi.fn(async () => ({ username, role, disabledAt: null }));
   const findMany = vi.fn(async () => []);
+  const minesFindMany = vi.fn(async () => []);
+  const hiLoFindMany = vi.fn(async () => []);
+  const towerFindMany = vi.fn(async () => []);
+  const blackjackFindMany = vi.fn(async () => []);
   const fastify = {
     authenticate: vi.fn(),
     get,
-    prisma: { user: { findUnique }, bet: { findMany } },
+    prisma: {
+      user: { findUnique },
+      bet: { findMany },
+      minesRound: { findMany: minesFindMany },
+      hiLoRound: { findMany: hiLoFindMany },
+      towerRound: { findMany: towerFindMany },
+      blackjackRound: { findMany: blackjackFindMany },
+    },
   } as unknown as FastifyInstance;
-  return { fastify, findUnique, findMany, readHandler: (path = '/') => handlers.get(path) };
+  return {
+    fastify,
+    findUnique,
+    findMany,
+    minesFindMany,
+    hiLoFindMany,
+    towerFindMany,
+    blackjackFindMany,
+    readHandler: (path = '/') => handlers.get(path),
+  };
 }
 
 describe('new casino game catalog', () => {
@@ -140,6 +164,8 @@ describe('new casino game catalog', () => {
 
 describe('pending game recovery catalog', () => {
   it('maps the classic Blackjack table back to its lobby game', () => {
+    expect(blackjackCatalogGameId('classic')).toBe('blackjack-table-2');
+    expect(blackjackCatalogGameId('royal')).toBe('blackjack');
     expect(
       pendingCatalogGameId({ gameId: 'blackjack', blackjackRound: { tableId: 'classic' } }),
     ).toBe('blackjack-table-2');
@@ -177,6 +203,42 @@ describe('pending game recovery catalog', () => {
       count: 1,
       heldAmount: '100.00',
       rounds: [{ gameId: 'blackjack-table-2' }],
+    });
+  });
+
+  it('also returns active games whose Bet is only created during settlement', async () => {
+    const registration = registrar('regular-member');
+    registration.minesFindMany.mockResolvedValue([
+      {
+        id: 'mines-round',
+        betAmount: new Prisma.Decimal(25),
+        createdAt: new Date('2026-09-04T01:00:00.000Z'),
+        bet: null,
+      },
+    ] as never);
+    registration.blackjackFindMany.mockResolvedValue([
+      {
+        id: 'blackjack-round',
+        tableId: 'classic',
+        totalBetAmount: new Prisma.Decimal(100),
+        createdAt: new Date('2026-09-04T02:00:00.000Z'),
+        bet: null,
+      },
+    ] as never);
+    await gameCatalogRoutes(registration.fastify, { platformRealm: 'qmoney' });
+
+    const result = (await registration.readHandler('/pending')?.({ userId: 'user-1' })) as {
+      count: number;
+      heldAmount: string;
+      rounds: Array<{ gameId: string; amount: string }>;
+    };
+    expect(result).toMatchObject({
+      count: 2,
+      heldAmount: '125.00',
+      rounds: [
+        { gameId: 'blackjack-table-2', amount: '100.00' },
+        { gameId: 'mines', amount: '25.00' },
+      ],
     });
   });
 });
