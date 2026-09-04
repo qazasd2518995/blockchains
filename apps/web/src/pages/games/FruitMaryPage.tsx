@@ -121,8 +121,8 @@ export function FruitMaryPage() {
       room_id: '1',
       window_type: 'web',
       build: isQmoneyRealm
-        ? 'qmoney-fruit-mary-v6-miss-recovery'
-        : 'yachiyo-fruit-mary-v6-miss-recovery',
+        ? 'qmoney-fruit-mary-v7-balance-guard'
+        : 'yachiyo-fruit-mary-v7-balance-guard',
     });
     return `${GAME_PATH}?${query.toString()}`;
   }, []);

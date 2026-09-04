@@ -13,7 +13,7 @@ const pageSource = fs.readFileSync(pagePath, 'utf8');
 const indexSource = fs.readFileSync(indexPath, 'utf8');
 assert.match(
   indexSource,
-  /fruit-mary-adapter\.js\?v=16/,
+  /fruit-mary-adapter\.js\?v=17/,
   'Fruit Mary must load the settlement-safe adapter revision',
 );
 assert.match(
@@ -137,6 +137,7 @@ const {
   adjustFruitMaryAllocation,
   createBridgeXHR,
   fruitMaryBetIsWithinLimit,
+  fruitMaryBetIsAffordable,
   fruitMaryPayoutMultiplier,
   fruitMarySettlementRoundAmount,
   normalizeFruitMaryGambleAllocation,
@@ -197,6 +198,24 @@ assert.equal(normalizeFruitMaryGambleAllocation(40, 60, 999).currentRound, 50);
 assert.equal(normalizeFruitMaryGambleAllocation(40, 60, 999).balance, 50);
 updateFruitMaryBetLimits({ multiple: 10, minBet: 10, maxBet: 5000 });
 
+context.cc = {
+  vv: {
+    Logic: { addPopBox() {} },
+    UserInfo: { balance: 3 },
+  },
+};
+assert.equal(
+  fruitMaryBetIsAffordable({ numNode: { children: [numberNode(1)] } }, false),
+  false,
+  'a remainder below the 10-point denomination cannot fund a visible bet',
+);
+context.cc.vv.UserInfo.balance = 13;
+assert.equal(
+  fruitMaryBetIsAffordable({ numNode: { children: [numberNode(1)] } }, false),
+  true,
+  'a balance with a non-denomination remainder can fund only the affordable whole bet',
+);
+
 assert.equal(shortBonusCompletionIndex([22, 5]), 1);
 assert.equal(shortBonusCompletionIndex([10, 23, 11, 5, 17]), 4);
 assert.equal(shortBonusCompletionIndex([]), 0);
@@ -211,6 +230,47 @@ context.cc = {
     UserInfo: { balance: 60 },
   },
 };
+
+const insufficientNotices = [];
+context.cc.vv.Logic = { addPopBox: (message) => insufficientNotices.push(message) };
+
+const remainderBetNodes = Array.from({ length: 8 }, () => numberNode(0));
+const remainderRoundNode = numberNode(0);
+const remainderBalanceNode = numberNode(3);
+let remainderOriginalIncrements = 0;
+const remainderMenuLogic = {
+  _kaishiBiDdaxiao_bool: false,
+  shuzibenlun: remainderRoundNode,
+  shuziyue: remainderBalanceNode,
+  numNode: { children: remainderBetNodes },
+  node: { getComponent: () => ({ _playing: false }) },
+  putButtons: [],
+  startBt: { node: { active: true, opacity: 255 }, interactable: true },
+  unStartBt: { node: { active: false, opacity: 255 }, interactable: false },
+  isAutoPut_bool: false,
+  unschedule() {},
+  getAllPut() {},
+  initButton() {},
+  setBidaxiao() {},
+  clickCancelAuto() {
+    this.isAutoPut_bool = false;
+  },
+  clickKaishi() {},
+  kaishi() {
+    remainderOriginalIncrements += 1;
+    remainderBetNodes[0].box.setNum(remainderBetNodes[0].box.getNum() + 1);
+  },
+};
+context.cc.vv.UserInfo.balance = 3;
+assert.equal(patchFruitMaryMenuLogic(remainderMenuLogic), true);
+remainderMenuLogic.kaishi();
+assert.equal(remainderOriginalIncrements, 1);
+assert.equal(
+  remainderBetNodes[0].box.getNum(),
+  0,
+  'the adapter rolls back the archived client\'s unaffordable first increment',
+);
+assert.match(insufficientNotices.at(-1), /餘額不足/);
 
 const audioFallbackCallbacks = [];
 context.setTimeout = (callback) => {

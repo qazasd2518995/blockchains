@@ -213,7 +213,7 @@ const H5_SHELL_ASSETS: readonly CocosShellAsset[] = [
 ];
 
 const FRUIT_MARY_SHELL_ASSETS: readonly CocosShellAsset[] = [
-  { src: '/games/fruit-mary/fruit-mary-adapter.js?v=13', as: 'script' },
+  { src: '/games/fruit-mary/fruit-mary-adapter.js?v=17', as: 'script' },
   { src: '/games/fruit-mary/src/settings.e124f.js', as: 'script' },
   { src: '/games/fruit-mary/main.b4cc7.js?v=4', as: 'script' },
   { src: '/games/fruit-mary/cocos2d-js-min.3cdbc.js', as: 'script' },

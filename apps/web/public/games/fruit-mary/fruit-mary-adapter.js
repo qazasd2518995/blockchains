@@ -26,6 +26,7 @@
   var fruitMaryMinimumBet = 10;
   var fruitMaryMaximumBet = 5000;
   var fruitMaryLastLimitNoticeAt = 0;
+  var fruitMaryLastBalanceNoticeAt = 0;
   var gameDisposing = false;
   var gameCanvasContextLost = false;
   var renderFailureReported = false;
@@ -687,6 +688,37 @@
     }
   }
 
+  function showFruitMaryInsufficientBalanceMessage() {
+    var now = Date.now();
+    if (now - fruitMaryLastBalanceNoticeAt < 600) return;
+    fruitMaryLastBalanceNoticeAt = now;
+    if (window.cc && window.cc.vv && window.cc.vv.Logic) {
+      window.cc.vv.Logic.addPopBox(
+        '餘額不足，本遊戲每注最少需要 '
+          + fruitMaryDenomination.toLocaleString()
+          + ' 點',
+      );
+    }
+  }
+
+  function fruitMaryAvailableBalance() {
+    var sourceBalance = Number(
+      window.cc && window.cc.vv && window.cc.vv.UserInfo
+        ? window.cc.vv.UserInfo.balance
+        : NaN,
+    );
+    if (Number.isFinite(sourceBalance)) return Math.max(0, sourceBalance);
+    return fruitMaryAuthoritativeBalance === null
+      ? 0
+      : normalizeFruitMaryBalance(fruitMaryAuthoritativeBalance);
+  }
+
+  function fruitMaryBetIsAffordable(menuLogic, includeStoredBet) {
+    var units = fruitMaryBetUnits(menuLogic, includeStoredBet);
+    if (units <= 0) return true;
+    return units * fruitMaryDenomination <= fruitMaryAvailableBalance();
+  }
+
   function fruitMaryBetIsWithinLimit(menuLogic) {
     var units = fruitMaryBetUnits(menuLogic, true);
     if (units <= 0) return true;
@@ -917,6 +949,12 @@
         if (!collectingWin && (settlementInFlight || Date.now() < nextFruitMarySpinAt)) {
           return undefined;
         }
+        if (!collectingWin && !fruitMaryBetIsAffordable(this, true)) {
+          if (typeof this.clickCancelAuto === 'function') this.clickCancelAuto();
+          if (typeof this.initButton === 'function') this.initButton();
+          showFruitMaryInsufficientBalanceMessage();
+          return undefined;
+        }
         if (!collectingWin && !fruitMaryBetIsWithinLimit(this)) {
           if (typeof this.clickCancelAuto === 'function') this.clickCancelAuto();
           if (typeof this.initButton === 'function') this.initButton();
@@ -952,6 +990,14 @@
           restoreFruitMaryBetSnapshot(this, snapshot);
           if (typeof this.unschedule === 'function') this.unschedule(this.kaishi);
           showFruitMaryLimitMessage();
+        } else if (!fruitMaryBetIsAffordable(this, false)) {
+          // The archived client checks the total before incrementing, so a
+          // balance below one denomination could still display one impossible
+          // bet. Restore the previous allocation and keep the controls usable.
+          restoreFruitMaryBetSnapshot(this, snapshot);
+          if (typeof this.unschedule === 'function') this.unschedule(this.kaishi);
+          if (typeof this.clickCancelAuto === 'function') this.clickCancelAuto();
+          showFruitMaryInsufficientBalanceMessage();
         }
         return result;
       };
@@ -1318,6 +1364,7 @@
     reconcilePendingFruitMaryBalance: reconcilePendingFruitMaryBalance,
     updateFruitMaryBetLimits: updateFruitMaryBetLimits,
     fruitMaryBetIsWithinLimit: fruitMaryBetIsWithinLimit,
+    fruitMaryBetIsAffordable: fruitMaryBetIsAffordable,
     fruitMaryPayoutMultiplier: fruitMaryPayoutMultiplier,
     patchFruitMaryMenuLogic: patchFruitMaryMenuLogic,
     patchFruitMaryAudioManager: patchFruitMaryAudioManager,
