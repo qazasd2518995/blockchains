@@ -248,6 +248,7 @@ export function ControlsOverviewPage(): JSX.Element {
   const [rewardMinutes, setRewardMinutes] = useState('15');
   const [rewardBusy, setRewardBusy] = useState(false);
   const [manualBusyId, setManualBusyId] = useState<string | null>(null);
+  const [manualDeleteConfirmId, setManualDeleteConfirmId] = useState<string | null>(null);
   const onlineRewardControls = useMemo(() => dc.filter(isOnlineRewardControl), [dc]);
   const depositControls = useMemo(() => dc.filter((row) => !isOnlineRewardControl(row)), [dc]);
   const manualPathRows = useMemo(
@@ -355,6 +356,7 @@ export function ControlsOverviewPage(): JSX.Element {
   };
 
   const deactivateManual = async (id: string): Promise<void> => {
+    setManualDeleteConfirmId(null);
     setManualBusyId(id);
     setError(null);
     setNotice(null);
@@ -370,6 +372,7 @@ export function ControlsOverviewPage(): JSX.Element {
   };
 
   const reactivateManual = async (id: string): Promise<void> => {
+    setManualDeleteConfirmId(null);
     setManualBusyId(id);
     setError(null);
     setNotice(null);
@@ -384,16 +387,23 @@ export function ControlsOverviewPage(): JSX.Element {
     }
   };
 
+  const confirmManualDelete = (id: string): void => {
+    setError(null);
+    setNotice('請再按一次「確認刪除」永久刪除這筆本金路徑，或按「取消」。');
+    setManualDeleteConfirmId(id);
+  };
+
   const deleteManual = async (id: string): Promise<void> => {
-    if (!window.confirm('确定删除此手动侦测控制？')) return;
     setManualBusyId(id);
     setError(null);
     setNotice(null);
     try {
       await adminApi.delete(`/controls/manual-detection/${id}`);
       await reload();
+      setManualDeleteConfirmId(null);
       setNotice('本金路徑已永久刪除。');
     } catch (e) {
+      setManualDeleteConfirmId(null);
       setError(extractApiError(e).message);
     } finally {
       setManualBusyId(null);
@@ -536,14 +546,38 @@ export function ControlsOverviewPage(): JSX.Element {
               {manualBusyId === r.id ? '處理中' : '啟用'}
             </button>
           )}
-          <button
-            type="button"
-            disabled={manualBusyId === r.id}
-            onClick={() => void deleteManual(r.id)}
-            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A] disabled:cursor-wait disabled:opacity-50"
-          >
-            删除
-          </button>
+          {manualDeleteConfirmId === r.id ? (
+            <>
+              <button
+                type="button"
+                disabled={manualBusyId === r.id}
+                onClick={() => {
+                  setManualDeleteConfirmId(null);
+                  setNotice(null);
+                }}
+                className="btn-teal-outline px-2 py-1 disabled:cursor-wait disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                disabled={manualBusyId === r.id}
+                onClick={() => void deleteManual(r.id)}
+                className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A] disabled:cursor-wait disabled:opacity-50"
+              >
+                {manualBusyId === r.id ? '處理中' : '確認刪除'}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              disabled={manualBusyId === r.id}
+              onClick={() => confirmManualDelete(r.id)}
+              className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A] disabled:cursor-wait disabled:opacity-50"
+            >
+              删除
+            </button>
+          )}
         </div>
       ),
     },

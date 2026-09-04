@@ -125,7 +125,11 @@ assertContains(controlsOverview, [
   "await adminApi.post('/controls/manual-detection/deactivate', { id });",
   'await adminApi.post(`/controls/manual-detection/${id}/reactivate`);',
   "setNotice('本金路徑已停用；設定仍保留，可隨時重新啟用。');",
+  'const [manualDeleteConfirmId, setManualDeleteConfirmId] = useState<string | null>(null);',
+  'onClick={() => confirmManualDelete(r.id)}',
+  "setNotice('請再按一次「確認刪除」永久刪除這筆本金路徑，或按「取消」。');",
 ]);
+assertNotContains(controlsOverview, ["if (!window.confirm('确定删除此手动侦测控制？')) return;"]);
 
 console.log(
   '[admin-test] realm isolation, navigation parity, control delegation, and mobile hierarchy actions verified.',

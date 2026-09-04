@@ -39,6 +39,7 @@ import { listAgentDescendants } from '../../../utils/hierarchy.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import { ApiError } from '../../../utils/errors.js';
 import {
+  listAccessibleControlAgentIds,
   requireAccessibleControlAgent,
   requireAccessibleControlMember,
   requireControlAccessContext,
@@ -895,6 +896,33 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     });
     if (!record) throw new ApiError('INVALID_ACTION', 'Path control not found in this zone');
     return record;
+  };
+
+  const manualPathRuntimeWhere = async (
+    admin: AdminCurrent,
+    control: {
+      scope: ManualDetectionScope;
+      controlMode: string;
+      targetAgentId: string | null;
+      targetMemberId: string | null;
+      targetMemberUsername: string | null;
+    },
+  ): Promise<Prisma.MemberAutoBalanceControlWhereInput | null> => {
+    if (control.controlMode !== MANUAL_LIFECYCLE_PATH_MODE) return null;
+    if (control.scope === 'MEMBER') {
+      if (control.targetMemberId) return { memberId: control.targetMemberId };
+      return control.targetMemberUsername ? { memberUsername: control.targetMemberUsername } : null;
+    }
+    if (control.scope === 'AGENT_LINE') {
+      if (!control.targetAgentId) return null;
+      const agentIds = await listAgentDescendants(fastify.prisma, control.targetAgentId);
+      return agentIds.length > 0 ? { agentId: { in: agentIds } } : null;
+    }
+    const agentIds = await listAccessibleControlAgentIds(
+      fastify.prisma,
+      requireControlAccessContext(admin),
+    );
+    return agentIds.length > 0 ? { agentId: { in: agentIds } } : null;
   };
 
   const requireOwnedDepositControl = async (admin: AdminCurrent, id: string) => {
@@ -1869,13 +1897,8 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         })
       : await fastify.prisma.manualDetectionControl.create({ data });
 
-    if (isLifecyclePath && body.scope !== 'ALL') {
-      const memberControlWhere =
-        body.scope === 'MEMBER'
-          ? { memberId: targetMemberId ?? undefined }
-          : targetAgentId
-            ? { agentId: { in: await listAgentDescendants(fastify.prisma, targetAgentId) } }
-            : {};
+    const memberControlWhere = await manualPathRuntimeWhere(req.admin, record);
+    if (memberControlWhere) {
       await fastify.prisma.memberAutoBalanceControl.updateMany({
         where: { ...memberControlWhere, isActive: true },
         data: { isActive: false, resetReason: `manual_path_updated:${record.id}` },
@@ -1912,17 +1935,29 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post('/manual-detection/deactivate', async (req) => {
     const { id } = deactivateManualDetectionSchema.parse(req.body);
     if (id) {
-      await requireOwnedManualControl(req.admin, id);
-      const updated = await fastify.prisma.manualDetectionControl.update({
-        where: { id },
-        data: { isActive: false },
-      });
-      await writeAudit(fastify.prisma, {
-        actor: auditActor(req),
-        action: 'control.manual_detection.deactivate',
-        targetType: 'control',
-        targetId: id,
-        req,
+      const record = await requireOwnedManualControl(req.admin, id);
+      const memberControlWhere = await manualPathRuntimeWhere(req.admin, record);
+      const updated = await fastify.prisma.$transaction(async (tx) => {
+        const deactivated = await tx.manualDetectionControl.update({
+          where: { id },
+          data: { isActive: false },
+        });
+        if (memberControlWhere) {
+          await tx.memberAutoBalanceControl.updateMany({
+            where: { ...memberControlWhere, isActive: true },
+            data: { isActive: false, resetReason: `manual_path_deactivated:${id}` },
+          });
+        }
+        await writeAudit(tx, {
+          actor: auditActor(req),
+          action: 'control.manual_detection.deactivate',
+          targetType: 'control',
+          targetId: id,
+          oldValues: { isActive: record.isActive },
+          newValues: { isActive: false },
+          req,
+        });
+        return deactivated;
       });
       return updated;
     }
@@ -1943,71 +1978,101 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     return { success: true };
   });
 
-  fastify.post('/manual-detection/:id/reactivate', async (req, reply) => {
+  fastify.post('/manual-detection/:id/reactivate', async (req) => {
     const { id } = req.params as { id: string };
     const record = await requireOwnedManualControl(req.admin, id);
+    const memberControlWhere = await manualPathRuntimeWhere(req.admin, record);
 
-    const conflict = await fastify.prisma.manualDetectionControl.findFirst({
-      where:
-        record.scope === 'ALL'
+    const conflictingActiveWhere: Prisma.ManualDetectionControlWhereInput =
+      record.scope === 'ALL'
+        ? {
+            id: { not: id },
+            scope: 'ALL',
+            isActive: true,
+            controlZoneRootAgentId: record.controlZoneRootAgentId,
+          }
+        : record.scope === 'AGENT_LINE'
           ? {
               id: { not: id },
-              scope: 'ALL',
+              scope: 'AGENT_LINE',
+              targetAgentId: record.targetAgentId,
               isActive: true,
               controlZoneRootAgentId: record.controlZoneRootAgentId,
             }
-          : record.scope === 'AGENT_LINE'
-            ? {
-                id: { not: id },
-                scope: 'AGENT_LINE',
-                targetAgentId: record.targetAgentId,
-                isActive: true,
-                controlZoneRootAgentId: record.controlZoneRootAgentId,
-              }
-            : {
-                id: { not: id },
-                scope: 'MEMBER',
-                targetMemberUsername: record.targetMemberUsername,
-                isActive: true,
-                controlZoneRootAgentId: record.controlZoneRootAgentId,
-              },
-    });
-    if (conflict) {
-      reply
-        .code(400)
-        .send({ code: 'CONTROL_CONFLICT', message: 'Same-scope control is already active' });
-      return;
-    }
+          : {
+              id: { not: id },
+              scope: 'MEMBER',
+              ...(record.targetMemberId
+                ? { targetMemberId: record.targetMemberId }
+                : { targetMemberUsername: record.targetMemberUsername }),
+              isActive: true,
+              controlZoneRootAgentId: record.controlZoneRootAgentId,
+            };
 
-    const updated = await fastify.prisma.manualDetectionControl.update({
-      where: { id },
-      data: {
-        isActive: true,
-        isCompleted: false,
-        completedAt: null,
-        completionSettlement: null,
-      },
-    });
-    await writeAudit(fastify.prisma, {
-      actor: auditActor(req),
-      action: 'control.manual_detection.reactivate',
-      targetType: 'control',
-      targetId: id,
-      req,
+    const updated = await fastify.prisma.$transaction(async (tx) => {
+      // 「啟用」代表在相同控制範圍切換至所選路徑。先停用衝突路徑，
+      // 再啟用本筆，避免 UI 有按鈕但後端固定回 400，亦避免同時存在兩條路徑。
+      const replaced = await tx.manualDetectionControl.updateMany({
+        where: conflictingActiveWhere,
+        data: { isActive: false },
+      });
+      const reactivated = await tx.manualDetectionControl.update({
+        where: { id },
+        data: {
+          isActive: true,
+          isCompleted: false,
+          completedAt: null,
+          completionSettlement: null,
+        },
+      });
+      if (memberControlWhere) {
+        await tx.memberAutoBalanceControl.updateMany({
+          where: { ...memberControlWhere, isActive: true },
+          data: { isActive: false, resetReason: `manual_path_reactivated:${id}` },
+        });
+      }
+      await writeAudit(tx, {
+        actor: auditActor(req),
+        action: 'control.manual_detection.reactivate',
+        targetType: 'control',
+        targetId: id,
+        oldValues: { isActive: record.isActive, isCompleted: record.isCompleted },
+        newValues: { isActive: true, replacedActiveControlCount: replaced.count },
+        req,
+      });
+      return reactivated;
     });
     return serializeManualControl(fastify, updated);
   });
 
   fastify.delete('/manual-detection/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
-    await requireOwnedManualControl(req.admin, id);
-    await fastify.prisma.manualDetectionControl.delete({ where: { id } });
-    await writeAudit(fastify.prisma, {
-      actor: auditActor(req),
-      action: 'control.manual_detection.delete',
-      targetType: 'control',
-      targetId: id,
-      req,
+    const record = await requireOwnedManualControl(req.admin, id);
+    const memberControlWhere = record.isActive
+      ? await manualPathRuntimeWhere(req.admin, record)
+      : null;
+    await fastify.prisma.$transaction(async (tx) => {
+      await tx.manualDetectionControl.delete({ where: { id } });
+      if (memberControlWhere) {
+        await tx.memberAutoBalanceControl.updateMany({
+          where: { ...memberControlWhere, isActive: true },
+          data: { isActive: false, resetReason: `manual_path_deleted:${id}` },
+        });
+      }
+      await writeAudit(tx, {
+        actor: auditActor(req),
+        action: 'control.manual_detection.delete',
+        targetType: 'control',
+        targetId: id,
+        oldValues: {
+          scope: record.scope,
+          targetAgentId: record.targetAgentId,
+          targetMemberId: record.targetMemberId,
+          isActive: record.isActive,
+          isCompleted: record.isCompleted,
+        },
+        req,
+      });
     });
     reply.code(204).send();
   });
