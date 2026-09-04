@@ -69,15 +69,21 @@ describe('AdminAuthService.refresh', () => {
 });
 
 describe('shouldRequireAdminTwoFactor', () => {
-  it('requires TOTP for every production management account', () => {
+  it('does not force TOTP for production management accounts', () => {
     for (const role of ['SUPER_ADMIN', 'AGENT', 'SUB_ACCOUNT'] as const) {
       expect(shouldRequireAdminTwoFactor({ role, twoFactorRequired: false }, 'production')).toBe(
-        true,
+        false,
       );
     }
   });
 
-  it('keeps explicit requirements active outside production', () => {
+  it('keeps an explicit account requirement active in every environment', () => {
+    expect(
+      shouldRequireAdminTwoFactor(
+        { role: 'AGENT', twoFactorRequired: true },
+        'production',
+      ),
+    ).toBe(true);
     expect(
       shouldRequireAdminTwoFactor(
         { role: 'AGENT', twoFactorRequired: true },

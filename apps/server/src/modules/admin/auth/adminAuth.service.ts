@@ -376,11 +376,11 @@ export class AdminAuthService {
 
 export function shouldRequireAdminTwoFactor(
   agent: { role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT'; twoFactorRequired: boolean },
-  environment: 'development' | 'test' | 'production' = config.NODE_ENV,
+  _environment: 'development' | 'test' | 'production' = config.NODE_ENV,
 ): boolean {
-  // Production management accounts always receive the existing guided TOTP
-  // setup flow on their next login. Development/test accounts remain opt-in.
-  return environment === 'production' || agent.twoFactorRequired;
+  // TOTP remains available as an explicit account setting, but production no
+  // longer forces setup for every management account.
+  return agent.twoFactorRequired;
 }
 
 export function hashRefresh(token: string): string {
