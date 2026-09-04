@@ -247,11 +247,16 @@ export function ControlsOverviewPage(): JSX.Element {
   const [rewardAmount, setRewardAmount] = useState('1000');
   const [rewardMinutes, setRewardMinutes] = useState('15');
   const [rewardBusy, setRewardBusy] = useState(false);
+  const [manualBusyId, setManualBusyId] = useState<string | null>(null);
   const onlineRewardControls = useMemo(() => dc.filter(isOnlineRewardControl), [dc]);
   const depositControls = useMemo(() => dc.filter((row) => !isOnlineRewardControl(row)), [dc]);
-  const manualPathActive = useMemo(
+  const manualPathRows = useMemo(
     () => manualActive.filter((row) => row.controlMode === 'lifecycle_path'),
     [manualActive],
+  );
+  const manualPathActive = useMemo(
+    () => manualPathRows.filter((row) => row.isActive && !row.isCompleted),
+    [manualPathRows],
   );
 
   const reload = useCallback(async () => {
@@ -350,21 +355,48 @@ export function ControlsOverviewPage(): JSX.Element {
   };
 
   const deactivateManual = async (id: string): Promise<void> => {
+    setManualBusyId(id);
+    setError(null);
+    setNotice(null);
     try {
       await adminApi.post('/controls/manual-detection/deactivate', { id });
       await reload();
+      setNotice('本金路徑已停用；設定仍保留，可隨時重新啟用。');
     } catch (e) {
       setError(extractApiError(e).message);
+    } finally {
+      setManualBusyId(null);
+    }
+  };
+
+  const reactivateManual = async (id: string): Promise<void> => {
+    setManualBusyId(id);
+    setError(null);
+    setNotice(null);
+    try {
+      await adminApi.post(`/controls/manual-detection/${id}/reactivate`);
+      await reload();
+      setNotice('本金路徑已重新啟用。');
+    } catch (e) {
+      setError(extractApiError(e).message);
+    } finally {
+      setManualBusyId(null);
     }
   };
 
   const deleteManual = async (id: string): Promise<void> => {
     if (!window.confirm('确定删除此手动侦测控制？')) return;
+    setManualBusyId(id);
+    setError(null);
+    setNotice(null);
     try {
       await adminApi.delete(`/controls/manual-detection/${id}`);
       await reload();
+      setNotice('本金路徑已永久刪除。');
     } catch (e) {
       setError(extractApiError(e).message);
+    } finally {
+      setManualBusyId(null);
     }
   };
 
@@ -485,17 +517,30 @@ export function ControlsOverviewPage(): JSX.Element {
       align: 'right',
       render: (r) => (
         <div className="flex justify-end gap-1 text-[10px]">
+          {r.isActive && !r.isCompleted ? (
+            <button
+              type="button"
+              disabled={manualBusyId === r.id}
+              onClick={() => void deactivateManual(r.id)}
+              className="btn-teal-outline px-2 py-1 disabled:cursor-wait disabled:opacity-50"
+            >
+              {manualBusyId === r.id ? '處理中' : '停用'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={manualBusyId === r.id}
+              onClick={() => void reactivateManual(r.id)}
+              className="btn-teal-outline px-2 py-1 disabled:cursor-wait disabled:opacity-50"
+            >
+              {manualBusyId === r.id ? '處理中' : '啟用'}
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => void deactivateManual(r.id)}
-            className="btn-teal-outline px-2 py-1"
-          >
-            停用
-          </button>
-          <button
-            type="button"
+            disabled={manualBusyId === r.id}
             onClick={() => void deleteManual(r.id)}
-            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
+            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A] disabled:cursor-wait disabled:opacity-50"
           >
             删除
           </button>
@@ -1237,9 +1282,9 @@ export function ControlsOverviewPage(): JSX.Element {
             ) : null}
             <DataTable
               columns={manualCols}
-              rows={manualPathActive}
+              rows={manualPathRows}
               rowKey={(r) => r.id}
-              empty="目前沒有啟用中的本金路徑控制"
+              empty="目前沒有本金路徑控制"
             />
           </Section>
 

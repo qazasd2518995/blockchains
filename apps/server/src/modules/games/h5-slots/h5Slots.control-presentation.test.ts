@@ -161,6 +161,15 @@ describe('imported H5 control presentation matrix', () => {
         const result = controlledResult(game.gameId, stake, profile, variant);
         const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
         const adapter = loadAdapter(game.code, async (url, init) => {
+          if (String(url).includes('/session?')) {
+            return {
+              ok: true,
+              status: 200,
+              json: async () => ({
+                user: { id: 'controlled-player', nickname: 'controlled-player', balance: 10_000 },
+              }),
+            };
+          }
           requests.push({ url: String(url), body: JSON.parse(String(init?.body ?? '{}')) });
           return {
             ok: true,
@@ -171,6 +180,8 @@ describe('imported H5 control presentation matrix', () => {
         const socket = adapter.createFakeSocket();
         const hitResults: Record<string, unknown>[] = [];
         socket.on('HitResult', (payload) => hitResults.push(payload));
+        socket.emit('LoginGame', '{}');
+        await new Promise((resolve) => setTimeout(resolve, 0));
         const bulletId = `controlled-${game.code}-${profileIndex}`;
         socket.emit('fishShoot', JSON.stringify({ bulletId, bet: 10, uid: 'controlled-player' }));
         socket.emit(

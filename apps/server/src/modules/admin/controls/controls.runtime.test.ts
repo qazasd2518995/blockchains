@@ -9,6 +9,7 @@ import {
   findApplicableBurstControl,
   findApplicableManualDetectionControl,
   getDefaultManualDetectionCompletionBehavior,
+  getManualDetectionStatusControls,
   listAutoBalanceTemplates,
   getOrCreateMemberAutoBalanceControl,
   normalizeAutoBalanceTemplateKeys,
@@ -42,6 +43,53 @@ describe('calculateAutoDetectionBitePlan', () => {
     expect(plan.platformTake.toFixed(2)).toBe('100.00');
     expect(plan.redistributionAmount.toFixed(2)).toBe('900.00');
     expect(plan.targetSettlement.toFixed(2)).toBe('100.00');
+  });
+});
+
+describe('getManualDetectionStatusControls', () => {
+  it('keeps recent stopped paths visible without mixing them into runtime controls', async () => {
+    const active = {
+      id: 'active-member',
+      scope: 'MEMBER',
+      isActive: true,
+      isCompleted: false,
+      operatorUsername: 'admin',
+      createdAt: new Date('2026-09-04T00:00:00.000Z'),
+    };
+    const stopped = {
+      id: 'stopped-member',
+      scope: 'MEMBER',
+      isActive: false,
+      isCompleted: false,
+      operatorUsername: 'admin',
+      createdAt: new Date('2026-09-03T00:00:00.000Z'),
+      updatedAt: new Date('2026-09-04T01:00:00.000Z'),
+    };
+    const findMany = vi.fn().mockResolvedValueOnce([active]).mockResolvedValueOnce([stopped]);
+    const controls = await getManualDetectionStatusControls(
+      { manualDetectionControl: { findMany } } as never,
+      'zone-1',
+    );
+
+    expect(controls.map((control) => control.id)).toEqual(['active-member', 'stopped-member']);
+    expect(findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isActive: true,
+          isCompleted: false,
+          controlZoneRootAgentId: 'zone-1',
+        }),
+      }),
+    );
+    expect(findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({ isActive: false, controlZoneRootAgentId: 'zone-1' }),
+        orderBy: { updatedAt: 'desc' },
+        take: 20,
+      }),
+    );
   });
 });
 

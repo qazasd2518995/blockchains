@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "lint": "echo \"(admin lint skipped)\"",
     "typecheck": "tsc -b --noEmit",
-    "test": "node scripts/test-admin-realm.mjs"
+    "test": "node scripts/test-admin-realm.mjs && node scripts/test-admin-api-contract.mjs"
   },
   "dependencies": {
     "@bg/shared": "workspace:*",

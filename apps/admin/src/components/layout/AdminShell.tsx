@@ -13,6 +13,8 @@ import { ADMIN_LIVE_REFRESH_EVENT } from '@/lib/adminRefreshEvents';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { adminBrand, isQmoneyAdmin } from '@admin-brand';
 
+const ADMIN_BALANCE_REFRESH_INTERVAL_MS = 10_000;
+
 export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
   const { agent, accessToken, refreshToken, setAgent, logout } = useAdminAuthStore();
   const { t } = useTranslation();
@@ -56,8 +58,12 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
     window.addEventListener('focus', handleFocus);
     window.addEventListener(ADMIN_LIVE_REFRESH_EVENT, handleFocus);
     document.addEventListener('visibilitychange', handleVisibility);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshAgent();
+    }, ADMIN_BALANCE_REFRESH_INTERVAL_MS);
     return () => {
       active = false;
+      window.clearInterval(timer);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener(ADMIN_LIVE_REFRESH_EVENT, handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);

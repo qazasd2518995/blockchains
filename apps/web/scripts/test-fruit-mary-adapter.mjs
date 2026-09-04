@@ -7,12 +7,24 @@ const adapterPath = fileURLToPath(
   new URL('../public/games/fruit-mary/fruit-mary-adapter.js', import.meta.url),
 );
 const pagePath = fileURLToPath(new URL('../src/pages/games/FruitMaryPage.tsx', import.meta.url));
+const indexPath = fileURLToPath(new URL('../public/games/fruit-mary/index.html', import.meta.url));
 const adapterSource = fs.readFileSync(adapterPath, 'utf8');
 const pageSource = fs.readFileSync(pagePath, 'utf8');
+const indexSource = fs.readFileSync(indexPath, 'utf8');
+assert.match(
+  indexSource,
+  /fruit-mary-adapter\.js\?v=15/,
+  'Fruit Mary must load the settlement-safe adapter revision',
+);
 assert.match(
   adapterSource,
   /getExtension\(['"]WEBGL_lose_context['"]\)/,
   'Fruit Mary route changes must release the old Cocos WebGL context',
+);
+assert.match(
+  pageSource,
+  /qmoney:before-game-exit/,
+  'Fruit Mary must wait for an accepted settlement before returning to the lobby',
 );
 assert.match(
   pageSource,
@@ -411,6 +423,12 @@ second.open('POST', 'https://legacy.test/index/game/get_gift');
 second.send(JSON.stringify({ fruits: [[4, 1]], money: 1 }));
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(pendingFetches.length, 1, 'only one settlement request may be in flight');
+assert.equal(pendingFetches[0].args[1].keepalive, true);
+assert.equal(
+  parentMessages.some((message) => message.type === 'fruit-mary:busy' && message.busy === true),
+  true,
+  'the platform shell must know that a Fruit Mary settlement is pending',
+);
 assert.equal(JSON.parse(second.responseText).code, 0);
 assert.match(JSON.parse(second.responseText).message, /仍在結算/);
 
@@ -424,6 +442,11 @@ assert.equal(JSON.parse(first.responseText).code, 1);
 assert.equal(
   parentMessages.some((message) => message.type === 'fruit-mary:balance'),
   true,
+);
+assert.equal(
+  parentMessages.some((message) => message.type === 'fruit-mary:busy' && message.busy === false),
+  true,
+  'the platform shell must be released after Fruit Mary settlement',
 );
 
 console.log('Fruit Mary settlement and animation recovery tests passed.');

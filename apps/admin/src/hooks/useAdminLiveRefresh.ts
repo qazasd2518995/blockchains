@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { ADMIN_LIVE_REFRESH_EVENT } from '@/lib/adminRefreshEvents';
 
+const ADMIN_LIVE_REFRESH_INTERVAL_MS = 10_000;
+
 export function useAdminLiveRefresh(refresh: () => void): void {
   const refreshRef = useRef(refresh);
 
@@ -17,7 +19,9 @@ export function useAdminLiveRefresh(refresh: () => void): void {
     window.addEventListener('focus', run);
     window.addEventListener(ADMIN_LIVE_REFRESH_EVENT, run);
     document.addEventListener('visibilitychange', runWhenVisible);
+    const timer = window.setInterval(runWhenVisible, ADMIN_LIVE_REFRESH_INTERVAL_MS);
     return () => {
+      window.clearInterval(timer);
       window.removeEventListener('focus', run);
       window.removeEventListener(ADMIN_LIVE_REFRESH_EVENT, run);
       document.removeEventListener('visibilitychange', runWhenVisible);

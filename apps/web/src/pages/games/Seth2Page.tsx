@@ -8,6 +8,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { PlatformBgm } from '@/lib/platformBgm';
 import { isQmoneyRealm } from '@/lib/platformRealm';
 import { ensureGameLoadStarted, recordGameLoadMilestone } from '@/lib/gameLoadPerformance';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
 const GAME_PATH = '/games/storm-of-seth-2-v115/index.html';
 type Seth2RemountReason = 'orientation' | 'table' | 'recovery';
@@ -152,6 +153,11 @@ export function Seth2Page() {
   useEffect(() => {
     ensureGameLoadStarted('storm-of-seth-2');
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    return holdWalletBalanceRefresh();
+  }, [user]);
 
   useEffect(() => {
     const unsubscribeSfx = Sfx.subscribe(syncOriginalGameAudio);

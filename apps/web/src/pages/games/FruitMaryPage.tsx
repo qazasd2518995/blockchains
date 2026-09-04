@@ -7,6 +7,7 @@ import { isQmoneyRealm } from '@/lib/platformRealm';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 import { returnFromGame } from '@/lib/gameReturnNavigation';
 import { ensureGameLoadStarted, recordGameLoadMilestone } from '@/lib/gameLoadPerformance';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
 const GAME_PATH = '/games/fruit-mary/index.html';
 const GAME_READY_TIMEOUT_MS = 45_000;
@@ -32,6 +33,8 @@ export function FruitMaryPage() {
   const recoveryStabilityTimerRef = useRef<number | null>(null);
   const recoveryPendingRef = useRef(false);
   const automaticRecoveryAttemptsRef = useRef(0);
+  const settlementPendingRef = useRef(false);
+  const pendingExitRef = useRef(false);
 
   const clearReadyTimer = useCallback(() => {
     if (readyTimerRef.current === null) return;
@@ -129,6 +132,11 @@ export function FruitMaryPage() {
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+    return holdWalletBalanceRefresh();
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || !event.data) return;
       if (event.source !== iframeRef.current?.contentWindow) return;
@@ -140,6 +148,7 @@ export function FruitMaryPage() {
         refreshToken?: unknown;
       };
       if (payload.type === 'fruit-mary:ready') {
+        settlementPendingRef.current = false;
         recordGameLoadMilestone('fruit-mary', 'session-ready');
         clearReadyTimer();
         if (automaticRecoveryAttemptsRef.current > 0) armRecoveryStabilityTimer();
@@ -147,8 +156,20 @@ export function FruitMaryPage() {
         setError('');
       }
       if (payload.type === 'fruit-mary:exit') {
+        if (settlementPendingRef.current) {
+          pendingExitRef.current = true;
+          setError('本輪正在結算，完成後會自動返回大廳。');
+          return;
+        }
         returnFromGame(navigate, returnTarget.to);
         return;
+      }
+      if (payload.type === 'fruit-mary:busy') {
+        settlementPendingRef.current = Boolean((payload as { busy?: unknown }).busy);
+        if (!settlementPendingRef.current && pendingExitRef.current) {
+          pendingExitRef.current = false;
+          returnFromGame(navigate, returnTarget.to);
+        }
       }
       if (payload.type === 'fruit-mary:visual-ready') {
         recordGameLoadMilestone('fruit-mary', 'visual-ready');
@@ -182,6 +203,17 @@ export function FruitMaryPage() {
     setBalance,
     setTokens,
   ]);
+
+  useEffect(() => {
+    const blockPendingSettlementExit = (event: Event) => {
+      if (!settlementPendingRef.current) return;
+      event.preventDefault();
+      pendingExitRef.current = true;
+      setError('本輪正在結算，完成後會自動返回大廳。');
+    };
+    window.addEventListener('qmoney:before-game-exit', blockPendingSettlementExit);
+    return () => window.removeEventListener('qmoney:before-game-exit', blockPendingSettlementExit);
+  }, []);
 
   useEffect(() => {
     const mountedFrame = iframeRef.current;

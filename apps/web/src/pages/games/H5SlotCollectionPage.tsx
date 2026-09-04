@@ -12,6 +12,7 @@ import { PlatformBgm } from '@/lib/platformBgm';
 import { isQmoneyRealm } from '@/lib/platformRealm';
 import { returnFromGame } from '@/lib/gameReturnNavigation';
 import { ensureGameLoadStarted, recordGameLoadMilestone } from '@/lib/gameLoadPerformance';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
 const GAME_PATH = '/games/h5-slot-collection/index.html';
 const GAME_READY_TIMEOUT_MS = 50_000;
@@ -51,6 +52,8 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
   const recoveryFrameRef = useRef<number | null>(null);
   const recoveryPendingRef = useRef(false);
   const automaticRecoveryAttemptsRef = useRef(0);
+  const settlementPendingRef = useRef(false);
+  const pendingExitRef = useRef(false);
 
   const syncOriginalGameAudio = useCallback(() => {
     const frameWindow = iframeRef.current?.contentWindow as H5AudioBridgeWindow | null;
@@ -151,10 +154,17 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
   }, [selectedGame.gameId]);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+    return holdWalletBalanceRefresh();
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     setError('');
     setRecoveryReason('');
     setIframeMounted(true);
     automaticRecoveryAttemptsRef.current = 0;
+    settlementPendingRef.current = false;
+    pendingExitRef.current = false;
   }, [gameCode]);
 
   useEffect(() => {
@@ -194,13 +204,26 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
           payload.data?.name === 'postMessage' &&
           payload.data.arg?.action === 'close');
       if (requestedClose) {
+        if (settlementPendingRef.current) {
+          pendingExitRef.current = true;
+          setError('本輪正在結算，完成後會自動返回大廳。');
+          return;
+        }
         returnFromGame(navigate, returnTarget.to);
         return;
       }
       if (payload.type === 'h5-slots:ready') {
+        settlementPendingRef.current = false;
         recordGameLoadMilestone(selectedGame.gameId, 'session-ready');
         setRecoveryReason('');
         setError('');
+      }
+      if (payload.type === 'h5-slots:busy') {
+        settlementPendingRef.current = Boolean((payload as { busy?: unknown }).busy);
+        if (!settlementPendingRef.current && pendingExitRef.current) {
+          pendingExitRef.current = false;
+          returnFromGame(navigate, returnTarget.to);
+        }
       }
       if (payload.type === 'h5-slots:visual-ready') {
         recordGameLoadMilestone(selectedGame.gameId, 'visual-ready');
@@ -239,6 +262,17 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
     setBalance,
     setTokens,
   ]);
+
+  useEffect(() => {
+    const blockPendingSettlementExit = (event: Event) => {
+      if (!settlementPendingRef.current) return;
+      event.preventDefault();
+      pendingExitRef.current = true;
+      setError('本輪正在結算，完成後會自動返回大廳。');
+    };
+    window.addEventListener('qmoney:before-game-exit', blockPendingSettlementExit);
+    return () => window.removeEventListener('qmoney:before-game-exit', blockPendingSettlementExit);
+  }, []);
 
   useEffect(() => {
     const mountedFrame = iframeRef.current;

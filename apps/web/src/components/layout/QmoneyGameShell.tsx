@@ -209,6 +209,9 @@ export function QmoneyGameShell() {
             suppressClickRef.current = false;
             return;
           }
+          if (!window.dispatchEvent(new Event('qmoney:before-game-exit', { cancelable: true }))) {
+            return;
+          }
           // The Qmoney lobby is a separate static document. Replace the game
           // entry directly so React does not render an intermediate route and
           // the browser Back action cannot reopen a settled game.

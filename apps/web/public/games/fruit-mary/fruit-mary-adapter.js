@@ -200,12 +200,12 @@
     return refreshInFlight;
   }
 
-  function authorizedRequest(url, method, body, retried) {
+  function authorizedRequest(url, method, body, retried, keepalive) {
     var auth = readAuth();
     if (!auth.accessToken) {
       if (!retried && auth.refreshToken) {
         return refreshAccessToken().then(function () {
-          return authorizedRequest(url, method, body, true);
+          return authorizedRequest(url, method, body, true, keepalive);
         });
       }
       return Promise.reject(new Error('找不到登入憑證，請回到大廳重新登入'));
@@ -222,10 +222,11 @@
       },
       body: method === 'GET' ? undefined : body || '{}',
       signal: controller ? controller.signal : undefined,
+      keepalive: Boolean(keepalive),
     }).then(function (response) {
       if (response.status === 401 && !retried) {
         return refreshAccessToken().then(function () {
-          return authorizedRequest(url, method, body, true);
+          return authorizedRequest(url, method, body, true, keepalive);
         });
       }
       return response.json().then(function (payload) {
@@ -340,8 +341,11 @@
       return;
     }
     var ownsSettlement = route.kind === 'settlement';
-    if (ownsSettlement) settlementInFlight = true;
-    authorizedRequest(route.url, route.method, body, false)
+    if (ownsSettlement) {
+      settlementInFlight = true;
+      notifyParent('fruit-mary:busy', { busy: true });
+    }
+    authorizedRequest(route.url, route.method, body, false, ownsSettlement)
       .then(function (payload) {
         if (route.kind === 'room' && payload.data) {
           updateFruitMaryBetLimits(payload.data);
@@ -369,7 +373,10 @@
         bridge._complete({ code: 0, msg: message, message: message });
       })
       .finally(function () {
-        if (ownsSettlement) settlementInFlight = false;
+        if (ownsSettlement) {
+          settlementInFlight = false;
+          notifyParent('fruit-mary:busy', { busy: false });
+        }
       });
   };
 
@@ -1032,6 +1039,10 @@
         this.node && this.node.getComponent && this.node.getComponent('MenuLogic');
       if (menuLogic && typeof menuLogic.clickCancelAuto === 'function') {
         menuLogic.clickCancelAuto();
+      }
+      if (settlementInFlight) {
+        notifyParent('fruit-mary:error', { message: '本輪正在結算，完成後即可返回大廳' });
+        return;
       }
       notifyParent('fruit-mary:exit');
     }

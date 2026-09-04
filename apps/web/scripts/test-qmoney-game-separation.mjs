@@ -47,8 +47,31 @@ for (const marker of [
   '<span>回大廳</span>',
   'document.title = `金寶寶｜${game.title}`',
   'window.location.replace(returnTarget.to)',
+  "new Event('qmoney:before-game-exit', { cancelable: true })",
 ]) {
   assert.ok(shell.includes(marker), `missing Qmoney game-shell marker: ${marker}`);
+}
+
+for (const [name, page] of [
+  ['Fruit Mary', fruitPage],
+  ['H5 collection', h5Page],
+]) {
+  assert.ok(
+    page.includes("window.addEventListener('qmoney:before-game-exit'"),
+    `${name} must block lobby navigation while a settlement is pending`,
+  );
+}
+
+for (const [name, page] of [
+  ['Fruit Mary', fruitPage],
+  ['H5 collection', h5Page],
+  ['Seth 2', sethPage],
+  ['Thor 2', thorPage],
+]) {
+  assert.ok(
+    page.includes('holdWalletBalanceRefresh'),
+    `${name} must prevent background polling from overwriting adapter settlement balances`,
+  );
 }
 
 assert.ok(

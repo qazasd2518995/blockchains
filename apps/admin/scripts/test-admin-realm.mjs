@@ -15,7 +15,9 @@ const [
   hierarchyPage,
   sidebar,
   adminShell,
+  liveRefreshHook,
   globalStyles,
+  controlsOverview,
 ] = await Promise.all([
   read('render.yaml', repoRoot),
   read('src/brand/qmoney.ts', appRoot),
@@ -26,7 +28,9 @@ const [
   read('src/pages/agents/AgentHierarchyPage.tsx', appRoot),
   read('src/components/layout/Sidebar.tsx', appRoot),
   read('src/components/layout/AdminShell.tsx', appRoot),
+  read('src/hooks/useAdminLiveRefresh.ts', appRoot),
   read('src/styles/global.css', appRoot),
+  read('src/pages/controls/ControlsOverviewPage.tsx', appRoot),
 ]);
 
 assertContains(qmoneyBrand, [
@@ -95,11 +99,17 @@ assertContains(sidebar, [
 ]);
 assertNotContains(sidebar, ['mt-auto hidden border-t']);
 assertContains(adminShell, [
+  'const ADMIN_BALANCE_REFRESH_INTERVAL_MS = 10_000;',
+  'window.setInterval(() => {',
   'const sessionRefreshToken = refreshToken;',
   'logout();',
   "navigate('/admin/login', { replace: true });",
   't.common.logoutAndSwitch',
   '<Sidebar onLogout={handleLogout} />',
+]);
+assertContains(liveRefreshHook, [
+  'const ADMIN_LIVE_REFRESH_INTERVAL_MS = 10_000;',
+  'window.setInterval(runWhenVisible, ADMIN_LIVE_REFRESH_INTERVAL_MS)',
 ]);
 assertContains(globalStyles, [
   "html[data-admin-realm='qmoney'] .admin-page-header .btn-teal-outline",
@@ -107,6 +117,14 @@ assertContains(globalStyles, [
   "'actions actions actions'",
   'overflow: visible !important;',
   '.admin-shell .admin-nav-footer',
+]);
+assertContains(controlsOverview, [
+  'const manualPathRows = useMemo(',
+  'manualPathRows.filter((row) => row.isActive && !row.isCompleted)',
+  'rows={manualPathRows}',
+  "await adminApi.post('/controls/manual-detection/deactivate', { id });",
+  'await adminApi.post(`/controls/manual-detection/${id}/reactivate`);',
+  "setNotice('本金路徑已停用；設定仍保留，可隨時重新啟用。');",
 ]);
 
 console.log(

@@ -29,7 +29,9 @@ const builds = [
 for (const build of builds) {
   const buildRoot = path.join(webRoot, 'public/games', build.folder);
   const html = fs.readFileSync(path.join(buildRoot, 'index.html'), 'utf8');
-  const preloadTags = Array.from(html.matchAll(/<link rel="preload" href="([^"]+)"[^>]*>/g));
+  const preloadTags = Array.from(
+    html.matchAll(/<link\b(?=[^>]*\brel="preload")(?=[^>]*\bhref="([^"]+)")[^>]*>/g),
+  );
   const preloadPaths = preloadTags.map((match) => match[1]);
 
   assert.ok(

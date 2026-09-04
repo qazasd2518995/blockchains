@@ -23,6 +23,14 @@
   var fishStreamToken = 0;
   var fishFrozenUntil = 0;
   var fishSkillInFlight = false;
+  // A fish shot is visually echoed only after its wallet cost has been
+  // reserved here. Keep a small number of settlements in flight so rapid
+  // fire stays responsive without building an unbounded database lock queue.
+  var FISH_MAX_PENDING_SETTLEMENTS = 4;
+  var FISH_FREEZE_SKILL_COST = 100;
+  var fishPendingSettlements = 0;
+  var fishAvailableBalance = null;
+  var fishBalanceReconcileInFlight = false;
   var slotSettlementInFlight = false;
   var SLOT_SPIN_PAUSE_MS = 650;
   var nextSlotSettlementAt = 0;
@@ -989,6 +997,13 @@
     }
   }
 
+  function publishH5SettlementState() {
+    notifyParent('h5-slots:busy', {
+      busy: slotSettlementInFlight || fishPendingSettlements > 0,
+      gameCode: gameCode,
+    });
+  }
+
   function publicRenderError(error) {
     var message = error && error.message ? error.message : String(error || '遊戲畫面中斷');
     if (/webgl|context|getParameter|getExtension/i.test(message)) {
@@ -1400,12 +1415,12 @@
     return refreshInFlight;
   }
 
-  function authorizedRequest(url, method, body, retried) {
+  function authorizedRequest(url, method, body, retried, keepalive) {
     var auth = readAuth();
     if (!auth.accessToken) {
       if (!retried && auth.refreshToken) {
         return refreshAccessToken().then(function () {
-          return authorizedRequest(url, method, body, true);
+          return authorizedRequest(url, method, body, true, keepalive);
         });
       }
       return Promise.reject(new Error('找不到登入憑證，請回到大廳重新登入'));
@@ -1422,11 +1437,12 @@
       },
       body: method === 'GET' ? undefined : JSON.stringify(body || {}),
       signal: controller ? controller.signal : undefined,
+      keepalive: Boolean(keepalive),
     })
       .then(function (response) {
         if (response.status === 401 && !retried) {
           return refreshAccessToken().then(function () {
-            return authorizedRequest(url, method, body, true);
+            return authorizedRequest(url, method, body, true, keepalive);
           });
         }
         return response.json().then(function (payload) {
@@ -1948,6 +1964,9 @@
         // Some source variants keep the lobby socket elsewhere; their own handler still switches scenes.
       }
     }
+    if (isFishGame && fishAvailableBalance === null) {
+      fishAvailableBalance = normalizeFishBalance(session.balance);
+    }
     socket._trigger('loginGameResult', {
       resultid: 1,
       Obj: {
@@ -2004,12 +2023,82 @@
     }
   }
 
+  function normalizeFishBalance(value) {
+    var parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+  }
+
+  function currentFishBalance() {
+    if (fishAvailableBalance === null) {
+      fishAvailableBalance = normalizeFishBalance(latestSession && latestSession.balance);
+    }
+    return fishAvailableBalance;
+  }
+
+  function publishFishBalance(spinId) {
+    var balance = currentFishBalance();
+    latestSession = latestSession || {};
+    latestSession.balance = balance;
+    syncFishBalance(balance);
+    notifyParent('h5-slots:balance', {
+      balance: balance,
+      gameCode: gameCode,
+      spinId: spinId,
+    });
+  }
+
+  function reconcileFishBalance() {
+    if (
+      !isFishGame ||
+      gameDisposing ||
+      fishPendingSettlements > 0 ||
+      fishBalanceReconcileInFlight
+    ) {
+      return;
+    }
+    fishBalanceReconcileInFlight = true;
+    authorizedRequest(
+      gameApi + '/session?gameCode=' + encodeURIComponent(gameCode),
+      'GET',
+      null,
+      false,
+    )
+      .then(function (payload) {
+        // A new shot may have started while the balance request was in flight.
+        // Its locally reserved cost must not be overwritten in that case.
+        if (fishPendingSettlements > 0) return;
+        latestSession = payload.user || latestSession || {};
+        if (payload.jackpot) latestSession.jackpot = payload.jackpot;
+        fishAvailableBalance = normalizeFishBalance(latestSession.balance);
+        publishFishBalance();
+      })
+      .catch(reportSocketError)
+      .finally(function () {
+        fishBalanceReconcileInFlight = false;
+      });
+  }
+
   function handleFishShoot(socket, rawPayload) {
     var shot = parseSocketPayload(rawPayload);
     var bulletId = String(shot.bulletId == null ? Date.now() : shot.bulletId);
-    var amount = Math.max(10, Number(shot.bet || 1) * fishRoomBet);
-    fishBullets[bulletId] = { hit: null, result: null };
+    var requestedPower = Number(shot.bet || 1);
+    var amount = Math.max(10, Number.isFinite(requestedPower) ? requestedPower * fishRoomBet : 10);
+    amount = Math.round(amount * 100) / 100;
+    var availableBalance = currentFishBalance();
+    if (
+      fishBullets[bulletId] ||
+      fishPendingSettlements >= FISH_MAX_PENDING_SETTLEMENTS ||
+      availableBalance < amount
+    ) {
+      syncFishBalance(availableBalance);
+      return;
+    }
+    fishAvailableBalance = Math.max(0, availableBalance - amount);
+    fishPendingSettlements += 1;
+    publishH5SettlementState();
+    fishBullets[bulletId] = { hit: null, result: null, amount: amount };
     socket._trigger('fishShoot', shot);
+    publishFishBalance();
     authorizedRequest(
       gameApi + '/spin',
       'POST',
@@ -2019,24 +2108,24 @@
         isBuyFree: false,
       },
       false,
+      true,
     )
       .then(function (result) {
         var bullet = fishBullets[bulletId];
         if (!bullet) return;
         bullet.result = result;
-        latestSession = latestSession || {};
-        latestSession.balance = Number(result.newBalance || 0);
+        fishAvailableBalance = currentFishBalance() + normalizeFishBalance(result.payout);
         resolveFishHit(socket, bulletId);
-        notifyParent('h5-slots:balance', {
-          balance: Number(result.newBalance || 0),
-          gameCode: gameCode,
-          spinId: result.betId,
-        });
+        publishFishBalance(result.betId);
       })
       .catch(function (error) {
         delete fishBullets[bulletId];
-        if (latestSession) syncFishBalance(Number(latestSession.balance || 0));
         reportSocketError(error);
+      })
+      .finally(function () {
+        fishPendingSettlements = Math.max(0, fishPendingSettlements - 1);
+        publishH5SettlementState();
+        if (fishPendingSettlements === 0) reconcileFishBalance();
       });
   }
 
@@ -2047,8 +2136,21 @@
       reportSocketError(new Error('此捕魚技能目前無法使用'));
       return;
     }
-    if (fishSkillInFlight || Date.now() < fishFrozenUntil) return;
+    var availableBalance = currentFishBalance();
+    if (
+      fishSkillInFlight ||
+      Date.now() < fishFrozenUntil ||
+      fishPendingSettlements >= FISH_MAX_PENDING_SETTLEMENTS ||
+      availableBalance < FISH_FREEZE_SKILL_COST
+    ) {
+      syncFishBalance(availableBalance);
+      return;
+    }
     fishSkillInFlight = true;
+    fishPendingSettlements += 1;
+    publishH5SettlementState();
+    fishAvailableBalance = Math.max(0, availableBalance - FISH_FREEZE_SKILL_COST);
+    publishFishBalance();
     authorizedRequest(
       gameApi + '/fish/skill',
       'POST',
@@ -2057,10 +2159,9 @@
         skillId: skillId,
       },
       false,
+      true,
     )
       .then(function (result) {
-        latestSession = latestSession || {};
-        latestSession.balance = Number(result.balance || 0);
         fishFrozenUntil = Date.now() + Number(result.durationMs || 5000);
         socket._trigger('useSkillResult', {
           ResultCode: 1,
@@ -2068,15 +2169,14 @@
           sid: skillId,
           cost: Number(result.cost || 0),
         });
-        syncFishBalance(Number(result.balance || 0));
-        notifyParent('h5-slots:balance', {
-          balance: Number(result.balance || 0),
-          gameCode: gameCode,
-        });
+        publishFishBalance();
       })
       .catch(reportSocketError)
       .finally(function () {
         fishSkillInFlight = false;
+        fishPendingSettlements = Math.max(0, fishPendingSettlements - 1);
+        publishH5SettlementState();
+        if (fishPendingSettlements === 0) reconcileFishBalance();
       });
   }
 
@@ -2115,7 +2215,7 @@
         delete fishExplosionSettlements[String(targetFishId)];
       }, 2500);
     }
-    syncFishBalance(Number(bullet.result.newBalance || 0));
+    syncFishBalance(currentFishBalance());
     delete fishBullets[bulletId];
   }
 
@@ -2185,7 +2285,7 @@
     var streamToken = fishStreamToken;
     function spawnFish() {
       if (!socket.connected || streamToken !== fishStreamToken) return;
-      if (latestSession) syncFishBalance(Number(latestSession.balance || 0));
+      if (latestSession) syncFishBalance(currentFishBalance());
       enhanceFishAimControls();
       hideUnusedFishSeats();
       if (Date.now() < fishFrozenUntil) {
@@ -2319,14 +2419,17 @@
       if (!deferredSlotSpinTimer) {
         deferredSlotSpinSocket = socket;
         deferredSlotSpinPayload = rawPayload;
-        deferredSlotSpinTimer = window.setTimeout(function () {
-          var queuedSocket = deferredSlotSpinSocket;
-          var queuedPayload = deferredSlotSpinPayload;
-          deferredSlotSpinTimer = 0;
-          deferredSlotSpinSocket = null;
-          deferredSlotSpinPayload = null;
-          if (!gameDisposing && queuedSocket) settleSpin(queuedSocket, queuedPayload);
-        }, Math.max(1, nextSlotSettlementAt - Date.now()));
+        deferredSlotSpinTimer = window.setTimeout(
+          function () {
+            var queuedSocket = deferredSlotSpinSocket;
+            var queuedPayload = deferredSlotSpinPayload;
+            deferredSlotSpinTimer = 0;
+            deferredSlotSpinSocket = null;
+            deferredSlotSpinPayload = null;
+            if (!gameDisposing && queuedSocket) settleSpin(queuedSocket, queuedPayload);
+          },
+          Math.max(1, nextSlotSettlementAt - Date.now()),
+        );
       }
       return;
     }
@@ -2350,7 +2453,8 @@
     };
     if (isEnhancedBet) spinRequest.isEnhancedBet = true;
     slotSettlementInFlight = true;
-    authorizedRequest(gameApi + '/spin', 'POST', spinRequest, false)
+    publishH5SettlementState();
+    authorizedRequest(gameApi + '/spin', 'POST', spinRequest, false, true)
       .then(function (result) {
         latestSession = latestSession || {};
         latestSession.balance = Number(result.newBalance || 0);
@@ -2391,6 +2495,7 @@
         // callback runs. Release single-flight now so an immediate auto-spin
         // callback is queued by the visual cooldown instead of being lost.
         slotSettlementInFlight = false;
+        publishH5SettlementState();
         emitQueuedLotteryResponse(socket);
         lastLotteryResponseAt = Date.now();
         notifyParent('h5-slots:balance', {
@@ -2406,6 +2511,7 @@
       })
       .finally(function () {
         slotSettlementInFlight = false;
+        publishH5SettlementState();
       });
   }
 
@@ -3591,6 +3697,13 @@
     getFishSpawnDelay: getFishSpawnDelay,
     isFishHitReady: isFishHitReady,
     buildFishExplosionResult: buildFishExplosionResult,
+    getFishSettlementState: function () {
+      return {
+        availableBalance: currentFishBalance(),
+        pendingSettlements: fishPendingSettlements,
+        maxPendingSettlements: FISH_MAX_PENDING_SETTLEMENTS,
+      };
+    },
     sourceFontFallback: sourceFontFallback,
     rewriteMissingSourceFontStyle: rewriteMissingSourceFontStyle,
     isLegacyBrandWebViewUrl: isLegacyBrandWebViewUrl,

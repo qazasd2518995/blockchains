@@ -21,7 +21,7 @@ import {
   calculateDefaultManualTargetBand,
   calculateControlCapital,
   checkAndCompleteManualDetectionControls,
-  getAllActiveManualDetectionControls,
+  getManualDetectionStatusControls,
   getAutoBalanceRuntimeConfig,
   getControlGameDay,
   listAutoBalanceTemplates,
@@ -1648,18 +1648,19 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.get('/manual-detection/status', async (req) => {
     await checkAndCompleteManualDetectionControls(fastify.prisma);
-    const items = await getAllActiveManualDetectionControls(
+    const items = await getManualDetectionStatusControls(
       fastify.prisma,
       controlZoneRootAgentId(req.admin),
     );
     const serialized = await Promise.all(
       items.map((item) => serializeManualControl(fastify, item)),
     );
+    const activeControls = serialized.filter((item) => item.isActive && !item.isCompleted);
     return {
       items: serialized,
-      activeControls: serialized,
-      isActive: serialized.length > 0,
-      totalActive: serialized.length,
+      activeControls,
+      isActive: activeControls.length > 0,
+      totalActive: activeControls.length,
     };
   });
 

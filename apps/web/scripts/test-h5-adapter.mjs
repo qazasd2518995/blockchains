@@ -49,7 +49,7 @@ assert.match(
 );
 assert.match(
   collectionIndexSource,
-  /yachiyo-adapter\.js\?v=46/,
+  /yachiyo-adapter\.js\?v=47/,
   'the shared collection must load the stable-session adapter revision',
 );
 assert.match(
@@ -94,6 +94,16 @@ assert.match(
   'the platform shell must rebuild a failed source-game iframe',
 );
 assert.match(
+  adapterSource,
+  /FISH_MAX_PENDING_SETTLEMENTS = 4/,
+  'fish settlement concurrency must remain bounded under rapid fire',
+);
+assert.match(
+  pageSource,
+  /qmoney:before-game-exit/,
+  'H5 games must wait for accepted settlements before returning to the lobby',
+);
+assert.match(
   pageSource,
   /payload\.type === ['"]h5-slots:error['"]\) \{\s*clearReadyTimer\(\);/,
   'a specific game or authentication error must not be overwritten by the generic load timeout',
@@ -130,7 +140,7 @@ assert.doesNotMatch(
 );
 assert.match(
   adapterSource,
-  /if \(!auth\.accessToken\) \{[\s\S]{0,260}refreshAccessToken\(\)[\s\S]{0,220}authorizedRequest\(url, method, body, true\)/,
+  /if \(!auth\.accessToken\) \{[\s\S]{0,260}refreshAccessToken\(\)[\s\S]{0,220}authorizedRequest\(url, method, body, true, keepalive\)/,
   'an iframe that observes the rotating access-token gap must refresh once before failing',
 );
 assert.match(
@@ -260,7 +270,9 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
 {
   const adapter = loadAdapter('113');
   assert.equal(
-    adapter.isExplicitWebglFailure(new TypeError("Cannot read properties of null (reading 'node')")),
+    adapter.isExplicitWebglFailure(
+      new TypeError("Cannot read properties of null (reading 'node')"),
+    ),
     false,
     'ordinary source-scene timing errors must not destroy and recreate the iframe',
   );
@@ -1229,6 +1241,137 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
 }
 
 {
+  let serverBalance = 35;
+  const requests = [];
+  const storedValues = {
+    'bg-auth': JSON.stringify({
+      state: { accessToken: 'test-access', refreshToken: 'test-refresh' },
+      version: 0,
+    }),
+  };
+  const adapter = loadAdapter('12', storedValues, {
+    fetch: async (url, init) => {
+      requests.push({ url, init });
+      if (init.method === 'GET') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ user: { id: 'player-1', balance: serverBalance } }),
+        };
+      }
+      serverBalance -= Number(JSON.parse(init.body).amount);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          betId: `fish-${requests.length}`,
+          payout: 0,
+          newBalance: serverBalance,
+        }),
+      };
+    },
+  });
+  const socket = adapter.createFakeSocket();
+  let visibleShots = 0;
+  socket.on('fishShoot', () => {
+    visibleShots += 1;
+  });
+  socket.emit('LoginGame', '{}');
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  for (let index = 0; index < 6; index += 1) {
+    socket.emit(
+      'fishShoot',
+      JSON.stringify({ userid: 'player-1', bet: 1, bulletId: `low-balance-${index}` }),
+    );
+  }
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const spinRequests = requests.filter((request) => request.init.method === 'POST');
+  assert.equal(spinRequests.length, 3, 'fish shots must reserve their cost before settlement');
+  assert.equal(visibleShots, 3, 'insufficient-balance shots must not create visual bullets');
+  assert.equal(
+    spinRequests.every((request) => request.init.keepalive === true),
+    true,
+  );
+  assert.deepEqual(
+    { ...adapter.getFishSettlementState() },
+    {
+      availableBalance: 5,
+      pendingSettlements: 0,
+      maxPendingSettlements: 4,
+    },
+  );
+}
+
+{
+  let serverBalance = 1000;
+  const pendingResponses = [];
+  const storedValues = {
+    'bg-auth': JSON.stringify({
+      state: { accessToken: 'test-access', refreshToken: 'test-refresh' },
+      version: 0,
+    }),
+  };
+  const adapter = loadAdapter('2', storedValues, {
+    fetch: (url, init) => {
+      if (init.method === 'GET') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ user: { id: 'player-1', balance: serverBalance } }),
+        });
+      }
+      return new Promise((resolve) => {
+        pendingResponses.push(() => {
+          serverBalance -= Number(JSON.parse(init.body).amount);
+          resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              betId: `fish-${pendingResponses.length}`,
+              payout: 0,
+              newBalance: serverBalance,
+            }),
+          });
+        });
+      });
+    },
+  });
+  const socket = adapter.createFakeSocket();
+  let visibleShots = 0;
+  socket.on('fishShoot', () => {
+    visibleShots += 1;
+  });
+  socket.emit('LoginGame', '{}');
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  for (let index = 0; index < 8; index += 1) {
+    socket.emit(
+      'fishShoot',
+      JSON.stringify({ userid: 'player-1', bet: 1, bulletId: `rapid-fire-${index}` }),
+    );
+  }
+  assert.equal(pendingResponses.length, 4, 'rapid fire must keep a bounded settlement queue');
+  assert.equal(visibleShots, 4, 'only wallet-reserved shots may be displayed');
+  assert.deepEqual(
+    { ...adapter.getFishSettlementState() },
+    {
+      availableBalance: 960,
+      pendingSettlements: 4,
+      maxPendingSettlements: 4,
+    },
+  );
+  pendingResponses.forEach((resolve) => resolve());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(
+    { ...adapter.getFishSettlementState() },
+    {
+      availableBalance: 960,
+      pendingSettlements: 0,
+      maxPendingSettlements: 4,
+    },
+  );
+}
+
+{
   const adapter = loadAdapter('244');
   assert.match(adapter.sourceFontFallback('url("/native/FZY4JW--GB1-0.ttf")'), /PingFang TC/);
   assert.match(adapter.sourceFontFallback('url("/native/BRLNSDB.ttf")'), /Arial Black/);
@@ -1351,9 +1494,18 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
       version: 0,
     }),
   };
+  let serverBalance = 1000;
   const adapter = loadAdapter('2', storedValues, {
     fetch: async (url, init) => {
       requests.push({ url, init });
+      if (init.method === 'GET') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ user: { id: 'player-1', balance: serverBalance } }),
+        };
+      }
+      serverBalance = 900;
       return {
         ok: true,
         status: 200,
@@ -1373,12 +1525,15 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
   socket.on('useSkillResult', (payload) => {
     result = payload;
   });
-  socket.emit('useSKill', JSON.stringify({ uid: 'player-1', sid: 1 }));
+  socket.emit('LoginGame', '{}');
   await new Promise((resolve) => setTimeout(resolve, 10));
-  assert.equal(requests.length, 1);
-  assert.equal(requests[0].url, 'https://example.test/api/games/h5-slots/fish/skill');
-  assert.equal(requests[0].init.method, 'POST');
-  assert.deepEqual(JSON.parse(requests[0].init.body), { gameCode: '2', skillId: 1 });
+  socket.emit('useSKill', JSON.stringify({ uid: 'player-1', sid: 1 }));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const skillRequests = requests.filter((request) => request.init.method === 'POST');
+  assert.equal(skillRequests.length, 1);
+  assert.equal(skillRequests[0].url, 'https://example.test/api/games/h5-slots/fish/skill');
+  assert.equal(skillRequests[0].init.keepalive, true);
+  assert.deepEqual(JSON.parse(skillRequests[0].init.body), { gameCode: '2', skillId: 1 });
   assert.deepEqual({ ...result }, { ResultCode: 1, uid: 'player-1', sid: 1, cost: 100 });
 }
 

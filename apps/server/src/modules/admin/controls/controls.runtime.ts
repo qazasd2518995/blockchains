@@ -307,6 +307,24 @@ export async function getAllActiveManualDetectionControls(
   });
 }
 
+export async function getManualDetectionStatusControls(
+  db: Db,
+  controlZoneRootAgentId?: string | null,
+  inactiveLimit = 20,
+) {
+  const activeItems = await getAllActiveManualDetectionControls(db, controlZoneRootAgentId);
+  const inactiveItems = await db.manualDetectionControl.findMany({
+    where: {
+      isActive: false,
+      ...(controlZoneRootAgentId !== undefined ? { controlZoneRootAgentId } : {}),
+      OR: [{ operatorUsername: null }, { operatorUsername: { not: STARTER_CONFIDENCE_OPERATOR } }],
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: Math.max(1, Math.min(50, inactiveLimit)),
+  });
+  return [...activeItems, ...inactiveItems];
+}
+
 export async function getAutoBalanceRuntimeConfig(db: Db): Promise<AutoBalanceRuntimeConfig> {
   const delegate = (
     db as unknown as {
