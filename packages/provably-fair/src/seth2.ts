@@ -701,10 +701,13 @@ function femaleMultiplierPlan(
   const cells = values.map((value, index) => {
     if (!lockedIndexes.has(index)) return cell(10, value, 1);
     const displayed = previousMultiplierValue(value) ?? value;
-    if (displayed !== value) upgrades.push({ mul: displayed, new_mul: value });
-    // Woman-selected balls stay rare while locked and advance again after
-    // every later winning elimination. Male split copies never enter this set.
-    return cell(10, displayed, 0);
+    const willUpgrade = displayed !== value;
+    if (willUpgrade) upgrades.push({ mul: displayed, new_mul: value });
+    // `mul_type=0` selects the woman's projectile in the source client and
+    // therefore must always have a matching upgrade animation. Lock state is
+    // carried independently by type18_start_mul_list, so a locked 2x ball that
+    // cannot upgrade must use the man's non-upgrading projectile instead.
+    return cell(10, displayed, willUpgrade ? 0 : 1);
   });
   return {
     cells,
@@ -754,9 +757,11 @@ function maleMultiplierPlan(
       }
     }
     if (sourceValue < 2 || !extras) continue;
-    const mulType = rng() < 0.25 ? 0 : 1;
-    const source = cell(10, sourceValue, mulType);
-    const copies = Array.from({ length: splitCount }, () => cell(10, sourceValue, mulType));
+    // Male split projectiles never perform a multiplier upgrade. Marking one
+    // rare made the source client play the woman's fire animation even though
+    // upgrade_mul_list was empty.
+    const source = cell(10, sourceValue, 1);
+    const copies = Array.from({ length: splitCount }, () => cell(10, sourceValue, 1));
     return {
       source,
       copies,

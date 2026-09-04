@@ -666,7 +666,7 @@ describe('Seth2 three buy-feature contracts', () => {
         if (
           activeLock &&
           round.returnData.score > 0 &&
-          activeLock.cells.some((cell) => cell.mul < 500)
+          activeLock.cells.some((cell) => cell.mul_type === 0 && cell.mul < 500)
         ) {
           upgradedLockedWins += 1;
           expect(
@@ -2087,7 +2087,7 @@ describe('Seth2 free-game session progression', () => {
     });
   });
 
-  it('upgrades woman-locked balls once per winning cascade', () => {
+  it('upgrades only woman projectiles while preserving a locked male ball', () => {
     const rare = { type: 10 as const, mul: 2, mul_type: 0, code: 3 };
     const regular = { type: 10 as const, mul: 2, mul_type: 1, code: 4 };
     const startData = Array.from({ length: 30 }, (_, code) => ({
@@ -2133,17 +2133,12 @@ describe('Seth2 free-game session progression', () => {
 
     expect(data.list[0]!.upgrade_mul_list).toEqual([
       expect.objectContaining({ code: 3, mul: 2, new_mul: 3 }),
-      expect.objectContaining({ code: 4, mul: 2, new_mul: 3 }),
     ]);
     expect(data.list[1]!.upgrade_mul_list).toEqual([
       expect.objectContaining({ code: 3, mul: 3, new_mul: 4 }),
-      expect.objectContaining({ code: 4, mul: 3, new_mul: 4 }),
     ]);
     expect(saved).toEqual({
-      cells: [
-        { ...rare, mul: 4 },
-        { ...regular, mul: 4 },
-      ],
+      cells: [{ ...rare, mul: 4 }, regular],
       gamesRemaining: 4,
     });
   });

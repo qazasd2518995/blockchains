@@ -126,6 +126,13 @@ export function TowerPage() {
           const active = roundRef.current;
           if (active) renderTowerState(active);
           else renderTowerPreview(difficulty);
+        })
+        .catch((initError: unknown) => {
+          if (cancelled) return;
+          console.error('tower scene initialization failed', initError);
+          sceneRef.current = null;
+          scene?.dispose();
+          setError('遊戲畫面載入失敗，請重新整理後再試。');
         });
     };
     tryInit();

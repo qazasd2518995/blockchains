@@ -526,6 +526,41 @@
     return hiddenCount;
   }
 
+  function improveHappyFishingTextReadability(root, LabelClass) {
+    if (gameCode !== '14') return 0;
+    var CocosLabel = LabelClass || (window.cc && window.cc.Label);
+    if (!CocosLabel) return 0;
+    var scene =
+      root ||
+      (window.cc.director &&
+        typeof window.cc.director.getScene === 'function' &&
+        window.cc.director.getScene());
+    if (!scene || typeof scene.getComponentsInChildren !== 'function') return 0;
+    var labels = scene.getComponentsInChildren(CocosLabel) || [];
+    var adjustedCount = 0;
+    labels.forEach(function (label) {
+      if (!label || label.__yachiyoReadableText) return;
+      var fontSize = Number(label.fontSize || label._fontSize || 0);
+      // Leave headings and tiny decorative glyphs untouched. The source UI's
+      // 16-34px labels become difficult to read after its 1920px canvas is
+      // fitted onto a phone, so enlarge only that text band.
+      if (!Number.isFinite(fontSize) || fontSize < 16 || fontSize > 34) return;
+      var targetSize = Math.min(42, Math.round(fontSize * 1.25));
+      var lineHeight = Number(label.lineHeight || label._lineHeight || 0);
+      try {
+        label.fontSize = targetSize;
+        if (lineHeight > 0 && lineHeight < targetSize) {
+          label.lineHeight = Math.ceil(targetSize * 1.12);
+        }
+        label.__yachiyoReadableText = true;
+        adjustedCount += 1;
+      } catch (_error) {
+        // A custom source component may expose a read-only label facade.
+      }
+    });
+    return adjustedCount;
+  }
+
   function disableLegacyBrandWebViews() {
     if (!window.cc || !window.cc.director) return 0;
     var scene = window.cc.director.getScene && window.cc.director.getScene();
@@ -693,6 +728,7 @@
     hideUnsupportedLegacyButtons();
     enhanceFishAimControls();
     hideUnusedFishSeats();
+    improveHappyFishingTextReadability();
     disableLegacyBrandWebViews();
     patchLegacyFreeSpinCountdown();
     patchDeferredFeatureCompletion();
@@ -3692,6 +3728,7 @@
     hideLegacyLaunchSplash: hideLegacyLaunchSplash,
     shouldHideLegacyButtonHandler: shouldHideLegacyButtonHandler,
     shouldHideFishSeatNode: shouldHideFishSeatNode,
+    improveHappyFishingTextReadability: improveHappyFishingTextReadability,
     calculateCannonAimAngle: calculateCannonAimAngle,
     buildFishSpawn: buildFishSpawn,
     getFishSpawnDelay: getFishSpawnDelay,

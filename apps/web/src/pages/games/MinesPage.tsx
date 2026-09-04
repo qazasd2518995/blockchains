@@ -91,24 +91,33 @@ export function MinesPage() {
       }
       scene = new MinesScene();
       sceneRef.current = scene;
-      void scene.init(
-        canvas,
-        w,
-        h,
-        ({ index }) => {
-          void handleReveal(index);
-        },
-        showStageHint,
-      ).then(() => {
-        if (cancelled) return;
-        const active = roundRef.current;
-        if (!active) return;
-        scene?.setClickable(active.status === 'ACTIVE');
-        for (const idx of active.revealed) scene?.revealGem(idx);
-        if (active.status === 'BUSTED' && active.minePositions) {
-          scene?.revealAllMines(active.minePositions);
-        }
-      });
+      void scene
+        .init(
+          canvas,
+          w,
+          h,
+          ({ index }) => {
+            void handleReveal(index);
+          },
+          showStageHint,
+        )
+        .then(() => {
+          if (cancelled) return;
+          const active = roundRef.current;
+          if (!active) return;
+          scene?.setClickable(active.status === 'ACTIVE');
+          for (const idx of active.revealed) scene?.revealGem(idx);
+          if (active.status === 'BUSTED' && active.minePositions) {
+            scene?.revealAllMines(active.minePositions);
+          }
+        })
+        .catch((initError: unknown) => {
+          if (cancelled) return;
+          console.error('mines scene initialization failed', initError);
+          sceneRef.current = null;
+          scene?.dispose();
+          setError('遊戲畫面載入失敗，請重新整理後再試。');
+        });
     };
     tryInit();
     return () => {

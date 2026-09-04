@@ -49,8 +49,23 @@ assert.match(
 );
 assert.match(
   collectionIndexSource,
-  /yachiyo-adapter\.js\?v=47/,
-  'the shared collection must load the stable-session adapter revision',
+  /yachiyo-adapter\.js\?v=48/,
+  'the shared collection must load the fishing-layout adapter revision',
+);
+assert.doesNotMatch(
+  collectionIndexSource,
+  /user-scalable=no|maximum-scale=1/,
+  'the archived game must not block browser text zoom',
+);
+assert.match(
+  collectionIndexSource,
+  /landscapeGameIds\s*=\s*\[['"]2['"],\s*['"]12['"],\s*['"]13['"],\s*['"]14['"]\]/,
+  'all source fishing scenes must boot with their authored landscape orientation',
+);
+assert.match(
+  collectionIndexSource,
+  /window\._CCSettings\.orientation\s*=\s*gameOrientation/,
+  'the selected orientation must be applied before Cocos boots',
 );
 assert.match(
   collectionIndexSource,
@@ -1237,6 +1252,37 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
         hitSocre: 12.5,
       },
     },
+  );
+}
+
+{
+  const labels = [
+    { fontSize: 16, lineHeight: 18 },
+    { fontSize: 32, lineHeight: 34 },
+    { fontSize: 12, lineHeight: 14 },
+    { fontSize: 40, lineHeight: 44 },
+  ];
+  const root = { getComponentsInChildren: () => labels };
+  const happyFishing = loadAdapter('14');
+  assert.equal(
+    happyFishing.improveHappyFishingTextReadability(root, function Label() {}),
+    2,
+  );
+  assert.equal(labels[0].fontSize, 20);
+  assert.equal(labels[1].fontSize, 40);
+  assert.equal(labels[2].fontSize, 12, 'tiny decorative glyphs must retain their source size');
+  assert.equal(labels[3].fontSize, 40, 'existing headings must retain their source size');
+  assert.equal(
+    happyFishing.improveHappyFishingTextReadability(root, function Label() {}),
+    0,
+    'the readability adjustment must be idempotent',
+  );
+
+  const otherFishing = loadAdapter('2');
+  assert.equal(
+    otherFishing.improveHappyFishingTextReadability(root, function Label() {}),
+    0,
+    'other fishing scene typography must remain unchanged',
   );
 }
 

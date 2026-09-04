@@ -1569,6 +1569,9 @@ function femaleLockCellsAfterWinningCascades(
   winningCascades: number,
 ): Seth2FemaleLockState['cells'] {
   return cells.map((cell) => {
+    // Locking and projectile ownership are independent. A locked male ball
+    // stays on the board but must never inherit the woman's upgrade behavior.
+    if (cell.mul_type !== 0) return { ...cell };
     let mul = cell.mul;
     for (let index = 0; index < winningCascades; index += 1) {
       mul = nextFemaleLockMultiplier(mul);
@@ -1589,6 +1592,7 @@ function addFemaleLockWinUpgrades(
   for (const round of data.list) {
     if (!(Number(round.score) > 0)) continue;
     for (const cell of cells) {
+      if (cell.mul_type !== 0) continue;
       const code = Number(cell.code);
       const before = currentValues.get(code) ?? cell.mul;
       const after = nextFemaleLockMultiplier(before);
