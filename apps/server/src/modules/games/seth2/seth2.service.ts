@@ -780,7 +780,7 @@ export class Seth2Service {
         featureIndex !== 2 &&
         (buying || originalOutcome.triggeredFreeSpins);
       const featureSeeds = opensFeature
-        ? await seedHelper.getActiveBundles(userId, GAME_ID, SETH2_MAX_FREE_SPINS)
+        ? await seedHelper.getActiveBundles(userId, GAME_ID, SETH2_FREE_SPINS)
         : [];
       const originalFeatureRun = opensFeature
         ? generateFeatureRun({
@@ -921,6 +921,7 @@ export class Seth2Service {
           lockedMultiplierContribution,
         );
       }
+      if (freeSpin) finalOutcome.returnData.addGameCiShu = 0;
       const finalFeatureRun =
         gameCapApplied && originalFeatureRun
           ? generateFeatureRun({
@@ -1695,10 +1696,9 @@ export function advanceSession(
     };
   }
   if (input.freeSpin) {
-    const remaining = Math.min(
-      SETH2_MAX_FREE_SPINS,
-      Math.max(0, current.freeSpinsRemaining - 1 + input.extraSpins),
-    );
+    // Seth free games are fixed at the awarded count. Keep accepting the
+    // legacy field for stored/request compatibility, but never add games.
+    const remaining = Math.max(0, current.freeSpinsRemaining - 1);
     return {
       freeSpinsRemaining: remaining,
       featureMode: remaining > 0 ? current.featureMode : 'none',
@@ -1811,7 +1811,7 @@ export function generateFeatureRun(input: {
       }
     }
   }
-  while (session.freeSpinsRemaining > 0 && rounds.length < SETH2_MAX_FREE_SPINS) {
+  while (session.freeSpinsRemaining > 0 && rounds.length < SETH2_FREE_SPINS) {
     const seed = input.seeds[rounds.length];
     if (!seed) throw new ApiError('INTERNAL', '免費遊戲種子不足');
     const mode: Seth2SpinMode =
@@ -1906,6 +1906,9 @@ export function generateFeatureRun(input: {
       return safeOutcome;
     };
     let outcome = buildSafeOutcome(effectiveBank);
+    // Defence in depth for controlled and legacy-compatible outcome builders:
+    // a free-game response must never ask the client to add more games.
+    outcome.returnData.addGameCiShu = 0;
     if (session.femaleLock && outcome.returnData.score > 0) {
       // A rare ball selected by the woman advances once for every successful
       // elimination. Re-render with the upgraded locked contribution so the

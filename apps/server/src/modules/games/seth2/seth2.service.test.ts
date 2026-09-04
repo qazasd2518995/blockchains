@@ -6,7 +6,12 @@ import {
   seth2SpinForFactor,
   seth2SuperMainSpinForFactor,
 } from '@bg/provably-fair';
-import { SETH2_MAX_WIN_MULTIPLIER, type Seth2Cell, type Seth2ReturnData } from '@bg/shared';
+import {
+  SETH2_FREE_SPINS,
+  SETH2_MAX_WIN_MULTIPLIER,
+  type Seth2Cell,
+  type Seth2ReturnData,
+} from '@bg/shared';
 import { describe, expect, it, vi } from 'vitest';
 import {
   advanceSession,
@@ -557,9 +562,14 @@ describe('Seth2 three buy-feature contracts', () => {
       featureIndex,
       featureMode: entryOutcome.featureMode,
     });
-    expect(run.rounds.length).toBeGreaterThanOrEqual(15);
-    expect(run.rounds.length).toBeLessThanOrEqual(100);
+    expect(run.rounds).toHaveLength(SETH2_FREE_SPINS);
     for (const round of run.rounds) {
+      expect(round.returnData.addGameCiShu).toBe(0);
+      expect(
+        round.returnData.list
+          .flatMap((cascade) => [...cascade.start_data, ...cascade.round_data])
+          .some((cell) => cell.type === 15 || cell.type === 16),
+      ).toBe(false);
       const states = seth2SourceGameStates(round.returnData, {
         action: 'freeSpin',
         spinId: 'three-feature-run',
@@ -1911,7 +1921,7 @@ describe('Seth2 free-game session progression', () => {
     },
   );
 
-  it('adds five retrigger games after consuming the current game', () => {
+  it('ignores legacy extra-game data after consuming the final free game', () => {
     expect(
       advanceSession(
         {
@@ -1925,16 +1935,16 @@ describe('Seth2 free-game session progression', () => {
         { ...baseInput, freeSpin: true, extraSpins: 5, multiplierBankAfter: 52 },
       ),
     ).toEqual({
-      freeSpinsRemaining: 5,
-      featureMode: 'awakening',
-      betAmount: '18.00',
-      multiplierBank: 52,
+      freeSpinsRemaining: 0,
+      featureMode: 'none',
+      betAmount: '0.00',
+      multiplierBank: 0,
       femaleLock: null,
-      featureWinnings: 10,
+      featureWinnings: 0,
     });
   });
 
-  it('caps accumulated free games at one hundred', () => {
+  it('always consumes exactly one game even if legacy extra-game data is present', () => {
     expect(
       advanceSession(
         {
@@ -1948,7 +1958,7 @@ describe('Seth2 free-game session progression', () => {
         { ...baseInput, freeSpin: true, extraSpins: 5, multiplierBankAfter: 30 },
       ),
     ).toEqual({
-      freeSpinsRemaining: 100,
+      freeSpinsRemaining: 97,
       featureMode: 'standard',
       betAmount: '18.00',
       multiplierBank: 30,
@@ -1957,7 +1967,7 @@ describe('Seth2 free-game session progression', () => {
     });
   });
 
-  it('clears the feature only after the final non-retrigger spin', () => {
+  it('clears the feature after the final free spin', () => {
     expect(
       advanceSession(
         {

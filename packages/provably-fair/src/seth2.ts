@@ -22,9 +22,7 @@ export const SETH2_MULTIPLIER_VALUES = [
 ] as const;
 /** Values that can land directly, matching the source game's colour/value table. */
 export const SETH2_MULTIPLIER_DROP_VALUES = [2, 3, 4, 10, 15, 25, 50, 100, 200, 300, 500] as const;
-export const SETH2_RETRIGGER_SPINS = 5;
 export const SETH2_FREE_SPINS = 15;
-export const SETH2_FREE_RETRIGGER_PROBABILITY = 0.01;
 export type Seth2SpinMode = 'base' | 'standard_free' | 'awakening_free' | 'bought_standard_free';
 export type Seth2FeatureMode = 'none' | 'standard' | 'awakening';
 export type Seth2RandomSource = () => number;
@@ -102,7 +100,6 @@ interface WeightedOutcome {
   probability: number;
   factor?: number;
   trigger?: boolean;
-  retrigger?: boolean;
 }
 
 /**
@@ -153,7 +150,6 @@ interface FemaleMultiplierPlan extends MultiplierPlan {
 }
 
 const TARGET_RTP = 0.9689;
-const FREE_SPIN_SCALE = 1 - SETH2_FREE_RETRIGGER_PROBABILITY * SETH2_RETRIGGER_SPINS;
 const GOLDEN_FEATURE_SHARE = 0.01;
 export const SETH2_BOUGHT_AWAKENING_SHARE = 0;
 const NON_WINNING_MULTIPLIER_PROBABILITY = 0.2;
@@ -293,16 +289,6 @@ const BASE_OUTCOMES: WeightedOutcome[] = diversifyQuarterFactors([
   { probability: 0.000345, factor: 20 },
 ]);
 
-function withRetriggers(outcomes: WeightedOutcome[]): WeightedOutcome[] {
-  return [
-    { probability: SETH2_FREE_RETRIGGER_PROBABILITY, retrigger: true },
-    ...outcomes.map((outcome) => ({
-      ...outcome,
-      probability: outcome.probability * FREE_SPIN_SCALE,
-    })),
-  ];
-}
-
 function scaleFeatureOutcomes(outcomes: WeightedOutcome[]): WeightedOutcome[] {
   return outcomes.map((outcome) => ({
     ...outcome,
@@ -310,8 +296,11 @@ function scaleFeatureOutcomes(outcomes: WeightedOutcome[]): WeightedOutcome[] {
   }));
 }
 
-const STANDARD_FREE_OUTCOMES = withRetriggers(scaleFeatureOutcomes(STANDARD_FREE_BASE_OUTCOMES));
-const AWAKENING_FREE_OUTCOMES = withRetriggers(scaleFeatureOutcomes(AWAKENING_FREE_BASE_OUTCOMES));
+// Free games are intentionally fixed-length. Removing the former retrigger
+// bucket restores its probability to the original outcomes, preserving the
+// total feature EV while ensuring no SCATTER can add more games.
+const STANDARD_FREE_OUTCOMES = scaleFeatureOutcomes(STANDARD_FREE_BASE_OUTCOMES);
+const AWAKENING_FREE_OUTCOMES = scaleFeatureOutcomes(AWAKENING_FREE_BASE_OUTCOMES);
 
 const WIN_PATTERNS: WinPattern[] = Object.entries(SETH2_PAYTABLE).flatMap(([type, pays]) => [
   { type: Number(type), count: 8 as const, factor: pays.eight / 20 },
@@ -604,44 +593,6 @@ function buildScatterTrigger(bet: number, rng: Seth2RandomSource): Seth2Outcome 
     payoutFactor: factor,
     triggeredFreeSpins: true,
     featureMode,
-    returnData,
-  };
-}
-
-function buildRetrigger(
-  rng: Seth2RandomSource,
-  mode: Seth2SpinMode,
-  multiplierBank: number,
-): Seth2Outcome {
-  // Captured v1.1.5 rules use normal SCATTERs in the regular feature, while
-  // awakening retriggers are made from three or four golden SCATTERs.
-  const awakening = mode === 'awakening_free';
-  const scatterType = awakening ? 16 : 15;
-  const scatterCount = awakening && rng() < 0.2 ? 4 : 3;
-  const scatterCells = Array.from({ length: scatterCount }, () => cell(scatterType));
-  const startData = [
-    ...scatterCells,
-    ...safeFill(SETH2_GRID_SIZE - scatterCells.length, new Set([15, 16]), rng),
-  ];
-  shuffle(startData, rng);
-  const round: Seth2CascadeRound = {
-    start_data: startData,
-    remove_type: [scatterType],
-    round_data: safeFill(scatterCells.length, new Set([15, 16]), rng),
-    scoreList: [0],
-    upgrade_mul_list: [],
-    total_mul: 0,
-    score: 0,
-    total_gold: 0,
-    remove_count: 0,
-    is_over: 1,
-  };
-  const returnData = baseReturnData(round, isFreeGameMode(mode) ? multiplierBank : 0);
-  returnData.addGameCiShu = SETH2_RETRIGGER_SPINS;
-  return {
-    payoutFactor: 0,
-    triggeredFreeSpins: false,
-    featureMode: 'none',
     returnData,
   };
 }
@@ -1162,19 +1113,17 @@ export function seth2Spin(
   const selection = pickWeighted(table, rng);
   const outcome = selection.trigger
     ? buildScatterTrigger(bet, rng)
-    : selection.retrigger
-      ? buildRetrigger(rng, mode, multiplierBank)
-      : !selection.factor
-        ? buildLoss(rng, mode, multiplierBank)
-        : buildWin(
-            bet,
-            selection.factor,
-            mode,
-            rng,
-            multiplierBank,
-            false,
-            hasPersistentMultiplier,
-          );
+    : !selection.factor
+      ? buildLoss(rng, mode, multiplierBank)
+      : buildWin(
+          bet,
+          selection.factor,
+          mode,
+          rng,
+          multiplierBank,
+          false,
+          hasPersistentMultiplier,
+        );
   return applySpinFeatureMode(outcome, mode);
 }
 
@@ -1620,7 +1569,7 @@ function expectedValue(outcomes: WeightedOutcome[]): number {
   );
 }
 
-const EXPECTED_FEATURE_SPINS = SETH2_FREE_SPINS / FREE_SPIN_SCALE;
+const EXPECTED_FEATURE_SPINS = SETH2_FREE_SPINS;
 
 export const SETH2_MATH = {
   baseDirect: expectedValue(BASE_OUTCOMES),

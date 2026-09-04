@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   SETH2_BOUGHT_AWAKENING_SHARE,
-  SETH2_FREE_RETRIGGER_PROBABILITY,
   SETH2_FREE_SPINS,
   SETH2_GRID_SIZE,
   SETH2_MATH,
@@ -9,7 +8,6 @@ import {
   SETH2_MULTIPLIER_DROP_VALUES,
   SETH2_MULTIPLIER_VALUES,
   SETH2_PAYTABLE,
-  SETH2_RETRIGGER_SPINS,
   SETH2_SCATTER_PAYTABLE,
   SETH2_SKILL_SYMBOL_PAY,
   isSeth2MultiplierValue,
@@ -95,18 +93,17 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     }
   });
 
-  it('preserves the source paytable and the 96.89% target math with retriggers', () => {
+  it('preserves the source paytable and the 96.89% target math without retriggers', () => {
     expect(SETH2_PAYTABLE[1]).toEqual({ eight: 200, ten: 500, twelve: 1000 });
     expect(SETH2_PAYTABLE[9]).toEqual({ eight: 5, ten: 15, twelve: 40 });
-    expect(SETH2_FREE_RETRIGGER_PROBABILITY).toBe(0.01);
-    expect(SETH2_MATH.standardFree).toBeCloseTo(1.007 * (15 / SETH2_FREE_SPINS), 8);
+    expect(SETH2_MATH.standardFree).toBeCloseTo(1.06 * (15 / SETH2_FREE_SPINS), 8);
     expect(SETH2_MATH.standardFeatureTotal).toBeCloseTo(15.9, 8);
     expect(SETH2_MATH.awakeningFeatureTotal).toBeCloseTo(193.78, 6);
     expect(SETH2_MATH.boughtAwakeningGuaranteedRoot).toBeCloseTo(
       SETH2_MATH.awakeningFeatureTotal / SETH2_FREE_SPINS,
       8,
     );
-    expect(SETH2_MATH.expectedFeatureSpins).toBeCloseTo(SETH2_FREE_SPINS / 0.95, 8);
+    expect(SETH2_MATH.expectedFeatureSpins).toBe(SETH2_FREE_SPINS);
     expect(SETH2_MATH.theoreticalRtp).toBeCloseTo(0.9689, 8);
     expect(SETH2_MATH.buyFeatureRtp).toBeCloseTo(0.9689, 8);
     expect(SETH2_MATH.boughtStandardFree).toBeCloseTo(SETH2_MATH.awakeningFree, 8);
@@ -236,7 +233,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
   });
 
   it.each(['standard', 'awakening'] as const)(
-    'uses a four-SCATTER entry board and preserves all 20 source spins for a %s feature purchase',
+    'uses a four-SCATTER entry board and preserves all 15 source spins for a %s feature purchase',
     (featureMode) => {
       const outcome = seth2BuyFeatureEntry('buy-entry', 'client', 7, featureMode, BET);
       const scatterTypes = outcome.returnData.list[0]!.start_data.filter(
@@ -322,23 +319,17 @@ describe('Storm of Seth 2 provably-fair engine', () => {
   );
 
   it.each(['standard_free', 'awakening_free', 'bought_standard_free'] as const)(
-    'adds five games with the source SCATTER type for a retrigger in %s',
+    'never emits SCATTER symbols or extra games during %s',
     (mode) => {
-      const outcome = findSpin(mode, (current) => current.returnData.addGameCiShu > 0);
-      const round = outcome.returnData.list[0]!;
-      const awakening = mode === 'awakening_free';
-      const scatterType = awakening ? 16 : 15;
-      const scatterCount = round.start_data.filter(
-        (current) => current.type === scatterType,
-      ).length;
-      expect(scatterCount).toBeGreaterThanOrEqual(3);
-      expect(scatterCount).toBeLessThanOrEqual(awakening ? 4 : 3);
-      expect(round.start_data.filter((current) => current.type === (awakening ? 15 : 16))).toEqual(
-        [],
-      );
-      expect(round.remove_type).toEqual([scatterType]);
-      expect(outcome.returnData.addGameCiShu).toBe(SETH2_RETRIGGER_SPINS);
-      expect(outcome.payoutFactor).toBe(0);
+      for (let nonce = 0; nonce < 5_000; nonce += 1) {
+        const outcome = seth2Spin('no-free-scatter', 'client', nonce, BET, mode);
+        const cells = outcome.returnData.list.flatMap((round) => [
+          ...round.start_data,
+          ...round.round_data,
+        ]);
+        expect(cells.some((current) => current.type === 15 || current.type === 16)).toBe(false);
+        expect(outcome.returnData.addGameCiShu).toBe(0);
+      }
     },
   );
 
