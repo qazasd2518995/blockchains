@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { LogController, type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import jwt from '@fastify/jwt';
@@ -136,7 +136,7 @@ export async function buildServer(): Promise<FastifyInstance> {
           ? { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } }
           : undefined,
     },
-    disableRequestLogging: true,
+    logController: new LogController({ disableRequestLogging: true }),
     trustProxy: true,
   });
 
