@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useActionLock } from '@/hooks/useActionLock';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { AccountSearchSelect, type AccountSearchOption } from './AccountSearchSelect';
 import { Modal } from './Modal';
@@ -13,14 +14,13 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
   const [member, setMember] = useState<AccountSearchOption | null>(null);
   const [burstAmount, setBurstAmount] = useState('10000');
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, beginAction, endAction] = useActionLock();
 
   useEffect(() => {
     if (!open) {
       setMember(null);
       setBurstAmount('10000');
       setErr(null);
-      setBusy(false);
     }
   }, [open]);
 
@@ -29,13 +29,13 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
       setErr('请先选择玩家账号');
       return;
     }
-    const amount = Number.parseFloat(burstAmount);
-    if (!Number.isFinite(amount) || amount <= 0) {
+    const amount = Number(burstAmount);
+    if (!/^\d+(\.\d{1,2})?$/.test(burstAmount) || !Number.isFinite(amount) || amount <= 0) {
       setErr('爆分金额必须大于 0');
       return;
     }
     const normalizedAmount = amount.toFixed(2);
-    setBusy(true);
+    if (!beginAction()) return;
     setErr(null);
     try {
       await adminApi.post('/controls/burst', {
@@ -58,14 +58,21 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
       onDone();
       onClose();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : extractApiError(e).message);
+      setErr(extractApiError(e).message);
     } finally {
-      setBusy(false);
+      endAction();
     }
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="新增爆分控制" subtitle="指定玩家爆分金额" width="md">
+    <Modal
+      busy={busy}
+      open={open}
+      onClose={onClose}
+      title="新增爆分控制"
+      subtitle="指定玩家爆分金额"
+      width="md"
+    >
       <div className="space-y-4">
         <div className="rounded-[6px] border border-[#186073]/20 bg-[#186073]/5 p-3 text-[12px] text-[#334155]">
           选择玩家并输入爆分金额即可。系统会把该金额作为本次单一玩家的爆分池与单次目标净赢，并仍依各游戏可用结果与派彩规则结算。

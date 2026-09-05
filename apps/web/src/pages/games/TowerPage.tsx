@@ -18,6 +18,7 @@ import { TowerScene } from '@/games/tower/TowerScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
+import { useRoundRecovery } from '@/hooks/useRoundRecovery';
 
 const TOWER_PREVIEW_LEVELS: Record<TowerDifficulty, number> = {
   easy: 9,
@@ -51,9 +52,27 @@ export function TowerPage() {
   } | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sceneReadyRef = useRef(false);
+  const [sceneReady, setSceneReady] = useState(false);
+  const [sceneFailed, setSceneFailed] = useState(false);
   const sceneRef = useRef<TowerScene | null>(null);
   const roundRef = useRef<TowerRoundState | null>(null);
   const pickLockRef = useRef(false);
+  const recovery = useRoundRecovery<TowerRoundState>('tower', (state) => {
+    setRound(state);
+    roundRef.current = state;
+    if (state) {
+      setAmount(Number(state.amount));
+      setDifficulty(state.difficulty);
+    }
+    if (sceneReadyRef.current) {
+      if (state) renderTowerState(state);
+      else renderTowerPreview(difficulty);
+      // Manual recovery can finish after the failed pick's delayed unlock.
+      // The new authoritative scene must not inherit that stale input lock.
+      sceneRef.current?.setInputLocked(false);
+    }
+  });
   const stageHintRef = useRef<HTMLDivElement | null>(null);
   const stageHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -123,40 +142,40 @@ export function TowerPage() {
         })
         .then(() => {
           if (cancelled) return;
+          sceneReadyRef.current = true;
+          setSceneReady(true);
           const active = roundRef.current;
           if (active) renderTowerState(active);
           else renderTowerPreview(difficulty);
         })
         .catch((initError: unknown) => {
           if (cancelled) return;
+          sceneReadyRef.current = false;
+          setSceneReady(false);
+          setSceneFailed(true);
           console.error('tower scene initialization failed', initError);
           sceneRef.current = null;
           scene?.dispose();
           setError('遊戲畫面載入失敗，請重新整理後再試。');
         });
     };
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      sceneReadyRef.current = false;
+      setSceneReady(false);
+      setSceneFailed(true);
+    };
+    canvas.addEventListener('webglcontextlost', onContextLost);
     tryInit();
     return () => {
+      canvas.removeEventListener('webglcontextlost', onContextLost);
+      sceneReadyRef.current = false;
       cancelled = true;
       if (rafId) cancelAnimationFrame(rafId);
       scene?.dispose();
       sceneRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    void api
-      .get<{ state: TowerRoundState | null }>('/games/tower/active')
-      .then((res) => {
-        if (res.data.state) {
-          setRound(res.data.state);
-          roundRef.current = res.data.state;
-          hideStageHint();
-          renderTowerState(res.data.state);
-        }
-      })
-      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -181,15 +200,23 @@ export function TowerPage() {
   }
 
   const start = async () => {
-    if (busy) return;
+    if (
+      busy ||
+      pickLockRef.current ||
+      !sceneReadyRef.current ||
+      roundRef.current?.status === 'ACTIVE'
+    )
+      return;
     if (!requireLogin()) return;
+    if (!recovery.readyRef.current) return;
     if (amount < MIN_BET_AMOUNT || amount > balance) return;
+    pickLockRef.current = true;
     setBusy(true);
     setError(null);
     setWinModal(null);
     hideStageHint();
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
-    const previousBalance = useAuthStore.getState().debitBalance(amount);
+    useAuthStore.getState().debitBalance(amount);
     try {
       const res = await api.post<TowerRoundState>('/games/tower/start', { amount, difficulty });
       setRound(res.data);
@@ -199,16 +226,17 @@ export function TowerPage() {
       sceneRef.current?.focusOnLevel(0, true);
       sceneRef.current?.setMultiplier('1.00');
     } catch (err) {
-      if (previousBalance) setBalance(previousBalance);
       setError(extractApiError(err).message);
+      await recovery.sync();
     } finally {
       releaseBalanceRefresh();
+      pickLockRef.current = false;
       setBusy(false);
     }
   };
 
   const pickInternal = async (level: number, col: number) => {
-    if (pickLockRef.current) return;
+    if (pickLockRef.current || !sceneReadyRef.current || !recovery.readyRef.current) return;
     const current = roundRef.current;
     if (!current || current.status !== 'ACTIVE') {
       showStageHint();
@@ -279,17 +307,26 @@ export function TowerPage() {
       }
     } catch (err) {
       setError(extractApiError(err).message);
+      await recovery.sync();
     } finally {
       setBusy(false);
       window.setTimeout(() => {
         pickLockRef.current = false;
-        sceneRef.current?.setInputLocked(false);
+        sceneRef.current?.setInputLocked(!sceneReadyRef.current || !recovery.readyRef.current);
       }, 420);
     }
   };
 
   const cashout = async () => {
-    if (!round || busy) return;
+    if (
+      !round ||
+      round.status !== 'ACTIVE' ||
+      busy ||
+      pickLockRef.current ||
+      !recovery.readyRef.current
+    )
+      return;
+    pickLockRef.current = true;
     setBusy(true);
     try {
       const res = await api.post<TowerCashoutResult>('/games/tower/cashout', {
@@ -346,7 +383,9 @@ export function TowerPage() {
       );
     } catch (err) {
       setError(extractApiError(err).message);
+      await recovery.sync();
     } finally {
+      pickLockRef.current = false;
       setBusy(false);
     }
   };
@@ -359,6 +398,23 @@ export function TowerPage() {
 
   return (
     <div>
+      {(sceneFailed || recovery.error) && (
+        <div role="alert" className="mb-3 rounded border border-amber-500/40 p-3 text-sm">
+          <p>
+            {sceneFailed
+              ? '遊戲畫面無法使用，已停止接受新下注。重新載入後會恢復未完成牌局。'
+              : recovery.error}
+          </p>
+          <button
+            type="button"
+            className="btn-acid mt-2"
+            disabled={busy || recovery.syncing}
+            onClick={() => (sceneFailed ? window.location.reload() : void recovery.sync())}
+          >
+            {sceneFailed ? '重新載入遊戲' : recovery.syncing ? '同步中…' : '重新同步牌局與餘額'}
+          </button>
+        </div>
+      )}
       <GameHeader
         artwork="/game-art/tower/background.png"
         section="§ GAME 09"
@@ -503,7 +559,9 @@ export function TowerPage() {
                     if (round && round.status !== 'ACTIVE') setRound(null);
                     void start();
                   }}
-                  disabled={busy || (!!user && balance < amount)}
+                  disabled={
+                    busy || !sceneReady || (!!user && (!recovery.ready || balance < amount))
+                  }
                   className="btn-acid w-full py-4"
                 >
                   → {t.games.tower.start} · {formatAmount(amount)}
@@ -513,7 +571,7 @@ export function TowerPage() {
                 <button
                   type="button"
                   onClick={cashout}
-                  disabled={busy || round.currentLevel === 0}
+                  disabled={busy || !recovery.ready || round.currentLevel === 0}
                   className="btn-acid w-full py-4"
                 >
                   ⇧ {t.bet.cashout.toUpperCase()} · {formatAmount(round.potentialPayout)}

@@ -1,3 +1,4 @@
+import { useActionLock } from '@/hooks/useActionLock';
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -244,60 +245,66 @@ export function CreateAgentModal({
     }
   }, [open, electronicParentMaxPct, setValue, watchedRebateMode]);
 
+  const [busy, beginAction, endAction] = useActionLock();
   const onSubmit = async (data: FormInput) => {
-    setErr(null);
+    if (!beginAction()) return;
+    try {
+      setErr(null);
 
-    if (electronicParentMaxPct === null) {
-      setErr('正在读取当前层级可分配退水，请稍后再试');
-      return;
-    }
-
-    if (data.rebateMode === 'PERCENTAGE') {
-      const pctNum = Number.parseFloat(data.rebatePercentageDisplay);
-      if (pctNum > electronicParentMaxPct + 1e-6) {
-        setErr(`电子退水比例不可超过 ${electronicParentMaxPct.toFixed(2)}%`);
+      if (electronicParentMaxPct === null) {
+        setErr('正在读取当前层级可分配退水，请稍后再试');
         return;
       }
-    }
 
-    const parent = selectedParent ?? parents.find((a) => a.id === data.parentId);
-    if (!parent) {
-      setErr('找不到上级代理');
-      return;
-    }
+      if (data.rebateMode === 'PERCENTAGE') {
+        const pctNum = Number.parseFloat(data.rebatePercentageDisplay);
+        if (pctNum > electronicParentMaxPct + 1e-6) {
+          setErr(`电子退水比例不可超过 ${electronicParentMaxPct.toFixed(2)}%`);
+          return;
+        }
+      }
 
-    try {
-      const electronicRebateFraction = rebateFractionForMode(
-        data.rebateMode,
-        data.rebatePercentageDisplay,
-        electronicParentMaxPct,
-      );
-      const res = await adminApi.post<AgentPublic>('/agents', {
-        parentId: data.parentId,
-        username: data.username,
-        password: data.password,
-        initialBalance: data.initialBalance || undefined,
-        level: parent.level + 1,
-        rebateMode: data.rebateMode,
-        rebatePercentage: electronicRebateFraction,
-        baccaratRebateMode: 'PERCENTAGE',
-        baccaratRebatePercentage: '0.0000',
-        bettingLimitLevel: data.bettingLimitLevel,
-        bettingLimits,
-        excludeFromControlSettlement: data.excludeFromControlSettlement,
-        notes: data.notes || undefined,
-      });
-      const nextShareInfo: CreatedAccountShareInfo = {
-        kind: 'agent',
-        username: res.data.username,
-        password: data.password,
-        bettingLimitLevel: res.data.bettingLimitLevel,
-      };
-      onCreated(res.data, nextShareInfo);
-      onClose();
-      setShareInfo(nextShareInfo);
-    } catch (e) {
-      setErr(extractApiError(e).message);
+      const parent = selectedParent ?? parents.find((a) => a.id === data.parentId);
+      if (!parent) {
+        setErr('找不到上级代理');
+        return;
+      }
+
+      try {
+        const electronicRebateFraction = rebateFractionForMode(
+          data.rebateMode,
+          data.rebatePercentageDisplay,
+          electronicParentMaxPct,
+        );
+        const res = await adminApi.post<AgentPublic>('/agents', {
+          parentId: data.parentId,
+          username: data.username,
+          password: data.password,
+          initialBalance: data.initialBalance || undefined,
+          level: parent.level + 1,
+          rebateMode: data.rebateMode,
+          rebatePercentage: electronicRebateFraction,
+          baccaratRebateMode: 'PERCENTAGE',
+          baccaratRebatePercentage: '0.0000',
+          bettingLimitLevel: data.bettingLimitLevel,
+          bettingLimits,
+          excludeFromControlSettlement: data.excludeFromControlSettlement,
+          notes: data.notes || undefined,
+        });
+        const nextShareInfo: CreatedAccountShareInfo = {
+          kind: 'agent',
+          username: res.data.username,
+          password: data.password,
+          bettingLimitLevel: res.data.bettingLimitLevel,
+        };
+        onCreated(res.data, nextShareInfo);
+        onClose();
+        setShareInfo(nextShareInfo);
+      } catch (e) {
+        setErr(extractApiError(e).message);
+      }
+    } finally {
+      endAction();
     }
   };
 
@@ -307,7 +314,14 @@ export function CreateAgentModal({
 
   return (
     <>
-      <Modal open={open} onClose={onClose} title={modalTitle} subtitle="新增下级代理" width="md">
+      <Modal
+        busy={busy || isSubmitting}
+        open={open}
+        onClose={onClose}
+        title={modalTitle}
+        subtitle="新增下级代理"
+        width="md"
+      >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {lockedParent ? (
             <div className="rounded-md border border-[#C9A247]/35 bg-[#FFF8DA] px-4 py-3">

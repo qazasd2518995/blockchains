@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useActionLock } from '@/hooks/useActionLock';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { generateLifecyclePath, maxLifecycleRecoveryCount } from '@/lib/lifecyclePathGenerator';
 import { AccountSearchSelect, type AccountSearchOption } from './AccountSearchSelect';
@@ -43,7 +44,7 @@ export function ManualDetectionControlModal({
   const [generatedSteps, setGeneratedSteps] = useState<number[]>([]);
   const [selectedTemplateKeys, setSelectedTemplateKeys] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, beginAction, endAction] = useActionLock();
 
   useEffect(() => {
     if (!open) {
@@ -57,7 +58,6 @@ export function ManualDetectionControlModal({
       setGeneratedSteps([]);
       setSelectedTemplateKeys([]);
       setErr(null);
-      setBusy(false);
       return;
     }
 
@@ -148,15 +148,24 @@ export function ManualDetectionControlModal({
   };
 
   const submit = async (): Promise<void> => {
-    setBusy(true);
+    if (!beginAction()) return;
     setErr(null);
     try {
-      const interventionRate = Number.parseInt(controlPercentage, 10);
-      if (!Number.isFinite(interventionRate) || interventionRate < 1 || interventionRate > 100) {
+      const interventionRate = Number(controlPercentage);
+      if (
+        !/^\d+$/.test(controlPercentage) ||
+        !Number.isInteger(interventionRate) ||
+        interventionRate < 1 ||
+        interventionRate > 100
+      ) {
         throw new Error('介入機率必須介於 1 到 100');
       }
-      const freezeThreshold = Number.parseFloat(lineFreezeThreshold);
-      if (!Number.isFinite(freezeThreshold) || freezeThreshold <= 0) {
+      const freezeThreshold = Number(lineFreezeThreshold);
+      if (
+        !/^\d+(\.\d{1,2})?$/.test(lineFreezeThreshold) ||
+        !Number.isFinite(freezeThreshold) ||
+        freezeThreshold <= 0
+      ) {
         throw new Error('最高可贏金額必須大於 0');
       }
       if (pathSource === 'GENERATED') {
@@ -181,14 +190,21 @@ export function ManualDetectionControlModal({
       onDone();
       onClose();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : extractApiError(e).message);
+      setErr(extractApiError(e).message);
     } finally {
-      setBusy(false);
+      endAction();
     }
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="新增路徑控制" subtitle="本金路徑控制" width="md">
+    <Modal
+      busy={busy}
+      open={open}
+      onClose={onClose}
+      title="新增路徑控制"
+      subtitle="本金路徑控制"
+      width="md"
+    >
       <div className="space-y-4">
         <label className="block">
           <div className="label mb-2">控制範圍</div>
@@ -320,7 +336,12 @@ export function ManualDetectionControlModal({
         ) : null}
 
         <div className="flex items-center gap-2 pt-2">
-          <button type="button" onClick={() => void submit()} disabled={busy} className="btn-acid">
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={busy || (pathSource === 'GENERATED' && generatedSteps.length !== stageCount)}
+            className="btn-acid"
+          >
             {busy ? '建立中…' : '建立路徑控制'}
           </button>
           <button type="button" onClick={onClose} disabled={busy} className="btn-teal-outline">

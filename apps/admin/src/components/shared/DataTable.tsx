@@ -26,12 +26,8 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick }: Props
               {columns.map((c) => (
                 <th
                   key={c.key}
-                  className={`whitespace-nowrap px-4 py-3 font-mono text-[10px] uppercase tracking-[0.18em] text-[#186073] sm:tracking-[0.24em] ${
-                    c.align === 'right'
-                      ? 'text-right'
-                      : c.align === 'center'
-                        ? 'text-center'
-                        : ''
+                  className={`${c.key === 'ops' || c.key === 'actions' ? 'sticky right-0 z-20 bg-[#F5F7FA]' : ''} whitespace-nowrap px-4 py-3 font-mono text-[10px] uppercase tracking-[0.18em] text-[#186073] sm:tracking-[0.24em] ${
+                    c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''
                   }`}
                   style={c.width ? { width: c.width } : undefined}
                 >
@@ -72,12 +68,8 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick }: Props
                 {columns.map((c) => (
                   <td
                     key={c.key}
-                    className={`px-4 py-3 align-middle ${
-                      c.align === 'right'
-                        ? 'text-right'
-                        : c.align === 'center'
-                          ? 'text-center'
-                          : ''
+                    className={`${c.key === 'ops' || c.key === 'actions' ? 'sticky right-0 z-10 bg-white shadow-[-4px_0_8px_rgba(15,23,42,0.06)]' : ''} px-4 py-3 align-middle ${
+                      c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''
                     }`}
                   >
                     {c.render(r)}

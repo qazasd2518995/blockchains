@@ -12447,8 +12447,8 @@
     },
     {
       "path": "assets/resources/import/3e/3e8965eb-cf9e-4542-b1f5-93891a50a8c9.json",
-      "bytes": 5183,
-      "sha256": "6b162efa6b083a0c947ebf8900cc334d728082264343a030846353332e75f202"
+      "bytes": 5181,
+      "sha256": "f82fb34d93611c5d431dd9cb3d9d59b561683be5da626b5ffbde13462cacd840"
     },
     {
       "path": "assets/resources/import/45/459ab307-ecdc-45d1-8801-f32e2c814063@f9941.json",
@@ -12602,8 +12602,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 5392,
-      "sha256": "e1be5b50cffa289a12a0203ec47c00877d50bbff749ed80894069899c7261597"
+      "bytes": 5399,
+      "sha256": "5db7f7dbb2b4cd8a44e22e1b9e6b4317c5d4c0955001ae0e09fdba76143f8c76"
     },
     {
       "path": "index.js",

@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useActionLock } from '@/hooks/useActionLock';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { Modal } from './Modal';
-import {
-  type RebateMode,
-  fractionToPctStr,
-  rebateFractionForMode,
-} from '@/lib/rebate';
+import { type RebateMode, fractionToPctStr, rebateFractionForMode } from '@/lib/rebate';
 
 interface Props {
   open: boolean;
@@ -29,12 +26,18 @@ const rebateModeLabel: Record<RebateMode, string> = {
   NONE: '全退下级',
 };
 
-export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDone }: Props): JSX.Element {
+export function RebateSettingModal({
+  open,
+  onClose,
+  agentId,
+  agentUsername,
+  onDone,
+}: Props): JSX.Element {
   const [detail, setDetail] = useState<AgentDetail | null>(null);
   const [electronicMode, setElectronicMode] = useState<RebateMode>('PERCENTAGE');
   const [electronicPctDisplay, setElectronicPctDisplay] = useState('0.00');
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, beginAction, endAction] = useActionLock();
 
   useEffect(() => {
     if (!open) return;
@@ -72,7 +75,7 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
       }
     }
 
-    setBusy(true);
+    if (!beginAction()) return;
     setErr(null);
     try {
       await adminApi.put(`/agents/${agentId}/rebate`, {
@@ -88,12 +91,19 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
     } catch (e) {
       setErr(extractApiError(e).message);
     } finally {
-      setBusy(false);
+      endAction();
     }
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="退水设定" subtitle={`Agent · ${agentUsername}`} width="md">
+    <Modal
+      busy={busy}
+      open={open}
+      onClose={onClose}
+      title="退水设定"
+      subtitle={`Agent · ${agentUsername}`}
+      width="md"
+    >
       <div className="space-y-4">
         <RebateSection
           title="电子退水"

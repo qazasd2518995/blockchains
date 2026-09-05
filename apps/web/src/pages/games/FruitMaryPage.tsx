@@ -35,6 +35,7 @@ export function FruitMaryPage() {
   const automaticRecoveryAttemptsRef = useRef(0);
   const settlementPendingRef = useRef(false);
   const pendingExitRef = useRef(false);
+  const pendingRecoveryRef = useRef<{ reason: string; force: boolean } | null>(null);
 
   const clearReadyTimer = useCallback(() => {
     if (readyTimerRef.current === null) return;
@@ -76,6 +77,11 @@ export function FruitMaryPage() {
 
   const requestIframeRecovery = useCallback(
     (reason: string, force = false) => {
+      if (settlementPendingRef.current) {
+        pendingRecoveryRef.current = { reason, force };
+        setError('本輪正在結算，完成後會自動重新建立畫面。');
+        return;
+      }
       if (recoveryPendingRef.current) return;
       if (!force && automaticRecoveryAttemptsRef.current >= 1) {
         clearRecoveryStabilityTimer();
@@ -121,8 +127,8 @@ export function FruitMaryPage() {
       room_id: '1',
       window_type: 'web',
       build: isQmoneyRealm
-        ? 'qmoney-fruit-mary-v7-balance-guard'
-        : 'yachiyo-fruit-mary-v7-balance-guard',
+        ? 'qmoney-fruit-mary-v8-settlement-review'
+        : 'yachiyo-fruit-mary-v8-settlement-review',
     });
     return `${GAME_PATH}?${query.toString()}`;
   }, []);
@@ -148,12 +154,11 @@ export function FruitMaryPage() {
         refreshToken?: unknown;
       };
       if (payload.type === 'fruit-mary:ready') {
-        settlementPendingRef.current = false;
         recordGameLoadMilestone('fruit-mary', 'session-ready');
         clearReadyTimer();
         if (automaticRecoveryAttemptsRef.current > 0) armRecoveryStabilityTimer();
         setRecoveryReason('');
-        setError('');
+        if (!settlementPendingRef.current) setError('');
       }
       if (payload.type === 'fruit-mary:exit') {
         if (settlementPendingRef.current) {
@@ -166,9 +171,16 @@ export function FruitMaryPage() {
       }
       if (payload.type === 'fruit-mary:busy') {
         settlementPendingRef.current = Boolean((payload as { busy?: unknown }).busy);
+        if (settlementPendingRef.current) setError('');
         if (!settlementPendingRef.current && pendingExitRef.current) {
           pendingExitRef.current = false;
           returnFromGame(navigate, returnTarget.to);
+          return;
+        }
+        if (!settlementPendingRef.current && pendingRecoveryRef.current) {
+          const recovery = pendingRecoveryRef.current;
+          pendingRecoveryRef.current = null;
+          requestIframeRecovery(recovery.reason, recovery.force);
         }
       }
       if (payload.type === 'fruit-mary:visual-ready') {

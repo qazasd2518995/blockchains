@@ -12,6 +12,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
 import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { GameHeader } from '@/components/game/GameHeader';
+import { UnfinishedRoundExitGuard } from '@/components/game/UnfinishedRoundExitGuard';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { HiLoScene } from '@/games/hilo/HiLoScene';
@@ -228,6 +229,7 @@ export function HiLoPage() {
 
   return (
     <div>
+      <UnfinishedRoundExitGuard active={busy || round?.status === 'ACTIVE'} />
       <GameHeader
         artwork="/game-art/hilo/background.png"
         section="§ GAME 03"

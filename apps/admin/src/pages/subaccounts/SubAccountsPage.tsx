@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useActionLock } from '@/hooks/useActionLock';
+import { canWriteAdmin } from '@/lib/adminPermissions';
 import { createPortal } from 'react-dom';
 import type { AgentPublic, SubAccountListResponse } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
@@ -6,7 +8,10 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { CreateSubAccountModal } from '@/components/shared/CreateSubAccountModal';
 import { Modal } from '@/components/shared/Modal';
-import { AccountSearchSelect, type AccountSearchOption } from '@/components/shared/AccountSearchSelect';
+import {
+  AccountSearchSelect,
+  type AccountSearchOption,
+} from '@/components/shared/AccountSearchSelect';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useAdminLiveRefresh } from '@/hooks/useAdminLiveRefresh';
@@ -16,6 +21,8 @@ const MAX_SUB_ACCOUNTS_PER_AGENT = 5;
 export function SubAccountsPage(): JSX.Element {
   const { t } = useTranslation();
   const { agent } = useAdminAuthStore();
+  const canWrite = canWriteAdmin(agent);
+  const [statusBusy, beginStatus, endStatus] = useActionLock();
   const [items, setItems] = useState<AgentPublic[]>([]);
   const [parentUsername, setParentUsername] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,20 +31,24 @@ export function SubAccountsPage(): JSX.Element {
   const [openCreate, setOpenCreate] = useState(false);
   const [targetParentId, setTargetParentId] = useState<string>('');
   const [targetAgent, setTargetAgent] = useState<AccountSearchOption | null>(null);
+  const initializedOperator = useRef<string | null>(null);
   const [resetFor, setResetFor] = useState<AgentPublic | null>(null);
   useAdminLiveRefresh(() => setReloadKey((k) => k + 1));
 
   const isSuperAdmin = agent?.role === 'SUPER_ADMIN';
   const isSubAccount = agent?.role === 'SUB_ACCOUNT';
-  const selectedParentId = isSuperAdmin ? targetParentId || agent?.id || '' : undefined;
-  const fallbackParentLabel = isSuperAdmin ? targetAgent?.username || agent?.username || null : agent?.username ?? null;
+  const selectedParentId = isSuperAdmin ? targetParentId : undefined;
+  const fallbackParentLabel = isSuperAdmin
+    ? (targetAgent?.username ?? null)
+    : (agent?.username ?? null);
   const selectedParentLabel = parentUsername ?? fallbackParentLabel;
   const isAtLimit = items.length >= MAX_SUB_ACCOUNTS_PER_AGENT;
 
   useEffect(() => {
-    if (!isSuperAdmin || !agent) return;
-    setTargetParentId((current) => current || agent.id);
-    setTargetAgent((current) => current ?? agentToSearchOption(agent));
+    if (!isSuperAdmin || !agent || initializedOperator.current === agent.id) return;
+    initializedOperator.current = agent.id;
+    setTargetParentId(agent.id);
+    setTargetAgent(agentToSearchOption(agent));
   }, [agent, isSuperAdmin]);
 
   useEffect(() => {
@@ -75,6 +86,9 @@ export function SubAccountsPage(): JSX.Element {
     setError(null);
     if (!next) {
       setTargetAgent(null);
+      setTargetParentId('');
+      setParentUsername(null);
+      setItems([]);
       return;
     }
     setParentUsername(null);
@@ -86,12 +100,17 @@ export function SubAccountsPage(): JSX.Element {
   const handleStatus = async (row: AgentPublic, next: 'ACTIVE' | 'FROZEN' | 'DISABLED') => {
     if (next === 'ACTIVE' && !confirm(`确定启用子账号 ${row.username}？`)) return;
     if (next === 'FROZEN' && !confirm(`确定冻结子账号 ${row.username}？`)) return;
-    if (next === 'DISABLED' && !confirm(`确定停用子账号 ${row.username}？停用后将无法登入。`)) return;
+    if (next === 'DISABLED' && !confirm(`确定停用子账号 ${row.username}？停用后将无法登入。`))
+      return;
+    if (!canWrite || !beginStatus()) return;
+    setError(null);
     try {
       await adminApi.patch(`/subaccounts/${row.id}/status`, { status: next });
       setReloadKey((k) => k + 1);
     } catch (e) {
       setError(extractApiError(e).message);
+    } finally {
+      endStatus();
     }
   };
 
@@ -147,7 +166,7 @@ export function SubAccountsPage(): JSX.Element {
         label: t.common.actions,
         align: 'right',
         render: (r) =>
-          isSubAccount ? (
+          !canWrite ? (
             <span className="text-[10px] text-ink-400">— 只读 —</span>
           ) : (
             <div className="flex flex-wrap items-center justify-end gap-1.5">
@@ -155,20 +174,20 @@ export function SubAccountsPage(): JSX.Element {
                 type="button"
                 onClick={() => setResetFor(r)}
                 className="btn-chip"
-                disabled={r.status === 'DELETED'}
+                disabled={statusBusy || r.status === 'DELETED'}
               >
                 重设密码
               </button>
               <StatusToggle
                 current={r.status}
                 onChange={(next) => handleStatus(r, next)}
-                disabled={r.status === 'DELETED'}
+                disabled={statusBusy || r.status === 'DELETED'}
               />
             </div>
           ),
       },
     ],
-    [t, isSubAccount],
+    [t, canWrite, statusBusy],
   );
 
   return (
@@ -181,7 +200,7 @@ export function SubAccountsPage(): JSX.Element {
         titleSuffixColor="amber"
         description="子账号可以查看该代理线下的报表、注单、会员列表，但无法执行任何管理操作。"
         rightSlot={
-          !isSubAccount && (
+          canWrite && (
             <div className="flex flex-wrap items-center justify-end gap-2">
               <span className="rounded-full border border-white/18 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white/82">
                 {items.length}/{MAX_SUB_ACCOUNTS_PER_AGENT}
@@ -231,7 +250,9 @@ export function SubAccountsPage(): JSX.Element {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             当前代理：
-            <span className="ml-1 font-mono font-semibold text-[#186073]">{selectedParentLabel ?? '—'}</span>
+            <span className="ml-1 font-mono font-semibold text-[#186073]">
+              {selectedParentLabel ?? '—'}
+            </span>
           </div>
           <div>
             子账号数量：
@@ -241,7 +262,8 @@ export function SubAccountsPage(): JSX.Element {
           </div>
         </div>
         <div className="mt-2 text-[11px] text-ink-500">
-          每个代理最多可以创建 {MAX_SUB_ACCOUNTS_PER_AGENT} 个子账号。子账号只读，不提供删除功能，可停用或重设密码。
+          每个代理最多可以创建 {MAX_SUB_ACCOUNTS_PER_AGENT}{' '}
+          个子账号。子账号只读，不提供删除功能，可停用或重设密码。
         </div>
         {isAtLimit && !isSubAccount && (
           <div className="mt-2 text-[11px] font-semibold text-[#D4574A]">
@@ -310,7 +332,7 @@ function ResetSubAccountPasswordModal({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, beginAction, endAction] = useActionLock();
 
   const submit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
@@ -322,7 +344,7 @@ function ResetSubAccountPasswordModal({
       setLocalError('两次输入的密码不一致。');
       return;
     }
-    setBusy(true);
+    if (!beginAction()) return;
     setLocalError(null);
     try {
       await adminApi.post(`/subaccounts/${target.id}/reset-password`, { newPassword: password });
@@ -330,12 +352,19 @@ function ResetSubAccountPasswordModal({
     } catch (e) {
       onError(extractApiError(e).message);
     } finally {
-      setBusy(false);
+      endAction();
     }
   };
 
   return (
-    <Modal open onClose={onClose} title="重设密码" subtitle={`子账号 · ${target.username}`} width="sm">
+    <Modal
+      busy={busy}
+      open
+      onClose={onClose}
+      title="重设密码"
+      subtitle={`子账号 · ${target.username}`}
+      width="sm"
+    >
       <form onSubmit={submit} className="space-y-4">
         <div className="border border-[#D4AF37]/35 bg-[#FFF8DA] px-3 py-2 text-[12px] text-ink-700">
           重设后原有登入凭证会失效，子账号需要使用新密码重新登入。
@@ -433,36 +462,38 @@ function StatusToggle({
       >
         状态 ▾
       </button>
-      {open && menuRect && createPortal(
-        <>
-          <div className="fixed inset-0 z-[1200]" onClick={() => setOpen(false)} />
-          <div
-            className="fixed z-[1201] w-28 border border-ink-200 bg-white shadow-lg"
-            style={{ top: menuRect.top, left: menuRect.left }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            {options.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                disabled={o.value === current}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpen(false);
-                  onChange(o.value);
-                }}
-                className={`block w-full px-3 py-2 text-left text-[11px] font-mono transition hover:bg-[#F3E5AE]/50 ${o.style} ${
-                  o.value === current ? 'opacity-40' : ''
-                }`}
-              >
-                {o.label}
-                {o.value === current && <span className="ml-2 text-[9px]">✓</span>}
-              </button>
-            ))}
-          </div>
-        </>,
-        document.body,
-      )}
+      {open &&
+        menuRect &&
+        createPortal(
+          <>
+            <div className="fixed inset-0 z-[1200]" onClick={() => setOpen(false)} />
+            <div
+              className="fixed z-[1201] w-28 border border-ink-200 bg-white shadow-lg"
+              style={{ top: menuRect.top, left: menuRect.left }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              {options.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  disabled={o.value === current}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpen(false);
+                    onChange(o.value);
+                  }}
+                  className={`block w-full px-3 py-2 text-left text-[11px] font-mono transition hover:bg-[#F3E5AE]/50 ${o.style} ${
+                    o.value === current ? 'opacity-40' : ''
+                  }`}
+                >
+                  {o.label}
+                  {o.value === current && <span className="ml-2 text-[9px]">✓</span>}
+                </button>
+              ))}
+            </div>
+          </>,
+          document.body,
+        )}
     </>
   );
 }

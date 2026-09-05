@@ -33,6 +33,9 @@
   var sourceReadyAt = 0;
   var fruitMaryAuthoritativeBalance = null;
   var pendingFruitMarySettlement = null;
+  var fruitMaryGambleAnimating = false;
+  var fruitMarySpinAnimating = false;
+  var fruitMaryCollecting = false;
 
   function parentStorage() {
     try {
@@ -175,10 +178,15 @@
     var auth = readAuth();
     if (!auth.refreshToken) return Promise.reject(new Error('登入已過期，請回到大廳重新登入'));
     var attemptedRefreshToken = auth.refreshToken;
+    var controller = typeof AbortController === 'function' ? new AbortController() : null;
+    var timeout = window.setTimeout(function () {
+      if (controller) controller.abort();
+    }, requestTimeoutMs);
     refreshInFlight = fetch(apiBase + '/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: attemptedRefreshToken }),
+      signal: controller ? controller.signal : undefined,
     })
       .then(function (response) {
         return response.json().then(function (body) {
@@ -198,6 +206,7 @@
         });
       })
       .finally(function () {
+        window.clearTimeout(timeout);
         refreshInFlight = null;
       });
     return refreshInFlight;
@@ -233,7 +242,12 @@
         });
       }
       return response.json().then(function (payload) {
-        if (!response.ok) throw new Error(payload.message || payload.error || '遊戲伺服器拒絕請求');
+        if (!response.ok) {
+          var requestError = new Error(payload.message || payload.error || '遊戲伺服器拒絕請求');
+          requestError.status = response.status;
+          requestError.code = payload.code || payload.error;
+          throw requestError;
+        }
         return payload;
       });
     }).catch(function (error) {
@@ -291,6 +305,65 @@
       return { method: 'POST', url: gameApi + '/disabled' };
     }
     return null;
+  }
+
+  function settlementRequestBody(body) {
+    var request = parseFruitMaryRequestBody(body);
+    if (!request.operationId) {
+      var crypto = window.crypto;
+      if (crypto && typeof crypto.randomUUID === 'function') {
+        request.operationId = crypto.randomUUID();
+      } else if (crypto && typeof crypto.getRandomValues === 'function') {
+        var bytes = crypto.getRandomValues(new Uint8Array(16));
+        bytes[6] = (bytes[6] & 15) | 64;
+        bytes[8] = (bytes[8] & 63) | 128;
+        request.operationId = Array.from(bytes, function (byte, index) {
+          return ([4, 6, 8, 10].indexOf(index) >= 0 ? '-' : '')
+            + byte.toString(16).padStart(2, '0');
+        }).join('');
+      }
+    }
+    return JSON.stringify(request);
+  }
+
+  function requestFruitMarySettlement(route, body) {
+    var operationId = parseFruitMaryRequestBody(body).operationId;
+    var url = operationId ? route.url.replace(/\/(spin|gamble)$/, '/operations/$1') : route.url;
+    return authorizedRequest(url, route.method, body, false, true).catch(function (error) {
+      // Never repeat a money request with a new ID. If the first response was
+      // lost after commit, the server returns the original receipt, not a new bet.
+      if (!operationId || (error.status && error.status < 500)) {
+        throw error;
+      }
+      return authorizedRequest(url, route.method, body, false, true);
+    });
+  }
+
+  function refreshFruitMaryWalletAfterFailure() {
+    return authorizedRequest(gameApi + '/session', 'GET', null, false, false).then(function (payload) {
+      var info = payload && payload.data && payload.data.info;
+      if (!info || !Number.isFinite(Number(info.gold))) return;
+      fruitMaryAuthoritativeBalance = normalizeFruitMaryBalance(info.gold);
+      var canvas = window.cc && window.cc.find && window.cc.find('Canvas');
+      var menu = canvas && canvas.getComponent('MenuLogic');
+      if (menu) {
+        var currentRound = Math.min(
+          safeAllocationNumber(numberBox(menu.shuzibenlun).getNum()),
+          Math.floor(fruitMaryAuthoritativeBalance),
+        );
+        pendingFruitMarySettlement = { balance: fruitMaryAuthoritativeBalance, currentRound: currentRound };
+        reconcilePendingFruitMaryBalance(menu);
+        if (currentRound === 0) {
+          if (!fruitMaryBetIsAffordable(menu, false) && typeof menu.initNum === 'function') menu.initNum();
+          if (typeof menu.getAllPut === 'function') menu.getAllPut();
+          var play = canvas.getComponent('PlayLogic');
+          if (menu._kaishiBiDdaxiao_bool && play && typeof play.restart === 'function') play.restart();
+        }
+      }
+      notifyParent('fruit-mary:balance', { balance: fruitMaryAuthoritativeBalance });
+    }).catch(function () {
+      // Preserve the last confirmed wallet if even the read-only sync is offline.
+    });
   }
 
   function BridgeXHR() {
@@ -354,11 +427,16 @@
       return;
     }
     var ownsSettlement = route.kind === 'settlement';
+    var settlementFailed = false;
     if (ownsSettlement) {
+      body = settlementRequestBody(body);
       settlementInFlight = true;
       notifyParent('fruit-mary:busy', { busy: true });
     }
-    authorizedRequest(route.url, route.method, body, false, ownsSettlement)
+    var request = ownsSettlement
+      ? requestFruitMarySettlement(route, body)
+      : authorizedRequest(route.url, route.method, body, false, false);
+    request
       .then(function (payload) {
         if (route.kind === 'room' && payload.data) {
           updateFruitMaryBetLimits(payload.data);
@@ -382,14 +460,20 @@
         bridge._complete(payload);
       })
       .catch(function (error) {
+        settlementFailed = ownsSettlement;
         var message = error && error.message ? error.message : '遊戲伺服器連線失敗';
-        recoverFruitMaryRequestState();
         notifyParent('fruit-mary:error', { message: message });
-        bridge._complete({ code: 0, msg: message, message: message });
+        return (ownsSettlement ? refreshFruitMaryWalletAfterFailure() : Promise.resolve()).then(function () {
+          bridge._complete({ code: 0, msg: message, message: message });
+        });
       })
       .finally(function () {
         if (ownsSettlement) {
           settlementInFlight = false;
+          if (settlementFailed) {
+            fruitMaryGambleAnimating = false;
+            recoverFruitMaryRequestState();
+          }
           notifyParent('fruit-mary:busy', { busy: false });
         }
       });
@@ -499,8 +583,16 @@
       var canvas = window.cc.find('Canvas');
       var playLogic = canvas && canvas.getComponent && canvas.getComponent('PlayLogic');
       var menuLogic = canvas && canvas.getComponent && canvas.getComponent('MenuLogic');
-      if (playLogic && playLogic._playing) return false;
-      if (menuLogic && typeof menuLogic.initButton === 'function') menuLogic.initButton();
+      if (settlementInFlight || fruitMaryGambleAnimating || fruitMaryCollecting) return false;
+      if (menuLogic && typeof menuLogic.clickCancelAuto === 'function') menuLogic.clickCancelAuto();
+      // A completed winning spin deliberately keeps PlayLogic._playing true
+      // while the player chooses collect / gamble. Restore that choice after
+      // a rejected gamble instead of locking the cabinet or discarding its win.
+      if (menuLogic && numberBox(menuLogic.shuzibenlun) &&
+          Number(numberBox(menuLogic.shuzibenlun).getNum()) > 0) {
+        if (typeof menuLogic.setBidaxiao === 'function') menuLogic.setBidaxiao();
+      } else if ((!playLogic || !playLogic._playing) && menuLogic &&
+          typeof menuLogic.initButton === 'function') menuLogic.initButton();
       return true;
     } catch (_error) {
       return false;
@@ -544,20 +636,20 @@
   }
 
   function normalizeFruitMaryAllocation(currentRound, balance, requestedRound) {
-    var current = safeAllocationNumber(currentRound);
-    var availableBalance = safeAllocationNumber(balance);
-    var total = current + availableBalance;
-    var requested = Math.min(total, safeAllocationNumber(requestedRound));
+    var total = normalizeFruitMaryBalance(
+      normalizeFruitMaryBalance(currentRound) + normalizeFruitMaryBalance(balance),
+    );
+    var requested = Math.min(Math.floor(total), safeAllocationNumber(requestedRound));
     return {
       currentRound: requested,
-      balance: total - requested,
+      balance: normalizeFruitMaryBalance(total - requested),
       total: total,
     };
   }
 
   function adjustFruitMaryAllocation(currentRound, balance, direction, step) {
     var current = safeAllocationNumber(currentRound);
-    var availableBalance = safeAllocationNumber(balance);
+    var availableBalance = normalizeFruitMaryBalance(balance);
     var transfer = Math.max(1, safeAllocationNumber(step));
     var requested = direction === 'to-balance' ? current - transfer : current + transfer;
     return normalizeFruitMaryAllocation(current, availableBalance, requested);
@@ -623,7 +715,7 @@
     if (!currentBox || !balanceBox) return false;
     var settlement = pendingFruitMarySettlement;
     var currentRound = Math.min(settlement.balance, settlement.currentRound);
-    var availableBalance = settlement.balance - currentRound;
+    var availableBalance = normalizeFruitMaryBalance(settlement.balance - currentRound);
     currentBox.setNum(String(currentRound));
     balanceBox.setNum(String(availableBalance));
     if (window.cc && window.cc.vv && window.cc.vv.UserInfo) {
@@ -761,11 +853,8 @@
   }
 
   function openAllocationEditor(menuLogic) {
+    if (settlementInFlight || fruitMaryGambleAnimating || fruitMaryCollecting) return false;
     if (!menuLogic || !menuLogic._kaishiBiDdaxiao_bool) return false;
-    var playLogic = menuLogic.node && menuLogic.node.getComponent
-      ? menuLogic.node.getComponent('PlayLogic')
-      : null;
-    if (playLogic && playLogic._playing) return false;
     var allocation = readAllocation(menuLogic);
     if (!allocation) return false;
 
@@ -920,18 +1009,71 @@
       }
     }
 
+    // The archived session callback uses parseInt(gold). Restore the precise
+    // wallet amount before its updateData renders the cabinet, not just after
+    // the next successful wager.
+    if (typeof menuLogic.updateData === 'function') {
+      var originalUpdateData = menuLogic.updateData;
+      menuLogic.updateData = function () {
+        if (fruitMaryAuthoritativeBalance !== null && window.cc.vv.UserInfo) {
+          var currentRound = Number(numberBox(this.shuzibenlun).getNum()) || 0;
+          window.cc.vv.UserInfo.balance = normalizeFruitMaryBalance(
+            fruitMaryAuthoritativeBalance - currentRound,
+          );
+        }
+        var result = originalUpdateData.apply(this, arguments);
+        if (typeof this.updateYue === 'function') this.updateYue();
+        return result;
+      };
+    }
+    if (typeof menuLogic.updateYue === 'function') {
+      menuLogic.updateYue = function () {
+        var user = window.cc.vv.UserInfo;
+        numberBox(this.shuziyue).setNum(String(normalizeFruitMaryBalance(
+          user.balance - (Number(user.allPut_int) || 0),
+        )));
+      };
+    }
+    var roundBox = numberBox(menuLogic.shuzibenlun);
+    if (roundBox && typeof roundBox.jianDao0 === 'function') {
+      var originalCollect = roundBox.jianDao0;
+      roundBox.jianDao0 = function (steps, done) {
+        if (fruitMaryCollecting) return undefined;
+        fruitMaryCollecting = true;
+        if (typeof menuLogic.setAllNo === 'function') menuLogic.setAllNo();
+        return originalCollect.call(this, steps, function () {
+          fruitMaryCollecting = false;
+          if (fruitMaryAuthoritativeBalance !== null && window.cc.vv.UserInfo) {
+            window.cc.vv.UserInfo.balance = fruitMaryAuthoritativeBalance;
+          }
+          if (typeof done === 'function') done.apply(this, arguments);
+          if (!menuLogic.isAutoPut_bool && typeof menuLogic.initButton === 'function') {
+            menuLogic.initButton();
+          }
+        });
+      };
+    }
+
     if (typeof menuLogic.initButton === 'function') {
       var originalInitButton = menuLogic.initButton;
       menuLogic.initButton = function () {
+        if (settlementInFlight || fruitMarySpinAnimating || fruitMaryGambleAnimating || fruitMaryCollecting) {
+          if (typeof this.setAllNo === 'function') this.setAllNo();
+          return undefined;
+        }
         var result = originalInitButton.apply(this, arguments);
         reconcilePendingFruitMaryBalance(this);
-        if (settlementInFlight && typeof this.setAllNo === 'function') this.setAllNo();
         return result;
       };
     }
     if (typeof menuLogic.setBidaxiao === 'function') {
       var originalSetBidaxiao = menuLogic.setBidaxiao;
       menuLogic.setBidaxiao = function () {
+        if (settlementInFlight || fruitMaryCollecting) {
+          if (typeof this.setAllNo === 'function') this.setAllNo();
+          return undefined;
+        }
+        fruitMaryGambleAnimating = false;
         var result = originalSetBidaxiao.apply(this, arguments);
         reconcilePendingFruitMaryBalance(this);
         return result;
@@ -942,6 +1084,13 @@
     if (typeof originalClickKaishi === 'function') {
       menuLogic.clickKaishi = function () {
         var collectingWin = Boolean(this._kaishiBiDdaxiao_bool);
+        if (settlementInFlight || fruitMaryCollecting) return undefined;
+        // Only the original losing-gamble completion may collect its zero
+        // result; manual collection cannot race a pending winning animation.
+        if (fruitMaryGambleAnimating) {
+          if (!collectingWin || Number(numberBox(this.shuzibenlun).getNum()) !== 0) return undefined;
+          fruitMaryGambleAnimating = false;
+        }
         var playLogic = this.node && this.node.getComponent
           ? this.node.getComponent('PlayLogic')
           : null;
@@ -967,8 +1116,26 @@
     }
 
     var originalClickCancelAuto = menuLogic.clickCancelAuto;
+    var autoplayGeneration = 0;
+    if (typeof menuLogic.scheduleOnce === 'function') {
+      var originalScheduleOnce = menuLogic.scheduleOnce;
+      menuLogic.scheduleOnce = function (callback, delay) {
+        // The two autoplay continuations use 0.5 s. Do not cancel unrelated
+        // delayed recovery/exit work, or a gamble animation's completion.
+        var scheduledForAutoplay = Boolean(this.isAutoPut_bool) && delay === 0.5 && !fruitMaryGambleAnimating;
+        var generation = autoplayGeneration;
+        var component = this;
+        return originalScheduleOnce.call(this, function () {
+          // The source queues the next paid spin in an anonymous callback.
+          // unschedule(clickKaishi) cannot cancel that callback after Stop.
+          if (scheduledForAutoplay && (!component.isAutoPut_bool || generation !== autoplayGeneration)) return;
+          return callback.apply(this, arguments);
+        }, delay);
+      };
+    }
     if (typeof originalClickCancelAuto === 'function') {
       menuLogic.clickCancelAuto = function () {
+        autoplayGeneration += 1;
         this.isAutoPut_bool = false;
         if (typeof this.unschedule === 'function') {
           this.unschedule(this.clickKaishi);
@@ -984,6 +1151,8 @@
     var originalBetIncrement = menuLogic.kaishi;
     if (typeof originalBetIncrement === 'function') {
       menuLogic.kaishi = function () {
+        if (settlementInFlight || fruitMarySpinAnimating || fruitMaryGambleAnimating ||
+            fruitMaryCollecting || this._kaishiBiDdaxiao_bool) return undefined;
         var snapshot = fruitMaryBetSnapshot(this);
         var result = originalBetIncrement.apply(this, arguments);
         if (fruitMaryBetUnits(this, false) * fruitMaryDenomination > fruitMaryMaximumBet) {
@@ -1006,6 +1175,8 @@
     var originalClickDaOrXiao = menuLogic.clickDaOrXiao;
     if (typeof originalClickDaOrXiao === 'function') {
       menuLogic.clickDaOrXiao = function () {
+        if (!this._kaishiBiDdaxiao_bool || settlementInFlight ||
+            fruitMaryGambleAnimating || fruitMaryCollecting) return undefined;
         var allocation = readAllocation(this);
         if (!allocation || allocation.currentRound < fruitMaryMinimumBet) {
           showFruitMaryLimitMessage();
@@ -1014,7 +1185,23 @@
         if (allocation.currentRound > fruitMaryMaximumGambleAmount()) {
           writeAllocation(this, fruitMaryMaximumGambleAmount());
         }
-        return originalClickDaOrXiao.apply(this, arguments);
+        fruitMaryGambleAnimating = true;
+        try {
+          return originalClickDaOrXiao.apply(this, arguments);
+        } catch (error) {
+          fruitMaryGambleAnimating = false;
+          recoverFruitMaryRequestState();
+          throw error;
+        }
+      };
+    }
+
+    if (typeof menuLogic.clickAllClear === 'function') {
+      var originalClearBets = menuLogic.clickAllClear;
+      menuLogic.clickAllClear = function () {
+        if (settlementInFlight || fruitMarySpinAnimating || fruitMaryGambleAnimating ||
+            fruitMaryCollecting || this._kaishiBiDdaxiao_bool) return undefined;
+        return originalClearBets.apply(this, arguments);
       };
     }
 
@@ -1038,6 +1225,8 @@
     }
 
     menuLogic.clickZuo = function () {
+      if (!this._kaishiBiDdaxiao_bool || settlementInFlight ||
+          fruitMaryGambleAnimating || fruitMaryCollecting) return;
       var allocation = readAllocation(this);
       if (!allocation) return;
       var next = adjustFruitMaryAllocation(
@@ -1065,6 +1254,8 @@
     };
 
     menuLogic.clickYou = function () {
+      if (!this._kaishiBiDdaxiao_bool || settlementInFlight ||
+          fruitMaryGambleAnimating || fruitMaryCollecting) return;
       var allocation = readAllocation(this);
       if (!allocation) return;
       var next = adjustFruitMaryAllocation(
@@ -1090,6 +1281,10 @@
     registerEditorTarget(menuLogic.shuzibenlun);
     registerEditorTarget(menuLogic.shuziyue);
     menuLogic.__yachiyoAllocationControls = true;
+    // Cached assets can finish the session before the 100 ms installer runs.
+    if (fruitMaryAuthoritativeBalance !== null && typeof menuLogic.updateData === 'function') {
+      menuLogic.updateData();
+    }
     return true;
   }
 
@@ -1137,6 +1332,7 @@
       playLogic.play = function (type, positions, isWin, done) {
         if (this._playing) return originalPlay.call(this, type, positions, isWin, done);
         var component = this;
+        fruitMarySpinAnimating = true;
         var completed = false;
         if (component.__yachiyoAnimationTimer) {
           window.clearTimeout(component.__yachiyoAnimationTimer);
@@ -1144,6 +1340,7 @@
         function finish() {
           if (completed) return;
           completed = true;
+          fruitMarySpinAnimating = false;
           if (component.__yachiyoAnimationTimer) {
             window.clearTimeout(component.__yachiyoAnimationTimer);
             component.__yachiyoAnimationTimer = null;
@@ -1268,7 +1465,8 @@
       if (startNode.active === autoplay) changed = true;
       startNode.active = !autoplay;
       startNode.opacity = 255;
-      menuLogic.startBt.interactable = !settlementInFlight && !autoplay;
+      menuLogic.startBt.interactable = !settlementInFlight && !fruitMarySpinAnimating &&
+        !fruitMaryGambleAnimating && !fruitMaryCollecting && !autoplay;
     }
     if (stopNode) {
       if (stopNode.active !== autoplay) changed = true;

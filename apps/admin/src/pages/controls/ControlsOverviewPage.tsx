@@ -1,4 +1,7 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useActionLock } from '@/hooks/useActionLock';
+import { canWriteAdmin } from '@/lib/adminPermissions';
+import { RuleRowActions } from '@/components/shared/RuleRowActions';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import {
   getAdminGameIdListLabel,
@@ -220,6 +223,9 @@ export function ControlsOverviewPage(): JSX.Element {
   const { t, locale } = useTranslation();
   const { agent } = useAdminAuthStore();
   const isSuperAdmin = agent?.role === 'SUPER_ADMIN';
+  const canWrite = canWriteAdmin(agent);
+  const [mutationBusy, beginMutation, endMutation] = useActionLock();
+  const reloadRevision = useRef(0);
   const [allSettlement, setAllSettlement] = useState<SettlementSnapshot | null>(null);
   const [manualActive, setManualActive] = useState<ManualDetectionRow[]>([]);
   const [wl, setWl] = useState<WinLossRow[]>([]);
@@ -247,8 +253,7 @@ export function ControlsOverviewPage(): JSX.Element {
   const [rewardAmount, setRewardAmount] = useState('1000');
   const [rewardMinutes, setRewardMinutes] = useState('15');
   const [rewardBusy, setRewardBusy] = useState(false);
-  const [manualBusyId, setManualBusyId] = useState<string | null>(null);
-  const [manualDeleteConfirmId, setManualDeleteConfirmId] = useState<string | null>(null);
+
   const onlineRewardControls = useMemo(() => dc.filter(isOnlineRewardControl), [dc]);
   const depositControls = useMemo(() => dc.filter((row) => !isOnlineRewardControl(row)), [dc]);
   const manualPathRows = useMemo(
@@ -261,6 +266,7 @@ export function ControlsOverviewPage(): JSX.Element {
   );
 
   const reload = useCallback(async () => {
+    const revision = ++reloadRevision.current;
     try {
       if (!isSuperAdmin) {
         const [manualStatus, deposit, autoBalance, logRes] = await Promise.all([
@@ -269,6 +275,7 @@ export function ControlsOverviewPage(): JSX.Element {
           adminApi.get<AutoBalanceConfig>('/controls/auto-balance/config'),
           adminApi.get<{ items: ControlLogRow[] }>('/controls/logs'),
         ]);
+        if (revision !== reloadRevision.current) return false;
         setManualActive(manualStatus.data.items);
         setAllSettlement(null);
         setWl([]);
@@ -279,7 +286,7 @@ export function ControlsOverviewPage(): JSX.Element {
         setAutoBalanceConfig(autoBalance.data);
         setLogs(logRes.data.items);
         setError(null);
-        return;
+        return true;
       }
 
       const [
@@ -305,6 +312,7 @@ export function ControlsOverviewPage(): JSX.Element {
         adminApi.get<AutoBalanceConfig>('/controls/auto-balance/config'),
         adminApi.get<{ items: ControlLogRow[] }>('/controls/logs'),
       ]);
+      if (revision !== reloadRevision.current) return false;
       setManualActive(manualStatus.data.items);
       setAllSettlement(settlement.data);
       setWl(winLoss.data.items);
@@ -318,10 +326,12 @@ export function ControlsOverviewPage(): JSX.Element {
       setAutoBalanceSecondLineAmount(autoBalance.data.secondLineAmount);
       setLogs(logRes.data.items);
       setError(null);
+      return true;
     } catch (e) {
-      setError(extractApiError(e).message);
+      if (revision === reloadRevision.current) setError(extractApiError(e).message);
+      return false;
     } finally {
-      setLoading(false);
+      if (revision === reloadRevision.current) setLoading(false);
     }
   }, [isSuperAdmin]);
 
@@ -329,84 +339,67 @@ export function ControlsOverviewPage(): JSX.Element {
     void reload();
   }, [reload]);
 
-  const toggleRow = async (
-    kind: 'win-loss' | 'win-cap' | 'deposit' | 'agent-line' | 'burst',
+  const ruleCreated = (): void => {
+    setNotice('規則已建立。');
+    void reload().then((refreshed) => {
+      if (!refreshed) setNotice('規則已建立，但列表更新失敗。請重新整理，不要重複新增。');
+    });
+  };
+
+  type ControlKind =
+    | 'manual-detection'
+    | 'win-loss'
+    | 'win-cap'
+    | 'deposit'
+    | 'agent-line'
+    | 'burst';
+  const mutateRule = async (
+    kind: ControlKind,
     id: string,
-    isActive: boolean,
-  ): Promise<void> => {
-    try {
-      await adminApi.patch(`/controls/${kind}/${id}/toggle`, { isActive: !isActive });
-      await reload();
-    } catch (e) {
-      setError(extractApiError(e).message);
-    }
-  };
-
-  const deleteRow = async (
-    kind: 'win-loss' | 'win-cap' | 'deposit' | 'agent-line' | 'burst',
-    id: string,
-  ): Promise<void> => {
-    if (!window.confirm('确定删除此控制规则？')) return;
-    try {
-      await adminApi.delete(`/controls/${kind}/${id}`);
-      await reload();
-    } catch (e) {
-      setError(extractApiError(e).message);
-    }
-  };
-
-  const deactivateManual = async (id: string): Promise<void> => {
-    setManualDeleteConfirmId(null);
-    setManualBusyId(id);
+    operation: 'enable' | 'disable' | 'delete',
+  ): Promise<boolean> => {
+    if (!canWrite || !beginMutation()) return false;
+    ++reloadRevision.current;
     setError(null);
     setNotice(null);
     try {
-      await adminApi.post('/controls/manual-detection/deactivate', { id });
-      await reload();
-      setNotice('本金路徑已停用；設定仍保留，可隨時重新啟用。');
+      if (operation === 'delete') {
+        await adminApi.delete(`/controls/${kind}/${id}`);
+      } else if (kind === 'manual-detection') {
+        if (operation === 'disable')
+          await adminApi.post('/controls/manual-detection/deactivate', { id });
+        else await adminApi.post(`/controls/manual-detection/${id}/reactivate`);
+      } else {
+        await adminApi.patch(`/controls/${kind}/${id}/toggle`, {
+          isActive: operation === 'enable',
+        });
+      }
+      const update = <T extends { id: string; isActive: boolean }>(rows: T[]): T[] =>
+        operation === 'delete'
+          ? rows.filter((row) => row.id !== id)
+          : rows.map((row) => (row.id === id ? { ...row, isActive: operation === 'enable' } : row));
+      if (kind === 'manual-detection') setManualActive(update);
+      if (kind === 'win-loss') setWl(update);
+      if (kind === 'win-cap') setWc(update);
+      if (kind === 'deposit') setDc(update);
+      if (kind === 'agent-line') setAl(update);
+      if (kind === 'burst') setBc(update);
+      const refreshed = await reload();
+      const message =
+        operation === 'delete'
+          ? '規則已刪除。'
+          : operation === 'disable'
+            ? '規則已停用，設定仍保留。'
+            : '規則已啟用。';
+      setNotice(
+        message + (refreshed ? '' : '列表更新失敗，請重新整理；不要重複送出已完成的操作。'),
+      );
+      return true;
     } catch (e) {
       setError(extractApiError(e).message);
+      return false;
     } finally {
-      setManualBusyId(null);
-    }
-  };
-
-  const reactivateManual = async (id: string): Promise<void> => {
-    setManualDeleteConfirmId(null);
-    setManualBusyId(id);
-    setError(null);
-    setNotice(null);
-    try {
-      await adminApi.post(`/controls/manual-detection/${id}/reactivate`);
-      await reload();
-      setNotice('本金路徑已重新啟用。');
-    } catch (e) {
-      setError(extractApiError(e).message);
-    } finally {
-      setManualBusyId(null);
-    }
-  };
-
-  const confirmManualDelete = (id: string): void => {
-    setError(null);
-    setNotice('請再按一次「確認刪除」永久刪除這筆本金路徑，或按「取消」。');
-    setManualDeleteConfirmId(id);
-  };
-
-  const deleteManual = async (id: string): Promise<void> => {
-    setManualBusyId(id);
-    setError(null);
-    setNotice(null);
-    try {
-      await adminApi.delete(`/controls/manual-detection/${id}`);
-      await reload();
-      setManualDeleteConfirmId(null);
-      setNotice('本金路徑已永久刪除。');
-    } catch (e) {
-      setManualDeleteConfirmId(null);
-      setError(extractApiError(e).message);
-    } finally {
-      setManualBusyId(null);
+      endMutation();
     }
   };
 
@@ -433,6 +426,17 @@ export function ControlsOverviewPage(): JSX.Element {
   };
 
   const sendOnlineReward = async (): Promise<void> => {
+    if (!canWrite) return;
+    if (
+      !/^\d+(\.\d{1,2})?$/.test(rewardAmount) ||
+      Number(rewardAmount) <= 0 ||
+      !/^\d+$/.test(rewardMinutes) ||
+      Number(rewardMinutes) < 1 ||
+      Number(rewardMinutes) > 1440
+    ) {
+      setError('請輸入正確金額（最多兩位小數）及有效的整數分鐘。');
+      return;
+    }
     if (rewardScope !== 'ALL' && !rewardTarget) {
       setError(rewardScope === 'AGENT_LINE' ? '请先选择代理线账号' : '请先选择玩家账号');
       return;
@@ -444,6 +448,7 @@ export function ControlsOverviewPage(): JSX.Element {
           ? `代理线 ${rewardTarget?.username}`
           : `玩家 ${rewardTarget?.username}`;
     if (!window.confirm(`确定为${targetText}设置下一局必赢？`)) return;
+    if (!beginMutation()) return;
     setRewardBusy(true);
     setError(null);
     setNotice(null);
@@ -477,6 +482,7 @@ export function ControlsOverviewPage(): JSX.Element {
       setError(extractApiError(e).message);
     } finally {
       setRewardBusy(false);
+      endMutation();
     }
   };
 
@@ -526,59 +532,21 @@ export function ControlsOverviewPage(): JSX.Element {
       label: '操作',
       align: 'right',
       render: (r) => (
-        <div className="flex justify-end gap-1 text-[10px]">
-          {r.isActive && !r.isCompleted ? (
-            <button
-              type="button"
-              disabled={manualBusyId === r.id}
-              onClick={() => void deactivateManual(r.id)}
-              className="btn-teal-outline px-2 py-1 disabled:cursor-wait disabled:opacity-50"
-            >
-              {manualBusyId === r.id ? '處理中' : '停用'}
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled={manualBusyId === r.id}
-              onClick={() => void reactivateManual(r.id)}
-              className="btn-teal-outline px-2 py-1 disabled:cursor-wait disabled:opacity-50"
-            >
-              {manualBusyId === r.id ? '處理中' : '啟用'}
-            </button>
-          )}
-          {manualDeleteConfirmId === r.id ? (
-            <>
-              <button
-                type="button"
-                disabled={manualBusyId === r.id}
-                onClick={() => {
-                  setManualDeleteConfirmId(null);
-                  setNotice(null);
-                }}
-                className="btn-teal-outline px-2 py-1 disabled:cursor-wait disabled:opacity-50"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                disabled={manualBusyId === r.id}
-                onClick={() => void deleteManual(r.id)}
-                className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A] disabled:cursor-wait disabled:opacity-50"
-              >
-                {manualBusyId === r.id ? '處理中' : '確認刪除'}
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              disabled={manualBusyId === r.id}
-              onClick={() => confirmManualDelete(r.id)}
-              className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A] disabled:cursor-wait disabled:opacity-50"
-            >
-              删除
-            </button>
-          )}
-        </div>
+        <RuleRowActions
+          label={`manual-detection · ${formatManualTarget(r)} · ${r.id}`}
+          active={r.isActive && !r.isCompleted}
+          busy={mutationBusy}
+          readOnly={!canWrite}
+          error={error ?? undefined}
+          onToggle={async () => {
+            await mutateRule(
+              'manual-detection',
+              r.id,
+              r.isActive && !r.isCompleted ? 'disable' : 'enable',
+            );
+          }}
+          onDelete={() => mutateRule('manual-detection', r.id, 'delete')}
+        />
       ),
     },
   ];
@@ -635,22 +603,18 @@ export function ControlsOverviewPage(): JSX.Element {
       label: '操作',
       align: 'right',
       render: (r) => (
-        <div className="flex justify-end gap-1 text-[10px]">
-          <button
-            type="button"
-            onClick={() => void toggleRow('win-loss', r.id, r.isActive)}
-            className="btn-teal-outline px-2 py-1"
-          >
-            {r.isActive ? '停用' : '启用'}
-          </button>
-          <button
-            type="button"
-            onClick={() => void deleteRow('win-loss', r.id)}
-            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
-          >
-            删除
-          </button>
-        </div>
+        <RuleRowActions
+          label={`win-loss · ${r.targetUsername ?? '全盤'} · ${r.id}`}
+          active={r.isActive}
+          completed={r.isCompleted}
+          busy={mutationBusy}
+          readOnly={!canWrite}
+          error={error ?? undefined}
+          onToggle={async () => {
+            await mutateRule('win-loss', r.id, r.isActive ? 'disable' : 'enable');
+          }}
+          onDelete={() => mutateRule('win-loss', r.id, 'delete')}
+        />
       ),
     },
   ];
@@ -798,22 +762,18 @@ export function ControlsOverviewPage(): JSX.Element {
       label: '操作',
       align: 'right',
       render: (r) => (
-        <div className="flex justify-end gap-1 text-[10px]">
-          <button
-            type="button"
-            onClick={() => void toggleRow('deposit', r.id, r.isActive)}
-            className="btn-teal-outline px-2 py-1"
-          >
-            {r.isActive ? '停用' : '启用'}
-          </button>
-          <button
-            type="button"
-            onClick={() => void deleteRow('deposit', r.id)}
-            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
-          >
-            删除
-          </button>
-        </div>
+        <RuleRowActions
+          label={`deposit · ${r.memberUsername ?? r.targetAgentUsername ?? '入金控制'} · ${r.id}`}
+          active={r.isActive}
+          completed={r.isCompleted}
+          busy={mutationBusy}
+          readOnly={!canWrite}
+          error={error ?? undefined}
+          onToggle={async () => {
+            await mutateRule('deposit', r.id, r.isActive ? 'disable' : 'enable');
+          }}
+          onDelete={() => mutateRule('deposit', r.id, 'delete')}
+        />
       ),
     },
   ];
@@ -862,22 +822,18 @@ export function ControlsOverviewPage(): JSX.Element {
       label: '操作',
       align: 'right',
       render: (r) => (
-        <div className="flex justify-end gap-1 text-[10px]">
-          <button
-            type="button"
-            onClick={() => void toggleRow('deposit', r.id, r.isActive)}
-            className="btn-teal-outline px-2 py-1"
-          >
-            {r.isActive ? '停用' : '启用'}
-          </button>
-          <button
-            type="button"
-            onClick={() => void deleteRow('deposit', r.id)}
-            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
-          >
-            删除
-          </button>
-        </div>
+        <RuleRowActions
+          label={`deposit · ${r.memberUsername ?? '在線獎勵'} · ${r.id}`}
+          active={r.isActive}
+          completed={r.isCompleted}
+          busy={mutationBusy}
+          readOnly={!canWrite}
+          error={error ?? undefined}
+          onToggle={async () => {
+            await mutateRule('deposit', r.id, r.isActive ? 'disable' : 'enable');
+          }}
+          onDelete={() => mutateRule('deposit', r.id, 'delete')}
+        />
       ),
     },
   ];
@@ -929,22 +885,17 @@ export function ControlsOverviewPage(): JSX.Element {
       label: '操作',
       align: 'right',
       render: (r) => (
-        <div className="flex justify-end gap-1 text-[10px]">
-          <button
-            type="button"
-            onClick={() => void toggleRow('win-cap', r.id, r.isActive)}
-            className="btn-teal-outline px-2 py-1"
-          >
-            {r.isActive ? '停用' : '启用'}
-          </button>
-          <button
-            type="button"
-            onClick={() => void deleteRow('win-cap', r.id)}
-            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
-          >
-            删除
-          </button>
-        </div>
+        <RuleRowActions
+          label={`win-cap · ${r.memberUsername} · ${r.id}`}
+          active={r.isActive}
+          busy={mutationBusy}
+          readOnly={!canWrite}
+          error={error ?? undefined}
+          onToggle={async () => {
+            await mutateRule('win-cap', r.id, r.isActive ? 'disable' : 'enable');
+          }}
+          onDelete={() => mutateRule('win-cap', r.id, 'delete')}
+        />
       ),
     },
   ];
@@ -996,22 +947,17 @@ export function ControlsOverviewPage(): JSX.Element {
       label: '操作',
       align: 'right',
       render: (r) => (
-        <div className="flex justify-end gap-1 text-[10px]">
-          <button
-            type="button"
-            onClick={() => void toggleRow('agent-line', r.id, r.isActive)}
-            className="btn-teal-outline px-2 py-1"
-          >
-            {r.isActive ? '停用' : '启用'}
-          </button>
-          <button
-            type="button"
-            onClick={() => void deleteRow('agent-line', r.id)}
-            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
-          >
-            删除
-          </button>
-        </div>
+        <RuleRowActions
+          label={`agent-line · ${r.agentUsername} · ${r.id}`}
+          active={r.isActive}
+          busy={mutationBusy}
+          readOnly={!canWrite}
+          error={error ?? undefined}
+          onToggle={async () => {
+            await mutateRule('agent-line', r.id, r.isActive ? 'disable' : 'enable');
+          }}
+          onDelete={() => mutateRule('agent-line', r.id, 'delete')}
+        />
       ),
     },
   ];
@@ -1091,22 +1037,17 @@ export function ControlsOverviewPage(): JSX.Element {
       label: '操作',
       align: 'right',
       render: (r) => (
-        <div className="flex justify-end gap-1 text-[10px]">
-          <button
-            type="button"
-            onClick={() => void toggleRow('burst', r.id, r.isActive)}
-            className="btn-teal-outline px-2 py-1"
-          >
-            {r.isActive ? '停用' : '启用'}
-          </button>
-          <button
-            type="button"
-            onClick={() => void deleteRow('burst', r.id)}
-            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
-          >
-            删除
-          </button>
-        </div>
+        <RuleRowActions
+          label={`burst · ${r.targetMemberUsername ?? r.targetAgentUsername ?? '全盤'} · ${r.id}`}
+          active={r.isActive}
+          busy={mutationBusy}
+          readOnly={!canWrite}
+          error={error ?? undefined}
+          onToggle={async () => {
+            await mutateRule('burst', r.id, r.isActive ? 'disable' : 'enable');
+          }}
+          onDelete={() => mutateRule('burst', r.id, 'delete')}
+        />
       ),
     },
   ];
@@ -1292,6 +1233,7 @@ export function ControlsOverviewPage(): JSX.Element {
               <button
                 type="button"
                 onClick={() => setManualOpen(true)}
+                disabled={!canWrite || mutationBusy}
                 className="btn-acid text-[11px]"
               >
                 + 新增
@@ -1329,6 +1271,7 @@ export function ControlsOverviewPage(): JSX.Element {
               <button
                 type="button"
                 onClick={() => setDcOpen(true)}
+                disabled={!canWrite || mutationBusy}
                 className="btn-acid text-[11px]"
               >
                 + 新增
@@ -1352,6 +1295,7 @@ export function ControlsOverviewPage(): JSX.Element {
                   <button
                     type="button"
                     onClick={() => setBcOpen(true)}
+                    disabled={!canWrite || mutationBusy}
                     className="btn-acid text-[11px]"
                   >
                     + 新增
@@ -1449,7 +1393,12 @@ export function ControlsOverviewPage(): JSX.Element {
                   <button
                     type="button"
                     onClick={() => void sendOnlineReward()}
-                    disabled={rewardBusy || (rewardScope !== 'ALL' && !rewardTarget)}
+                    disabled={
+                      !canWrite ||
+                      mutationBusy ||
+                      rewardBusy ||
+                      (rewardScope !== 'ALL' && !rewardTarget)
+                    }
                     className="btn-acid whitespace-nowrap text-[11px]"
                   >
                     → 設定必贏
@@ -1467,6 +1416,47 @@ export function ControlsOverviewPage(): JSX.Element {
             </>
           )}
 
+          {isSuperAdmin &&
+            (wl.length > 0 ||
+              wc.length > 0 ||
+              al.length > 0 ||
+              manualActive.some((row) => row.controlMode !== 'lifecycle_path')) && (
+              <details className="card-base space-y-4 p-4">
+                <summary className="cursor-pointer font-semibold">既有控制規則管理</summary>
+                <p className="text-sm text-ink-600">
+                  保留舊規則的啟停與刪除入口；不新增已退役的控制類型。
+                </p>
+                {wl.length > 0 && (
+                  <Section title="既有輸贏控制">
+                    <DataTable columns={wlCols} rows={wl} rowKey={(r) => r.id} />
+                  </Section>
+                )}
+                {wc.length > 0 && (
+                  <Section title="既有會員封頂">
+                    <DataTable columns={wcCols} rows={wc} rowKey={(r) => r.id} />
+                  </Section>
+                )}
+                {al.length > 0 && (
+                  <Section title="既有代理封頂">
+                    <DataTable columns={alCols} rows={al} rowKey={(r) => r.id} />
+                  </Section>
+                )}
+                <DataTable
+                  columns={manualCols}
+                  rows={manualActive.filter((row) => row.controlMode !== 'lifecycle_path')}
+                  rowKey={(r) => r.id}
+                />
+              </details>
+            )}
+
+          <button
+            type="button"
+            disabled={mutationBusy || loading}
+            onClick={() => void reload()}
+            className="btn-teal-outline"
+          >
+            重新整理控制列表
+          </button>
           <Section title="§ 控制介入纪录" subtitle="最近 100 笔真实套用结果">
             <DataTable columns={logCols} rows={logs} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
@@ -1476,25 +1466,13 @@ export function ControlsOverviewPage(): JSX.Element {
       <ManualDetectionControlModal
         open={manualOpen}
         onClose={() => setManualOpen(false)}
-        onDone={() => void reload()}
+        onDone={ruleCreated}
         templates={autoBalanceConfig?.templates ?? []}
         allowAllScope={isSuperAdmin}
       />
-      <WinLossControlModal
-        open={wlOpen}
-        onClose={() => setWlOpen(false)}
-        onDone={() => void reload()}
-      />
-      <DepositControlModal
-        open={dcOpen}
-        onClose={() => setDcOpen(false)}
-        onDone={() => void reload()}
-      />
-      <BurstControlModal
-        open={bcOpen}
-        onClose={() => setBcOpen(false)}
-        onDone={() => void reload()}
-      />
+      <WinLossControlModal open={wlOpen} onClose={() => setWlOpen(false)} onDone={ruleCreated} />
+      <DepositControlModal open={dcOpen} onClose={() => setDcOpen(false)} onDone={ruleCreated} />
+      <BurstControlModal open={bcOpen} onClose={() => setBcOpen(false)} onDone={ruleCreated} />
     </div>
   );
 }

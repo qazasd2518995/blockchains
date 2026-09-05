@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useActionLock } from '@/hooks/useActionLock';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { Modal } from './Modal';
 
@@ -51,7 +52,7 @@ export function AnnouncementFormModal({ open, onClose, onDone, editing }: Props)
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, beginAction, endAction] = useActionLock();
 
   useEffect(() => {
     if (!open) return;
@@ -83,12 +84,16 @@ export function AnnouncementFormModal({ open, onClose, onDone, editing }: Props)
       setErr('內容長度不得超過 500 字');
       return;
     }
-    const prio = Number.parseInt(priority, 10);
-    if (!Number.isFinite(prio)) {
+    const prio = Number(priority);
+    if (!/^-?\d+$/.test(priority) || !Number.isSafeInteger(prio)) {
       setErr('優先級必須是整數');
       return;
     }
-    setBusy(true);
+    if (startsAt && endsAt && new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
+      setErr('結束時間必須晚於開始時間');
+      return;
+    }
+    if (!beginAction()) return;
     setErr(null);
     try {
       const payload: Record<string, unknown> = {
@@ -114,12 +119,13 @@ export function AnnouncementFormModal({ open, onClose, onDone, editing }: Props)
     } catch (ex) {
       setErr(extractApiError(ex).message);
     } finally {
-      setBusy(false);
+      endAction();
     }
   };
 
   return (
     <Modal
+      busy={busy}
       open={open}
       onClose={onClose}
       title={isEdit ? '編輯公告' : '新增公告'}
@@ -137,9 +143,7 @@ export function AnnouncementFormModal({ open, onClose, onDone, editing }: Props)
             className="term-input w-full resize-none"
             placeholder="輸入要顯示的公告文字"
           />
-          <div className="mt-1 text-right text-[10px] text-ink-500">
-            {content.length} / 500
-          </div>
+          <div className="mt-1 text-right text-[10px] text-ink-500">{content.length} / 500</div>
         </label>
 
         <div className="grid grid-cols-2 gap-3">

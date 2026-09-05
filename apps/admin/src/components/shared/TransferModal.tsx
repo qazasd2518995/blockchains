@@ -1,3 +1,4 @@
+import { useActionLock } from '@/hooks/useActionLock';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,7 +14,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react';
-import { adminApi, extractApiError } from '@/lib/adminApi';
+import { adminApi, extractApiError, isUncertainAdminWriteError } from '@/lib/adminApi';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { Modal } from './Modal';
 import { requestAdminLiveRefresh } from '@/lib/adminRefreshEvents';
@@ -40,6 +41,7 @@ interface Props {
 
 export function TransferModal({ open, onClose, member, sourceAgent, onDone }: Props): JSX.Element {
   const [err, setErr] = useState<string | null>(null);
+  const [submissionBlocked, setSubmissionBlocked] = useState(false);
   const { agent: me, setAgent } = useAdminAuthStore();
   /** 實際扣款/收款代理 — 跨層級時使用登入代理，不使用會員直屬代理。 */
   const [transferAgent, setTransferAgent] = useState<TransferAgent | null>(null);
@@ -188,48 +190,72 @@ export function TransferModal({ open, onClose, member, sourceAgent, onDone }: Pr
     if (source) setValue('amount', source, { shouldDirty: true, shouldValidate: true });
   };
 
+  const [busy, beginAction, endAction] = useActionLock();
   const onSubmit = async (data: FormInput) => {
-    if (!transferAgent) {
-      setErr('正在同步操作代理，請稍候');
-      return;
-    }
-    setErr(null);
+    if (submissionBlocked) return;
+    let committed = false;
+    if (!beginAction()) return;
     try {
-      const signed = data.direction === 'DEPOSIT' ? data.amount : `-${data.amount}`;
-      logTransferDebug('agent-to-member submit start', {
-        direction: data.direction,
-        agentId: transferAgent.id,
-        memberId: member.id,
-        amount: signed,
-        transferAgentSummary: transferAgentSummary(transferAgent),
-        transferAgent: transferAgentForDebug(transferAgent),
-        memberSummary: memberSummary(member),
-        member: memberForDebug(member),
-      });
-      await adminApi.post<TransferEntry>('/transfers/agent-to-member', {
-        agentId: transferAgent.id,
-        memberId: member.id,
-        amount: signed,
-        description: data.description || undefined,
-      });
-      if (me && transferAgent.id === me.id) {
-        const res = await adminApi.get<AgentPublic>('/auth/me');
-        setAgent(res.data);
+      if (!transferAgent) {
+        setErr('正在同步操作代理，請稍候');
+        return;
       }
-      requestAdminLiveRefresh();
-      logTransferDebug('agent-to-member submit success', {
-        direction: data.direction,
-        agentId: transferAgent.id,
-        memberId: member.id,
-        amount: signed,
-      });
-      reset();
-      onDone();
-      onClose();
-    } catch (e) {
-      const apiError = extractApiError(e);
-      warnTransferDebug('agent-to-member submit failed', apiError);
-      setErr(apiError.message);
+      setErr(null);
+      try {
+        const signed = data.direction === 'DEPOSIT' ? data.amount : `-${data.amount}`;
+        logTransferDebug('agent-to-member submit start', {
+          direction: data.direction,
+          agentId: transferAgent.id,
+          memberId: member.id,
+          amount: signed,
+          transferAgentSummary: transferAgentSummary(transferAgent),
+          transferAgent: transferAgentForDebug(transferAgent),
+          memberSummary: memberSummary(member),
+          member: memberForDebug(member),
+        });
+        await adminApi.post<TransferEntry>('/transfers/agent-to-member', {
+          requestId: crypto.randomUUID(),
+          agentId: transferAgent.id,
+          memberId: member.id,
+          amount: signed,
+          description: data.description || undefined,
+        });
+        committed = true;
+        if (me && transferAgent.id === me.id) {
+          const res = await adminApi.get<AgentPublic>('/auth/me');
+          setAgent(res.data);
+        }
+        requestAdminLiveRefresh();
+        logTransferDebug('agent-to-member submit success', {
+          direction: data.direction,
+          agentId: transferAgent.id,
+          memberId: member.id,
+          amount: signed,
+        });
+        reset();
+        onDone();
+        onClose();
+      } catch (e) {
+        if (committed) {
+          setSubmissionBlocked(true);
+          requestAdminLiveRefresh();
+          onDone();
+          setErr('轉帳已完成，但餘額畫面刷新失敗。請關閉視窗後重新整理，不要重複轉帳。');
+          return;
+        }
+        if (isUncertainAdminWriteError(e)) {
+          setSubmissionBlocked(true);
+          requestAdminLiveRefresh();
+          onDone();
+          setErr('轉帳結果尚未確認。請先核對轉帳紀錄與雙方餘額，勿直接再次轉帳。');
+          return;
+        }
+        const apiError = extractApiError(e);
+        warnTransferDebug('agent-to-member submit failed', apiError);
+        setErr(apiError.message);
+      }
+    } finally {
+      endAction();
     }
   };
 
@@ -248,6 +274,7 @@ export function TransferModal({ open, onClose, member, sourceAgent, onDone }: Pr
 
   return (
     <Modal
+      busy={busy || isSubmitting}
       open={open}
       onClose={onClose}
       title="點數轉帳"
@@ -443,7 +470,7 @@ export function TransferModal({ open, onClose, member, sourceAgent, onDone }: Pr
           </button>
           <button
             type="submit"
-            disabled={isSubmitting || !transferAgent}
+            disabled={submissionBlocked || busy || isSubmitting || !transferAgent}
             className="btn-acid inline-flex items-center justify-center gap-2"
           >
             <SendHorizontal className="h-4 w-4" aria-hidden="true" />

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useActionLock } from '@/hooks/useActionLock';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { AccountSearchSelect, type AccountSearchOption } from './AccountSearchSelect';
 import { Modal } from './Modal';
@@ -16,14 +17,14 @@ export function AgentLineControlModal({ open, onClose, onDone }: Props): JSX.Ele
   const [triggerThreshold, setTriggerThreshold] = useState('0.80');
   const [notes, setNotes] = useState('');
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, beginAction, endAction] = useActionLock();
 
   const submit = async (): Promise<void> => {
     if (!agent) {
       setErr('请先选择代理账号');
       return;
     }
-    setBusy(true);
+    if (!beginAction()) return;
     setErr(null);
     try {
       await adminApi.post('/controls/agent-line', {
@@ -39,12 +40,19 @@ export function AgentLineControlModal({ open, onClose, onDone }: Props): JSX.Ele
     } catch (e) {
       setErr(extractApiError(e).message);
     } finally {
-      setBusy(false);
+      endAction();
     }
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="新增代理线封顶" subtitle="代理线单日赢额封顶" width="md">
+    <Modal
+      busy={busy}
+      open={open}
+      onClose={onClose}
+      title="新增代理线封顶"
+      subtitle="代理线单日赢额封顶"
+      width="md"
+    >
       <div className="space-y-4">
         <AccountSearchSelect
           kind="agent"

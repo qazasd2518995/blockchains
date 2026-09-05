@@ -14,6 +14,7 @@ import {
 import { api, extractApiError } from '@/lib/api';
 import { BetControls } from '@/components/game/BetControls';
 import { GameHeader } from '@/components/game/GameHeader';
+import { UnfinishedRoundExitGuard } from '@/components/game/UnfinishedRoundExitGuard';
 import { ResponsiveImage } from '@/lib/optimizedImages';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
@@ -206,6 +207,7 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
 
   return (
     <div>
+      <UnfinishedRoundExitGuard key={gameId} active={busy} />
       <GameHeader
         section="§ BACCARAT"
         breadcrumb={themeConfig.breadcrumb}

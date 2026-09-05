@@ -19,6 +19,8 @@ import { Modal } from '@/components/shared/Modal';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useAdminLiveRefresh } from '@/hooks/useAdminLiveRefresh';
+import { useActionLock } from '@/hooks/useActionLock';
+import { canWriteAdmin, ADMIN_READ_ONLY_MESSAGE } from '@/lib/adminPermissions';
 
 type AccountStatus = 'ACTIVE' | 'FROZEN' | 'DISABLED';
 
@@ -34,6 +36,8 @@ const ACCOUNT_TABLE_GRID_STYLE = { gridTemplateColumns: ACCOUNT_TABLE_COLUMNS };
  */
 export function AgentHierarchyPage(): JSX.Element {
   const { agent: me } = useAdminAuthStore();
+  const canWrite = canWriteAdmin(me);
+  const [accountBusy, beginAccountAction, endAccountAction] = useActionLock();
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const currentParent = params.get('parent') ?? (me?.role === 'SUPER_ADMIN' ? '' : (me?.id ?? ''));
@@ -115,22 +119,30 @@ export function AgentHierarchyPage(): JSX.Element {
       !confirm(t.agents.confirmDisableAgentTpl.replace('{name}', username))
     )
       return;
+    if (!canWrite || !beginAccountAction()) return;
+    setError(null);
     try {
       await adminApi.patch(`/agents/${id}/status`, { status: next });
       setReloadKey((k) => k + 1);
     } catch (e) {
       setError(extractApiError(e).message);
+    } finally {
+      endAccountAction();
     }
   };
 
   const handleMemberStatus = async (id: string, next: AccountStatus) => {
     if (next === 'FROZEN' && !confirm(t.agents.confirmFreezeMemberShort)) return;
     if (next === 'DISABLED' && !confirm(t.agents.confirmDisableMemberShort)) return;
+    if (!canWrite || !beginAccountAction()) return;
+    setError(null);
     try {
       await adminApi.patch(`/members/${id}/status`, { status: next });
       setReloadKey((k) => k + 1);
     } catch (e) {
       setError(extractApiError(e).message);
+    } finally {
+      endAccountAction();
     }
   };
 
@@ -147,6 +159,8 @@ export function AgentHierarchyPage(): JSX.Element {
     if (!window.confirm(warning)) return;
     setControlZoneBusyId(id);
     setError(null);
+    if (!canWrite || !beginAccountAction()) return;
+    setError(null);
     try {
       await adminApi.put(`/agents/${id}/control-zone`, { action });
       setReloadKey((key) => key + 1);
@@ -154,6 +168,7 @@ export function AgentHierarchyPage(): JSX.Element {
       setError(extractApiError(e).message);
     } finally {
       setControlZoneBusyId(null);
+      endAccountAction();
     }
   };
 
@@ -261,7 +276,7 @@ export function AgentHierarchyPage(): JSX.Element {
             )}
             <button
               type="button"
-              disabled={!createTarget}
+              disabled={!canWrite || !createTarget || accountBusy}
               onClick={() => setOpenCreateMember(true)}
               className="btn-acid text-[11px] disabled:cursor-not-allowed disabled:opacity-45"
             >
@@ -270,7 +285,7 @@ export function AgentHierarchyPage(): JSX.Element {
             {canCreateSubAgent && (
               <button
                 type="button"
-                disabled={!createTarget}
+                disabled={!canWrite || !createTarget || accountBusy}
                 onClick={() => setOpenCreateAgent(true)}
                 className="btn-teal-outline text-[11px] disabled:cursor-not-allowed disabled:opacity-45"
               >
@@ -281,6 +296,11 @@ export function AgentHierarchyPage(): JSX.Element {
         }
       />
 
+      {!canWrite && (
+        <p role="status" className="mb-4 text-sm text-ink-600">
+          {ADMIN_READ_ONLY_MESSAGE}
+        </p>
+      )}
       {data && (
         <HierarchyBreadcrumb
           items={data.breadcrumb}
@@ -441,6 +461,7 @@ export function AgentHierarchyPage(): JSX.Element {
                 <button
                   type="button"
                   onClick={() => openBalanceTransfer(row)}
+                  disabled={!canWrite || accountBusy}
                   aria-label={`${t.agents.adjustBalance}：${row.username}`}
                   title={t.agents.balanceClickHint}
                   className="account-hierarchy-balance data-num min-h-10 rounded-md px-2 text-right font-semibold text-[#186073] underline decoration-[#186073]/35 decoration-dotted underline-offset-4 transition hover:bg-[#E5F5F3] hover:decoration-solid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#186073]"
@@ -460,7 +481,9 @@ export function AgentHierarchyPage(): JSX.Element {
                   )}
                 </span>
 
-                <div
+                <fieldset
+                  disabled={!canWrite || accountBusy}
+                  title={!canWrite ? ADMIN_READ_ONLY_MESSAGE : undefined}
                   className="account-hierarchy-actions flex flex-wrap items-center justify-start gap-1.5"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -507,7 +530,7 @@ export function AgentHierarchyPage(): JSX.Element {
                       {me?.role === 'SUPER_ADMIN' && (
                         <button
                           type="button"
-                          disabled={controlZoneBusyId === row.id}
+                          disabled={!canWrite || accountBusy || controlZoneBusyId === row.id}
                           onClick={() =>
                             void handleControlZone(row.id, row.username, row.canManageControlZone)
                           }
@@ -540,6 +563,7 @@ export function AgentHierarchyPage(): JSX.Element {
                       <StatusDropdown
                         current={row.status === 'DELETED' ? 'DISABLED' : row.status}
                         onChange={(next) => handleAgentStatus(row.id, row.username, next)}
+                        disabled={!canWrite || accountBusy}
                       />
                       <button
                         type="button"
@@ -604,6 +628,7 @@ export function AgentHierarchyPage(): JSX.Element {
                       <StatusDropdown
                         current={row.status}
                         onChange={(next) => handleMemberStatus(row.id, next)}
+                        disabled={!canWrite || accountBusy}
                       />
                       <button
                         type="button"
@@ -621,7 +646,7 @@ export function AgentHierarchyPage(): JSX.Element {
                       </button>
                     </>
                   )}
-                </div>
+                </fieldset>
               </div>
             );
           })}
@@ -770,11 +795,11 @@ function NotesModal({
 }): JSX.Element {
   const { t } = useTranslation();
   const [notes, setNotes] = useState(target.notes ?? '');
-  const [busy, setBusy] = useState(false);
+  const [busy, beginAction, endAction] = useActionLock();
 
   const submit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
-    setBusy(true);
+    if (!beginAction()) return;
     try {
       const nextNotes = notes.trim() || null;
       if (target.kind === 'agent') {
@@ -786,12 +811,13 @@ function NotesModal({
     } catch (e) {
       onError(extractApiError(e).message);
     } finally {
-      setBusy(false);
+      endAction();
     }
   };
 
   return (
     <Modal
+      busy={busy}
       open
       onClose={onClose}
       title={t.agents.notesBtn}
@@ -839,7 +865,7 @@ function ResetPasswordModal({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, beginAction, endAction] = useActionLock();
 
   const submit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
@@ -851,7 +877,7 @@ function ResetPasswordModal({
       setLocalError('两次输入的密码不一致。');
       return;
     }
-    setBusy(true);
+    if (!beginAction()) return;
     setLocalError(null);
     try {
       const path =
@@ -863,12 +889,13 @@ function ResetPasswordModal({
     } catch (e) {
       onError(extractApiError(e).message);
     } finally {
-      setBusy(false);
+      endAction();
     }
   };
 
   return (
     <Modal
+      busy={busy}
       open
       onClose={onClose}
       title={t.agents.resetPassword}
@@ -922,9 +949,11 @@ function ResetPasswordModal({
 function StatusDropdown({
   current,
   onChange,
+  disabled = false,
 }: {
   current: AccountStatus;
   onChange: (next: AccountStatus) => void;
+  disabled?: boolean;
 }): JSX.Element {
   const { t } = useTranslation();
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -962,7 +991,13 @@ function StatusDropdown({
 
   return (
     <>
-      <button ref={buttonRef} type="button" onClick={toggle} className="btn-chip">
+      <button
+        ref={buttonRef}
+        type="button"
+        disabled={disabled}
+        onClick={toggle}
+        className="btn-chip"
+      >
         {t.agents.statusMenu} ▾
       </button>
       {open &&
@@ -979,7 +1014,7 @@ function StatusDropdown({
                 <button
                   key={o.value}
                   type="button"
-                  disabled={o.value === current}
+                  disabled={disabled || o.value === current}
                   onClick={(e) => {
                     e.stopPropagation();
                     setOpen(false);

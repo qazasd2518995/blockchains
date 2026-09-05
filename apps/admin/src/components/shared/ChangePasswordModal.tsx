@@ -1,3 +1,4 @@
+import { useActionLock } from '@/hooks/useActionLock';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -47,22 +48,28 @@ export function ChangePasswordModal({ open, onClose }: Props): JSX.Element {
     defaultValues: { currentPassword: '', newPassword: '', confirmNewPassword: '' },
   });
 
+  const [busy, beginAction, endAction] = useActionLock();
   const onSubmit = async (data: FormInput): Promise<void> => {
-    setErr(null);
-    setOk(false);
+    if (!beginAction()) return;
     try {
-      await adminApi.post('/auth/change-password', {
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword,
-      });
-      setOk(true);
-      reset();
-      window.setTimeout(() => {
-        setOk(false);
-        onClose();
-      }, 1200);
-    } catch (e) {
-      setErr(extractApiError(e).message);
+      setErr(null);
+      setOk(false);
+      try {
+        await adminApi.post('/auth/change-password', {
+          currentPassword: data.currentPassword,
+          newPassword: data.newPassword,
+        });
+        setOk(true);
+        reset();
+        window.setTimeout(() => {
+          setOk(false);
+          onClose();
+        }, 1200);
+      } catch (e) {
+        setErr(extractApiError(e).message);
+      }
+    } finally {
+      endAction();
     }
   };
 
@@ -90,6 +97,7 @@ export function ChangePasswordModal({ open, onClose }: Props): JSX.Element {
 
   return (
     <Modal
+      busy={busy || isSubmitting}
       open={open}
       onClose={handleClose}
       title={t.shell.changePassword}

@@ -1,9 +1,11 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
+import { canWriteAdmin, ADMIN_READ_ONLY_MESSAGE } from './adminPermissions';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 const ADMIN_API_DEBUG = String(import.meta.env.VITE_ADMIN_API_DEBUG ?? '').toLowerCase() === 'true';
-const SENSITIVE_KEY_RE = /(authorization|cookie|password|token|secret|seed|signature|credential|key)/i;
+const SENSITIVE_KEY_RE =
+  /(authorization|cookie|password|token|secret|seed|signature|credential|key)/i;
 
 export const adminApi = axios.create({
   baseURL: `${API_BASE}/api/admin`,
@@ -25,7 +27,8 @@ function sanitizeForDebug(value: unknown, depth = 0): unknown {
   if (typeof value === 'string') return value.length > 240 ? `${value.slice(0, 240)}...` : value;
   if (typeof value === 'number' || typeof value === 'boolean') return value;
   if (depth >= 4) return '[MaxDepth]';
-  if (Array.isArray(value)) return value.slice(0, 20).map((item) => sanitizeForDebug(item, depth + 1));
+  if (Array.isArray(value))
+    return value.slice(0, 20).map((item) => sanitizeForDebug(item, depth + 1));
   if (typeof value === 'object') {
     const out: Record<string, unknown> = {};
     for (const [key, item] of Object.entries(value as Record<string, unknown>).slice(0, 40)) {
@@ -73,7 +76,7 @@ function shouldRefreshBeforeRequest(token: string | null): boolean {
 async function refreshAdminTokens(refreshToken: string): Promise<AdminTokenPair> {
   if (!refreshInFlight) {
     refreshInFlight = axios
-      .post(`${API_BASE}/api/admin/auth/refresh`, { refreshToken })
+      .post(`${API_BASE}/api/admin/auth/refresh`, { refreshToken }, { timeout: 15_000 })
       .then((r) => r.data as AdminTokenPair)
       .finally(() => {
         setTimeout(() => {
@@ -104,10 +107,23 @@ function handleSessionExpired(): void {
 }
 
 adminApi.interceptors.request.use(async (config) => {
+  const method = (config.method ?? 'get').toUpperCase();
+  if (
+    !['GET', 'HEAD', 'OPTIONS'].includes(method) &&
+    !config.url?.startsWith('/auth/') &&
+    !canWriteAdmin(useAdminAuthStore.getState().agent)
+  ) {
+    throw new Error(ADMIN_READ_ONLY_MESSAGE);
+  }
   (config as DebugRequestConfig)._debugStartedAt = nowMs();
   const { accessToken, refreshToken, setTokens, logout } = useAdminAuthStore.getState();
   let token = accessToken;
-  if (token && refreshToken && !isPublicAuthRequest(config.url) && shouldRefreshBeforeRequest(token)) {
+  if (
+    token &&
+    refreshToken &&
+    !isPublicAuthRequest(config.url) &&
+    shouldRefreshBeforeRequest(token)
+  ) {
     try {
       const data = await refreshAdminTokens(refreshToken);
       setTokens(data.accessToken, data.refreshToken);
@@ -181,7 +197,9 @@ adminApi.interceptors.response.use(
         logout();
       }
     }
-    const startedAt = error.config ? (error.config as DebugRequestConfig)._debugStartedAt : undefined;
+    const startedAt = error.config
+      ? (error.config as DebugRequestConfig)._debugStartedAt
+      : undefined;
     debugAdminApi('error', {
       method: error.config?.method?.toUpperCase(),
       url: error.config?.url,
@@ -199,6 +217,11 @@ export interface ApiErrorBody {
   code: string;
   message: string;
   details?: unknown;
+}
+
+/** A failed transport/5xx cannot prove that a submitted write was rolled back. */
+export function isUncertainAdminWriteError(error: unknown): boolean {
+  return axios.isAxiosError(error) && (!error.response || error.response.status >= 500);
 }
 
 /** 預設（簡體中文）錯誤碼字典,extractApiError 內建翻譯用 */

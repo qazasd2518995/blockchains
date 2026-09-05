@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { webcrypto } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const adapterPath = fileURLToPath(
@@ -11,9 +12,13 @@ const indexPath = fileURLToPath(new URL('../public/games/fruit-mary/index.html',
 const adapterSource = fs.readFileSync(adapterPath, 'utf8');
 const pageSource = fs.readFileSync(pagePath, 'utf8');
 const indexSource = fs.readFileSync(indexPath, 'utf8');
+const bootSource = fs.readFileSync(new URL('../public/games/fruit-mary/main.b4cc7.js', import.meta.url), 'utf8');
+assert.match(bootSource, /enableAutoFullScreen\(window\.parent === window &&/,
+  'an embedded cabinet cannot hide the platform lobby or recovery controls in iframe fullscreen');
+assert.match(indexSource, /main\.b4cc7\.js\?v=5/);
 assert.match(
   indexSource,
-  /fruit-mary-adapter\.js\?v=17/,
+  /fruit-mary-adapter\.js\?v=18/,
   'Fruit Mary must load the settlement-safe adapter revision',
 );
 assert.match(
@@ -111,6 +116,7 @@ const storage = {
 const parentMessages = [];
 const pendingFetches = [];
 const context = {
+  crypto: webcrypto,
   URL,
   URLSearchParams,
   AbortController,
@@ -192,6 +198,12 @@ assert.equal(adjustFruitMaryAllocation(40, 60, 'to-round', 1).currentRound, 41);
 assert.equal(adjustFruitMaryAllocation(40, 60, 'to-round', 1).balance, 59);
 assert.equal(adjustFruitMaryAllocation(40, 60, 'to-balance', 1).currentRound, 39);
 assert.equal(adjustFruitMaryAllocation(40, 60, 'to-balance', 1).balance, 61);
+assert.equal(normalizeFruitMaryAllocation(40, 60.37, 70).balance, 30.37,
+  'moving whole points must preserve the fractional wallet remainder');
+assert.equal(normalizeFruitMaryAllocation(40, 0.37, 999).currentRound, 40,
+  'the fractional remainder cannot be allocated as another whole point');
+assert.equal(normalizeFruitMaryAllocation(40, 0.37, 999).balance, 0.37);
+assert.equal(normalizeFruitMaryAllocation(40, 60.37, 0).total, 100.37);
 
 updateFruitMaryBetLimits({ multiple: 10, minBet: 10, maxBet: 50 });
 assert.equal(normalizeFruitMaryGambleAllocation(40, 60, 999).currentRound, 50);
@@ -334,6 +346,7 @@ let collectCalls = 0;
 let animatedWin = 0;
 let setAllNoCalls = 0;
 const menuPlayLogic = { _playing: false };
+const queuedAutoplay = [];
 const menuLogic = {
   _kaishiBiDdaxiao_bool: true,
   shuzibenlun: currentRoundNode,
@@ -344,6 +357,7 @@ const menuLogic = {
     this.unscheduled.push(callback);
   },
   updateTime() {},
+  scheduleOnce(callback) { queuedAutoplay.push(callback); },
   kaishi() {},
   clickCancelAuto() {
     this.startBt.node.active = true;
@@ -397,10 +411,20 @@ assert.equal(currentRoundNode.box.getNum(), 0);
 assert.equal(balanceNode.box.getNum(), 100);
 assert.equal(collectCalls, 1, 'returning the final point collects the round');
 menuLogic.isAutoPut_bool = true;
+let queuedPaidSpins = 0;
+menuLogic.scheduleOnce(() => { queuedPaidSpins++; }, 0.5);
+const queuedPaidSpin = queuedAutoplay.at(-1);
+let delayedRecoveryCalls = 0;
+menuLogic.scheduleOnce(() => { delayedRecoveryCalls++; }, 2);
+const delayedRecovery = queuedAutoplay.at(-1);
 restoreFruitMaryAutoButtonState(menuLogic);
 assert.equal(menuLogic.startBt.node.active, false, 'autoplay keeps the start control hidden');
 assert.equal(menuLogic.unStartBt.node.active, true, 'autoplay keeps its stop control visible');
 menuLogic.clickCancelAuto();
+queuedPaidSpin();
+delayedRecovery();
+assert.equal(queuedPaidSpins, 0, 'Stop must cancel an already queued anonymous autoplay spin');
+assert.equal(delayedRecoveryCalls, 1, 'Stop must not cancel unrelated delayed recovery work');
 assert.equal(menuLogic.isAutoPut_bool, false, 'the stop control clears autoplay immediately');
 assert.equal(menuLogic.startBt.node.active, true, 'stopping autoplay restores the start control');
 assert.equal(menuLogic.unStartBt.node.active, false, 'stopping autoplay hides the stop control');
@@ -595,5 +619,73 @@ assert.equal(
   140,
   'winning gamble display must equal the authoritative server balance',
 );
+
+const recoveryRound = numberNode(0);
+const recoveryBalance = numberNode(10.37);
+const recoveryPlay = { _playing: false };
+let paidStarts = 0;
+let gambleStarts = 0;
+const recoveryMenu = {
+  shuzibenlun: recoveryRound, shuziyue: recoveryBalance,
+  numNode: { children: [numberNode(1)] },
+  node: { getComponent: () => recoveryPlay },
+  startBt: { node: { active: true }, interactable: true },
+  unStartBt: { node: { active: false }, interactable: false },
+  allAddBt: { interactable: true },
+  _kaishiBiDdaxiao_bool: false,
+  initButton() { this._kaishiBiDdaxiao_bool = false; this.startBt.interactable = true; this.allAddBt.interactable = true; },
+  setBidaxiao() { this._kaishiBiDdaxiao_bool = true; this.startBt.interactable = true; },
+  setAllNo() { this.startBt.interactable = false; this.allAddBt.interactable = false; },
+  clickCancelAuto() { this.isAutoPut_bool = false; },
+  clickDaOrXiao() { gambleStarts++; this.setAllNo(); },
+  clickKaishi() { paidStarts++; },
+};
+context.cc.find = () => ({ getComponent: (name) => name === 'MenuLogic' ? recoveryMenu : recoveryPlay });
+context.cc.vv.PrefabFactory = {};
+context.cc.vv.UserInfo.balance = 10.37;
+patchFruitMaryMenuLogic(recoveryMenu);
+const rejectedSpin = createBridgeXHR();
+rejectedSpin.open('POST', 'https://legacy.test/index/game/get_gift');
+rejectedSpin.send(JSON.stringify({ fruits: [[4, 1]], money: 1 }));
+recoveryMenu.initButton();
+assert.equal(recoveryMenu.startBt.interactable, false);
+pendingFetches.at(-1).resolve({ ok: false, status: 400, json: async () => ({ code: 'INSUFFICIENT_FUNDS', message: '餘額不足' }) });
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.match(pendingFetches.at(-1).args[0], /\/session$/);
+pendingFetches.at(-1).resolve({ ok: true, status: 200, json: async () => ({ data: { info: { gold: 0.37 } } }) });
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(recoveryMenu.startBt.interactable, true, 'release the request lock BEFORE restoring buttons');
+assert.equal(recoveryMenu.allAddBt.interactable, true, 'all bet controls recover, not just Start');
+assert.equal(recoveryBalance.box.getNum(), 0.37, 'rejected stale funds are refreshed from the wallet');
+
+recoveryRound.box.setNum(40);
+recoveryBalance.box.setNum(60.37);
+recoveryPlay._playing = true;
+recoveryMenu.setBidaxiao();
+recoveryMenu.clickDaOrXiao();
+recoveryMenu.initButton(); // The archived response callback does this before its number animation finishes.
+assert.equal(recoveryMenu._kaishiBiDdaxiao_bool, true);
+assert.equal(recoveryMenu.startBt.interactable, false);
+recoveryMenu.clickDaOrXiao(); recoveryMenu.clickZuo(); recoveryMenu.clickKaishi();
+assert.equal(gambleStarts, 1, 'gamble presentation prevents repeated requests');
+assert.equal(paidStarts, 0, 'a pending gamble cannot be collected or start another spin');
+assert.equal(recoveryRound.box.getNum(), 40, 'allocation cannot change during a pending gamble');
+recoveryMenu.setBidaxiao(); // Real animation completion.
+assert.equal(recoveryMenu.startBt.interactable, true);
+
+const retrySpin = createBridgeXHR();
+retrySpin.open('POST', 'https://legacy.test/index/game/get_gift');
+retrySpin.send(JSON.stringify({ fruits: [[4, 1]], money: 1 }));
+const firstAttempt = pendingFetches.at(-1);
+firstAttempt.reject(new TypeError('Network response lost'));
+await new Promise((resolve) => setTimeout(resolve, 0));
+const secondAttempt = pendingFetches.at(-1);
+assert.notEqual(firstAttempt, secondAttempt);
+assert.match(firstAttempt.args[0], /\/operations\/spin$/, 'an older API must reject, not silently ignore the operation key');
+assert.equal(secondAttempt.args[1].body, firstAttempt.args[1].body, 'retry must reuse the exact operation and stake');
+assert.match(JSON.parse(secondAttempt.args[1].body).operationId, /^[\da-f-]{36}$/i);
+secondAttempt.resolve({ ok: true, status: 200, json: async () => ({ code: 1, data: { data: { type: 0, pos: 10 }, money: [0] }, balance: 0.37, spinId: 'same-receipt' }) });
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(JSON.parse(retrySpin.responseText).spinId, 'same-receipt');
 
 console.log('Fruit Mary settlement and animation recovery tests passed.');

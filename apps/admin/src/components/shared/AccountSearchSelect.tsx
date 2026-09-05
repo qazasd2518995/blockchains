@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { adminApi } from '@/lib/adminApi';
+import { adminApi, extractApiError } from '@/lib/adminApi';
 
 export interface AccountSearchOption {
   id: string;
@@ -43,6 +43,8 @@ export function AccountSearchSelect({
   const [query, setQuery] = useState(value?.username ?? '');
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [items, setItems] = useState<AccountSearchOption[]>([]);
 
   useEffect(() => {
@@ -76,18 +78,20 @@ export function AccountSearchSelect({
     }
 
     let cancel = false;
+    setSearchError(null);
     setLoading(true);
     const timer = window.setTimeout(() => {
       searchAccounts(kind, term)
         .then((res) => {
           if (cancel) return;
-          const nextItems = excludeId
-            ? res.filter((item) => item.id !== excludeId)
-            : res;
+          const nextItems = excludeId ? res.filter((item) => item.id !== excludeId) : res;
           setItems(nextItems);
         })
-        .catch(() => {
-          if (!cancel) setItems([]);
+        .catch((error) => {
+          if (!cancel) {
+            setItems([]);
+            setSearchError(extractApiError(error).message);
+          }
         })
         .finally(() => {
           if (!cancel) setLoading(false);
@@ -98,7 +102,7 @@ export function AccountSearchSelect({
       cancel = true;
       window.clearTimeout(timer);
     };
-  }, [disabled, excludeId, kind, open, query, value]);
+  }, [disabled, excludeId, kind, open, query, value, retryKey]);
 
   const selectItem = (item: AccountSearchOption): void => {
     onChange(item);
@@ -134,16 +138,34 @@ export function AccountSearchSelect({
           placeholder={placeholder}
           autoComplete="off"
         />
-        <div className={`account-search-select__mode pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase text-ink-400 ${kind === 'mixed' ? 'tracking-[0.08em]' : 'tracking-[0.2em]'}`}>
+        <div
+          className={`account-search-select__mode pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase text-ink-400 ${kind === 'mixed' ? 'tracking-[0.08em]' : 'tracking-[0.2em]'}`}
+        >
           {modeLabel}
         </div>
       </div>
-      <div className={`account-search-select__helper mt-1 text-[10px] ${value ? 'text-[#186073]' : 'text-ink-500'}`}>{helper}</div>
+      <div
+        className={`account-search-select__helper mt-1 text-[10px] ${value ? 'text-[#186073]' : 'text-ink-500'}`}
+      >
+        {helper}
+      </div>
 
       {open && query.trim() && (!value || query.trim() !== value.username) && (
         <div className="absolute z-[5200] mt-2 max-h-72 w-full overflow-auto border border-ink-200 bg-white shadow-[0_18px_42px_rgba(15,23,42,0.18)]">
           {loading ? (
             <div className="px-3 py-4 text-center text-[11px] text-ink-500">搜索中…</div>
+          ) : searchError ? (
+            <div role="alert" className="px-3 py-4 text-sm text-[#D4574A]">
+              搜尋失敗：{searchError}
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => setRetryKey((key) => key + 1)}
+                className="btn-teal-outline mt-2"
+              >
+                重新搜尋
+              </button>
+            </div>
           ) : items.length === 0 ? (
             <div className="px-3 py-4 text-center text-[11px] text-ink-400">没有匹配账号</div>
           ) : (
@@ -153,13 +175,16 @@ export function AccountSearchSelect({
                 <button
                   key={`${itemKind}-${item.id}`}
                   type="button"
+                  disabled={disabled}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => selectItem(item)}
                   className="block w-full border-b border-ink-100 px-3 py-3 text-left transition last:border-b-0 hover:bg-[#F4FAFC]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate font-mono text-[12px] font-bold text-ink-900">{item.username}</div>
+                      <div className="truncate font-mono text-[12px] font-bold text-ink-900">
+                        {item.username}
+                      </div>
                       <div className="mt-0.5 truncate text-[11px] text-ink-500">
                         全名：{item.displayName || '—'}
                       </div>
@@ -168,12 +193,18 @@ export function AccountSearchSelect({
                       {itemKind === 'agent' ? (
                         <>
                           <div className="tag tag-acid">L{item.level ?? '—'} 代理</div>
-                          {item.balance && <div className="mt-1 data-num text-ink-500">{formatAmount(item.balance)}</div>}
+                          {item.balance && (
+                            <div className="mt-1 data-num text-ink-500">
+                              {formatAmount(item.balance)}
+                            </div>
+                          )}
                         </>
                       ) : (
                         <>
                           <div className="tag tag-toxic">会员</div>
-                          <div className="mt-1 data-num text-[#186073]">{formatAmount(item.balance ?? '0')}</div>
+                          <div className="mt-1 data-num text-[#186073]">
+                            {formatAmount(item.balance ?? '0')}
+                          </div>
                         </>
                       )}
                     </div>
@@ -191,11 +222,18 @@ export function AccountSearchSelect({
   );
 }
 
-async function searchAccounts(kind: 'agent' | 'member' | 'mixed', term: string): Promise<AccountSearchOption[]> {
+async function searchAccounts(
+  kind: 'agent' | 'member' | 'mixed',
+  term: string,
+): Promise<AccountSearchOption[]> {
   if (kind === 'mixed') {
     const [agents, members] = await Promise.all([
-      adminApi.get<{ items: AccountSearchOption[] }>(endpointByKind.agent, { params: { q: term, limit: 8 } }),
-      adminApi.get<{ items: AccountSearchOption[] }>(endpointByKind.member, { params: { q: term, limit: 8 } }),
+      adminApi.get<{ items: AccountSearchOption[] }>(endpointByKind.agent, {
+        params: { q: term, limit: 8 },
+      }),
+      adminApi.get<{ items: AccountSearchOption[] }>(endpointByKind.member, {
+        params: { q: term, limit: 8 },
+      }),
     ]);
     return [
       ...agents.data.items.map((item) => ({ ...item, kind: 'agent' as const })),

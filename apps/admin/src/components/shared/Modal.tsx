@@ -11,6 +11,7 @@ interface Props {
   children: ReactNode;
   footer?: ReactNode;
   width?: 'sm' | 'md' | 'lg' | 'xl';
+  busy?: boolean;
 }
 
 const widthMap = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-[95vw]' };
@@ -23,6 +24,7 @@ export function Modal({
   children,
   footer,
   width = 'md',
+  busy = false,
 }: Props): JSX.Element | null {
   const { t } = useTranslation();
   const titleId = useId();
@@ -34,7 +36,7 @@ export function Modal({
     lastActiveRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !busy && onClose();
     window.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
 
@@ -48,7 +50,7 @@ export function Modal({
       document.body.style.overflow = previousOverflow;
       lastActiveRef.current?.focus();
     };
-  }, [open, onClose]);
+  }, [open, onClose, busy]);
 
   if (!open || typeof document === 'undefined') return null;
 
@@ -60,6 +62,7 @@ export function Modal({
           aria-label={t.common.closeDialog}
           className="absolute inset-0 h-full w-full cursor-default bg-[#1A2530]/70 backdrop-blur"
           onClick={onClose}
+          disabled={busy}
         />
         <div
           ref={dialogRef}
@@ -86,14 +89,24 @@ export function Modal({
             <button
               type="button"
               onClick={onClose}
+              disabled={busy}
               className="btn-teal-outline text-[11px]"
               aria-label={t.common.closeDialog}
             >
               [ESC]
             </button>
           </div>
-          <div className="px-4 py-4 sm:px-6 sm:py-5">{children}</div>
-          {footer && <div className="border-t border-[#E5E7EB] px-4 py-3 sm:px-6">{footer}</div>}
+          <fieldset disabled={busy} aria-busy={busy} className="min-w-0 px-4 py-4 sm:px-6 sm:py-5">
+            {children}
+          </fieldset>
+          {footer && (
+            <fieldset
+              disabled={busy}
+              className="min-w-0 border-t border-[#E5E7EB] px-4 py-3 sm:px-6"
+            >
+              {footer}
+            </fieldset>
+          )}
         </div>
       </div>
     </div>,

@@ -10,7 +10,11 @@
     "preview": "vite preview",
     "lint": "echo \"(web lint skipped)\"",
     "typecheck": "tsc -b --noEmit",
-    "test": "node scripts/test-railway-static.mjs && node scripts/test-pixi-csp.mjs && node scripts/test-qmoney-clone.mjs && node scripts/test-qmoney-game-separation.mjs && node scripts/test-local-table-mobile-layout.mjs && node scripts/test-service-worker.mjs && node scripts/test-h5-adapter.mjs && node scripts/test-seth2-adapter.mjs && node scripts/test-seth2-source-adapter.mjs && node scripts/test-seth2-v115-assets.mjs && node scripts/test-fruit-mary-adapter.mjs && node scripts/test-cocos-performance.mjs && node scripts/test-slot-full-quality.mjs && node scripts/test-original-lobby-covers.mjs && node scripts/test-thor2-assets.mjs"
+    "test:h5:browser": "node scripts/test-h5-scenes-browser.mjs",
+    "test:round-recovery:browser": "node scripts/test-round-recovery-browser.mjs",
+    "test:round-exit:browser": "node scripts/test-round-exit-browser.mjs",
+    "test:fruit-mary:browser": "node scripts/test-fruit-mary-browser.mjs",
+    "test": "node scripts/test-railway-static.mjs && node scripts/test-pixi-csp.mjs && node scripts/test-qmoney-clone.mjs && node scripts/test-qmoney-game-separation.mjs && node scripts/test-local-table-mobile-layout.mjs && node scripts/test-service-worker.mjs && node scripts/test-h5-adapter.mjs && node scripts/test-h5-lifecycle.mjs && node scripts/test-seth2-adapter.mjs && node scripts/test-seth2-source-adapter.mjs && node scripts/test-seth2-v115-assets.mjs && node scripts/test-fruit-mary-adapter.mjs && node scripts/test-cocos-performance.mjs && node scripts/test-slot-full-quality.mjs && node scripts/test-original-lobby-covers.mjs && node scripts/test-thor2-assets.mjs"
   },
   "dependencies": {
     "@bg/game-engine": "workspace:*",

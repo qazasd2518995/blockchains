@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useActionLock } from '@/hooks/useActionLock';
 import {
   BETTING_LIMIT_RANGE_OPTIONS,
   GameId,
@@ -181,7 +182,7 @@ export function BettingLimitModal({
     buildBettingLimitsSelection(currentLimits, currentLevel, parentResolved),
   );
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, beginAction, endAction] = useActionLock();
 
   useEffect(() => {
     if (!open) return;
@@ -193,7 +194,7 @@ export function BettingLimitModal({
   }, [open, currentLimits, currentLevel, parentResolved]);
 
   const submit = async (): Promise<void> => {
-    setBusy(true);
+    if (!beginAction()) return;
     setErr(null);
     try {
       const path =
@@ -208,12 +209,13 @@ export function BettingLimitModal({
     } catch (e) {
       setErr(extractApiError(e).message);
     } finally {
-      setBusy(false);
+      endAction();
     }
   };
 
   return (
     <Modal
+      busy={busy}
       open={open}
       onClose={onClose}
       title="限红设定"

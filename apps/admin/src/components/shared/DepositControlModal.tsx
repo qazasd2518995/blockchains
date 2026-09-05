@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useActionLock } from '@/hooks/useActionLock';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { AccountSearchSelect, type AccountSearchOption } from './AccountSearchSelect';
 import { Modal } from './Modal';
@@ -17,7 +18,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
   const [winFreezeThreshold, setWinFreezeThreshold] = useState('50000');
   const [notes, setNotes] = useState('');
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, beginAction, endAction] = useActionLock();
 
   useEffect(() => {
     if (!open) {
@@ -34,7 +35,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
   const targetBalanceNum = Number.parseFloat(target?.balance ?? '0');
   const principalNum = Number.isFinite(targetBalanceNum) ? targetBalanceNum : 0;
   const parsedSteps = steps
-    .map((step) => Number.parseFloat(step))
+    .map((step) => (/^\d+(\.\d{1,2})?$/.test(step) ? Number(step) : NaN))
     .filter((step) => Number.isFinite(step) && step >= 0);
   const firstStep = parsedSteps[0];
   const firstTargetBalance =
@@ -49,17 +50,21 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
       setErr('阶段百分比必须是 0 以上数字');
       return;
     }
-    const ratePercent = Number.parseFloat(controlWinRatePercent);
+    const ratePercent = /^\d+(\.\d{1,2})?$/.test(controlWinRatePercent)
+      ? Number(controlWinRatePercent)
+      : NaN;
     if (!Number.isFinite(ratePercent) || ratePercent < 0 || ratePercent > 100) {
       setErr('介入率请输入 0-100');
       return;
     }
-    const freezeThreshold = Number.parseFloat(winFreezeThreshold);
+    const freezeThreshold = /^\d+(\.\d{1,2})?$/.test(winFreezeThreshold)
+      ? Number(winFreezeThreshold)
+      : NaN;
     if (!Number.isFinite(freezeThreshold) || freezeThreshold <= 0) {
       setErr('最高可贏金額必須大於 0');
       return;
     }
-    setBusy(true);
+    if (!beginAction()) return;
     setErr(null);
     try {
       await adminApi.post('/controls/deposit', {
@@ -81,12 +86,13 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
     } catch (e) {
       setErr(extractApiError(e).message);
     } finally {
-      setBusy(false);
+      endAction();
     }
   };
 
   return (
     <Modal
+      busy={busy}
       open={open}
       onClose={onClose}
       title="新增入金控制"

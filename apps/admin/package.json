@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "lint": "echo \"(admin lint skipped)\"",
     "typecheck": "tsc -b --noEmit",
+    "test:actions:browser": "node scripts/test-admin-actions-browser.mjs",
     "test": "node scripts/test-admin-realm.mjs && node scripts/test-admin-api-contract.mjs"
   },
   "dependencies": {

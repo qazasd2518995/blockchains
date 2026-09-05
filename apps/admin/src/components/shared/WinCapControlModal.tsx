@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useActionLock } from '@/hooks/useActionLock';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { AccountSearchSelect, type AccountSearchOption } from './AccountSearchSelect';
 import { Modal } from './Modal';
@@ -16,14 +17,14 @@ export function WinCapControlModal({ open, onClose, onDone }: Props): JSX.Elemen
   const [triggerThreshold, setTriggerThreshold] = useState('0.80');
   const [notes, setNotes] = useState('');
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, beginAction, endAction] = useActionLock();
 
   const submit = async (): Promise<void> => {
     if (!member || !winCapAmount) {
       setErr('请先选择会员账号并填写封顶金额');
       return;
     }
-    setBusy(true);
+    if (!beginAction()) return;
     setErr(null);
     try {
       await adminApi.post('/controls/win-cap', {
@@ -39,12 +40,13 @@ export function WinCapControlModal({ open, onClose, onDone }: Props): JSX.Elemen
     } catch (e) {
       setErr(extractApiError(e).message);
     } finally {
-      setBusy(false);
+      endAction();
     }
   };
 
   return (
     <Modal
+      busy={busy}
       open={open}
       onClose={onClose}
       title="新增会员封顶"

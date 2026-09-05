@@ -77,7 +77,10 @@ window.boot = function () {
             else if (settings.orientation === 'portrait') {
                 cc.view.setOrientation(cc.macro.ORIENTATION_PORTRAIT);
             }
-            cc.view.enableAutoFullScreen([
+            // The platform shell already fills the screen and owns its lobby
+            // and recovery controls. Fullscreening just this iframe puts it
+            // above those controls in the browser's top layer.
+            cc.view.enableAutoFullScreen(window.parent === window && [
                 cc.sys.BROWSER_TYPE_BAIDU,
                 cc.sys.BROWSER_TYPE_BAIDU_APP,
                 cc.sys.BROWSER_TYPE_WECHAT,

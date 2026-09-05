@@ -32,7 +32,7 @@ export function Sidebar({ onLogout }: SidebarProps): JSX.Element {
       (!item.superAdminOnly || agent?.role === 'SUPER_ADMIN') &&
       (!item.controlManagerOnly ||
         agent?.role === 'SUPER_ADMIN' ||
-        agent?.canManageControlZone === true),
+        (agent?.role === 'AGENT' && agent.canManageControlZone === true)),
   );
 
   return (

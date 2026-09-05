@@ -54,8 +54,8 @@
       as="script"
       crossorigin="anonymous"
     />
-    <link rel="preload" href="assets/main/config.9d2e3.json" as="fetch" crossorigin="anonymous" />
-    <link rel="preload" href="assets/main/index.9d2e3.js" as="script" crossorigin="anonymous" />
+    <link rel="preload" href="assets/main/config.9d2e3r1.json" as="fetch" crossorigin="anonymous" />
+    <link rel="preload" href="assets/main/index.9d2e3r1.js" as="script" crossorigin="anonymous" />
   </head>
   <body>
     <canvas id="GameCanvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
@@ -72,6 +72,9 @@
 
     <script type="text/javascript">
       (function () {
+        // New immutable URL for lifecycle fixes; retain old bundle URLs for
+        // tabs already booting while the release rolls out.
+        window._CCSettings.bundleVers.main = '9d2e3r1';
         // The shared archive was exported as portrait even though all four
         // fishing scenes use a 1920x1080 landscape canvas. Correct the runtime
         // orientation before Cocos boots; slot scenes retain their source

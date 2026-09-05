@@ -62,7 +62,7 @@ export function getAccessTokenRefreshDelayMs(
 async function refreshUserTokens(refreshToken: string): Promise<TokenPair> {
   if (!refreshInFlight) {
     refreshInFlight = axios
-      .post(`${API_BASE}/api/auth/refresh`, { refreshToken })
+      .post(`${API_BASE}/api/auth/refresh`, { refreshToken }, { timeout: 15_000 })
       .then((r) => r.data as TokenPair)
       .finally(() => {
         setTimeout(() => {

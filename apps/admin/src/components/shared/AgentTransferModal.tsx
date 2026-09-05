@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { useActionLock } from '@/hooks/useActionLock';
 import type { AgentPublic } from '@bg/shared';
 import {
   ArrowDownToLine,
@@ -10,7 +11,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react';
-import { adminApi, extractApiError } from '@/lib/adminApi';
+import { adminApi, extractApiError, isUncertainAdminWriteError } from '@/lib/adminApi';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { Modal } from './Modal';
 import { requestAdminLiveRefresh } from '@/lib/adminRefreshEvents';
@@ -45,7 +46,8 @@ export function AgentTransferModal({
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [submissionBlocked, setSubmissionBlocked] = useState(false);
+  const [busy, beginAction, endAction] = useActionLock();
   const [sourceParty, setSourceParty] = useState<AgentTransferParty | null>(null);
   const [targetParty, setTargetParty] = useState<AgentTransferParty>(targetAgent);
   const [sourceBalance, setSourceBalance] = useState<string | null>(null);
@@ -212,6 +214,8 @@ export function AgentTransferModal({
   };
 
   const submit = async (): Promise<void> => {
+    if (submissionBlocked) return;
+    let committed = false;
     if (!sourceParty) {
       setErr('正在同步操作代理，請稍候');
       return;
@@ -221,11 +225,11 @@ export function AgentTransferModal({
       return;
     }
     const parsedAmount = Number.parseFloat(amount);
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      setErr('金額必須大於 0');
+    if (!/^\d+(\.\d{1,2})?$/.test(amount) || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setErr('金額必須大於 0，最多兩位小數');
       return;
     }
-    setBusy(true);
+    if (!beginAction()) return;
     setErr(null);
     try {
       const fromId = direction === 'DEPOSIT' ? sourceParty.id : targetParty.id;
@@ -241,11 +245,13 @@ export function AgentTransferModal({
         targetParty: partyForDebug(targetParty),
       });
       await adminApi.post('/transfers/agent-to-agent', {
+        requestId: crypto.randomUUID(),
         fromId,
         toId,
         amount,
         description: description || undefined,
       });
+      committed = true;
       if (me && (me.id === sourceParty.id || me.id === targetParty.id)) {
         const res = await adminApi.get<AgentPublic>('/auth/me');
         setAgent(res.data);
@@ -255,11 +261,25 @@ export function AgentTransferModal({
       onDone();
       onClose();
     } catch (e) {
+      if (committed) {
+        setSubmissionBlocked(true);
+        requestAdminLiveRefresh();
+        onDone();
+        setErr('轉帳已完成，但餘額畫面刷新失敗。請關閉視窗後重新整理，不要重複轉帳。');
+        return;
+      }
+      if (isUncertainAdminWriteError(e)) {
+        setSubmissionBlocked(true);
+        requestAdminLiveRefresh();
+        onDone();
+        setErr('轉帳結果尚未確認。請先核對轉帳紀錄與雙方餘額，勿直接再次轉帳。');
+        return;
+      }
       const apiError = extractApiError(e);
       warnTransferDebug('agent-to-agent submit failed', apiError);
       setErr(apiError.message);
     } finally {
-      setBusy(false);
+      endAction();
     }
   };
 
@@ -283,10 +303,11 @@ export function AgentTransferModal({
   const receiverName = fromPays ? targetParty.username : (sourceParty?.username ?? '同步中');
   const receiverBalance = fromPays ? targetBalance : sourceBalance;
   const receiverAfter = receiverBalance ? predict(receiverBalance, false) : '—';
-  const amountReady = Number.parseFloat(amount) > 0;
+  const amountReady = /^\d+(\.\d{1,2})?$/.test(amount) && Number.parseFloat(amount) > 0;
 
   return (
     <Modal
+      busy={busy}
       open={open}
       onClose={onClose}
       title="代理間轉帳"
@@ -465,7 +486,7 @@ export function AgentTransferModal({
         <button
           type="button"
           onClick={submit}
-          disabled={busy || loadingBalances || !sourceParty}
+          disabled={submissionBlocked || busy || loadingBalances || !sourceParty}
           className="btn-acid inline-flex items-center justify-center gap-2"
         >
           <SendHorizontal className="h-4 w-4" aria-hidden="true" />

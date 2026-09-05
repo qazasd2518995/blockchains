@@ -1,3 +1,4 @@
+import { useActionLock } from '@/hooks/useActionLock';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -29,26 +30,42 @@ export function AdjustBalanceModal({ open, onClose, member, onDone }: Props): JS
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FormInput>({ resolver: zodResolver(schema), defaultValues: { delta: '', description: '' } });
+  } = useForm<FormInput>({
+    resolver: zodResolver(schema),
+    defaultValues: { delta: '', description: '' },
+  });
 
+  const [busy, beginAction, endAction] = useActionLock();
   const onSubmit = async (data: FormInput) => {
-    setErr(null);
+    if (!beginAction()) return;
     try {
-      const res = await adminApi.post<MemberPublic>(`/members/${member.id}/adjust-balance`, {
-        delta: data.delta,
-        description: data.description || undefined,
-      });
-      requestAdminLiveRefresh();
-      onDone(res.data);
-      reset();
-      onClose();
-    } catch (e) {
-      setErr(extractApiError(e).message);
+      setErr(null);
+      try {
+        const res = await adminApi.post<MemberPublic>(`/members/${member.id}/adjust-balance`, {
+          delta: data.delta,
+          description: data.description || undefined,
+        });
+        requestAdminLiveRefresh();
+        onDone(res.data);
+        reset();
+        onClose();
+      } catch (e) {
+        setErr(extractApiError(e).message);
+      }
+    } finally {
+      endAction();
     }
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={t.adjust.title} subtitle={t.agents.adjustBalance} width="sm">
+    <Modal
+      busy={busy || isSubmitting}
+      open={open}
+      onClose={onClose}
+      title={t.adjust.title}
+      subtitle={t.agents.adjustBalance}
+      width="sm"
+    >
       <div className="mb-4 border border-ink-200 bg-ink-100/40 p-3 text-[11px]">
         <div className="flex items-baseline justify-between">
           <span className="text-ink-500">{t.adjust.member}</span>
@@ -63,8 +80,15 @@ export function AdjustBalanceModal({ open, onClose, member, onDone }: Props): JS
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <label className="block">
           <div className="label mb-2">{t.adjust.delta}</div>
-          <input type="text" {...register('delta')} className="term-input font-mono" placeholder="+100.00 / -50" />
-          {errors.delta && <div className="mt-1 text-[10px] text-[#D4574A]">⚠ {errors.delta.message}</div>}
+          <input
+            type="text"
+            {...register('delta')}
+            className="term-input font-mono"
+            placeholder="+100.00 / -50"
+          />
+          {errors.delta && (
+            <div className="mt-1 text-[10px] text-[#D4574A]">⚠ {errors.delta.message}</div>
+          )}
         </label>
 
         <label className="block">
@@ -72,7 +96,11 @@ export function AdjustBalanceModal({ open, onClose, member, onDone }: Props): JS
           <input type="text" {...register('description')} className="term-input" />
         </label>
 
-        {err && <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">⚠ {err}</div>}
+        {err && (
+          <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
+            ⚠ {err}
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           <button type="submit" disabled={isSubmitting} className="btn-acid">

@@ -1,3 +1,4 @@
+import { useActionLock } from '@/hooks/useActionLock';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -6,25 +7,27 @@ import type { AgentPublic } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { Modal } from './Modal';
 
-const schema = z.object({
-  username: z
-    .string()
-    .min(3, '账号至少 3 位')
-    .max(64, '账号至多 64 位')
-    .regex(/^[a-zA-Z0-9._-]+$/, '账号仅限字母、数字、. _ -'),
-  password: z
-    .string()
-    .min(8, '密码至少 8 位')
-    .max(128, '密码最长 128')
-    .regex(/[A-Za-z]/, '需包含字母')
-    .regex(/\d/, '需包含数字'),
-  confirmPassword: z.string().min(8, '请再次输入密码'),
-  displayName: z.string().max(40).optional(),
-  notes: z.string().max(500).optional(),
-}).refine((data) => data.password === data.confirmPassword, {
-  path: ['confirmPassword'],
-  message: '两次输入的密码不一致',
-});
+const schema = z
+  .object({
+    username: z
+      .string()
+      .min(3, '账号至少 3 位')
+      .max(64, '账号至多 64 位')
+      .regex(/^[a-zA-Z0-9._-]+$/, '账号仅限字母、数字、. _ -'),
+    password: z
+      .string()
+      .min(8, '密码至少 8 位')
+      .max(128, '密码最长 128')
+      .regex(/[A-Za-z]/, '需包含字母')
+      .regex(/\d/, '需包含数字'),
+    confirmPassword: z.string().min(8, '请再次输入密码'),
+    displayName: z.string().max(40).optional(),
+    notes: z.string().max(500).optional(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ['confirmPassword'],
+    message: '两次输入的密码不一致',
+  });
 
 type FormInput = z.infer<typeof schema>;
 
@@ -68,32 +71,43 @@ export function CreateSubAccountModal({
     reset({ username: '', password: '', confirmPassword: '', displayName: '', notes: '' });
   }, [open, reset]);
 
+  const [busy, beginAction, endAction] = useActionLock();
   const onSubmit = async (data: FormInput) => {
-    setErr(null);
+    if (!beginAction()) return;
     try {
-      const payload: Record<string, string | undefined> = {
-        username: data.username,
-        password: data.password,
-        displayName: data.displayName || undefined,
-        notes: data.notes || undefined,
-      };
-      if (parentAgentId) payload.parentAgentId = parentAgentId;
-      const res = await adminApi.post<AgentPublic>('/subaccounts', payload);
-      onCreated(res.data);
-      onClose();
-    } catch (e) {
-      setErr(extractApiError(e).message);
+      setErr(null);
+      try {
+        const payload: Record<string, string | undefined> = {
+          username: data.username,
+          password: data.password,
+          displayName: data.displayName || undefined,
+          notes: data.notes || undefined,
+        };
+        if (parentAgentId) payload.parentAgentId = parentAgentId;
+        const res = await adminApi.post<AgentPublic>('/subaccounts', payload);
+        onCreated(res.data);
+        onClose();
+      } catch (e) {
+        setErr(extractApiError(e).message);
+      }
+    } finally {
+      endAction();
     }
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="创建子账号" subtitle="新增子账号" width="md">
+    <Modal
+      busy={busy || isSubmitting}
+      open={open}
+      onClose={onClose}
+      title="创建子账号"
+      subtitle="新增子账号"
+      width="md"
+    >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="border border-[#186073]/30 bg-[#E8F4F8]/40 p-3 text-[12px] text-[#0F4555]">
           将建立在代理{' '}
-          <span className="font-mono font-semibold text-[#186073]">
-            {parentUsername ?? '—'}
-          </span>{' '}
+          <span className="font-mono font-semibold text-[#186073]">{parentUsername ?? '—'}</span>{' '}
           下。子账号仅可读取该代理线的报表、注单、会员列表，不能执行任何管理操作。
         </div>
 
@@ -131,7 +145,12 @@ export function CreateSubAccountModal({
         </div>
 
         <Field label="显示名称" code="04" error={errors.displayName?.message}>
-          <input type="text" {...register('displayName')} className="term-input" placeholder="选填" />
+          <input
+            type="text"
+            {...register('displayName')}
+            className="term-input"
+            placeholder="选填"
+          />
         </Field>
 
         <Field label="备注" code="05" error={errors.notes?.message}>

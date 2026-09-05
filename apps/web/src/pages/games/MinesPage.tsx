@@ -18,9 +18,13 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { GameHeader } from '@/components/game/GameHeader';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
+import { useRoundRecovery } from '@/hooks/useRoundRecovery';
 
 export function MinesPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sceneReadyRef = useRef(false);
+  const [sceneReady, setSceneReady] = useState(false);
+  const [sceneFailed, setSceneFailed] = useState(false);
   const sceneRef = useRef<MinesScene | null>(null);
   const roundRef = useRef<MinesRoundState | null>(null);
   const { user, setBalance } = useAuthStore();
@@ -38,6 +42,20 @@ export function MinesPage() {
   const stageHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const busyRef = useRef(false);
   const pendingCellsRef = useRef<Set<number>>(new Set());
+  const recovery = useRoundRecovery<MinesRoundState>('mines', (state) => {
+    setRound(state);
+    roundRef.current = state;
+    if (sceneReadyRef.current) sceneRef.current?.reset();
+    if (state) {
+      setAmount(Number(state.amount));
+      setMineCount(state.mineCount);
+      if (sceneReadyRef.current) {
+        for (const idx of state.revealed) sceneRef.current?.revealGem(idx);
+        if (state.minePositions) sceneRef.current?.revealAllMines(state.minePositions);
+      }
+    }
+    sceneRef.current?.setClickable(sceneReadyRef.current && state?.status === 'ACTIVE');
+  });
 
   const hideStageHintElement = (hint: HTMLElement | null) => {
     if (!hint) return;
@@ -103,6 +121,8 @@ export function MinesPage() {
         )
         .then(() => {
           if (cancelled) return;
+          sceneReadyRef.current = true;
+          setSceneReady(true);
           const active = roundRef.current;
           if (!active) return;
           scene?.setClickable(active.status === 'ACTIVE');
@@ -113,14 +133,26 @@ export function MinesPage() {
         })
         .catch((initError: unknown) => {
           if (cancelled) return;
+          sceneReadyRef.current = false;
+          setSceneReady(false);
+          setSceneFailed(true);
           console.error('mines scene initialization failed', initError);
           sceneRef.current = null;
           scene?.dispose();
           setError('遊戲畫面載入失敗，請重新整理後再試。');
         });
     };
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      sceneReadyRef.current = false;
+      setSceneReady(false);
+      setSceneFailed(true);
+    };
+    canvas.addEventListener('webglcontextlost', onContextLost);
     tryInit();
     return () => {
+      canvas.removeEventListener('webglcontextlost', onContextLost);
+      sceneReadyRef.current = false;
       cancelled = true;
       if (rafId) cancelAnimationFrame(rafId);
       scene?.dispose();
@@ -129,26 +161,10 @@ export function MinesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    void api
-      .get<{ state: MinesRoundState | null }>('/games/mines/active')
-      .then((res) => {
-        if (res.data.state) {
-          const state = res.data.state;
-          setMineCount(state.mineCount);
-          setRound(state);
-          roundRef.current = state;
-          hideStageHint();
-          sceneRef.current?.setClickable(true);
-          for (const idx of state.revealed) sceneRef.current?.revealGem(idx);
-        }
-      })
-      .catch(() => undefined);
-  }, []);
-
   const handleStart = async () => {
-    if (busyRef.current) return;
+    if (busyRef.current || !sceneReadyRef.current || roundRef.current?.status === 'ACTIVE') return;
     if (!requireLogin()) return;
+    if (!recovery.readyRef.current) return;
     if (amount < MIN_BET_AMOUNT || amount > balance) {
       setError(t.bet.insufficientBalance);
       return;
@@ -158,7 +174,7 @@ export function MinesPage() {
     busyRef.current = true;
     setBusy(true);
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
-    const previousBalance = useAuthStore.getState().debitBalance(amount);
+    useAuthStore.getState().debitBalance(amount);
     try {
       sceneRef.current?.reset();
       const payload: MinesStartRequest = { amount, mineCount };
@@ -168,8 +184,8 @@ export function MinesPage() {
       roundRef.current = state;
       sceneRef.current?.setClickable(true);
     } catch (err) {
-      if (previousBalance) setBalance(previousBalance);
       setError(extractApiError(err).message);
+      await recovery.sync();
     } finally {
       releaseBalanceRefresh();
       busyRef.current = false;
@@ -178,6 +194,7 @@ export function MinesPage() {
   };
 
   const handleReveal = async (cellIndex: number) => {
+    if (!sceneReadyRef.current || !recovery.readyRef.current) return;
     const current = roundRef.current;
     if (!current || current.status !== 'ACTIVE') {
       showStageHint();
@@ -230,7 +247,13 @@ export function MinesPage() {
       roundRef.current = state;
     } catch (err) {
       setError(extractApiError(err).message);
-      if (roundRef.current?.status === 'ACTIVE') sceneRef.current?.setClickable(true);
+      await recovery.sync();
+      if (
+        sceneReadyRef.current &&
+        recovery.readyRef.current &&
+        roundRef.current?.status === 'ACTIVE'
+      )
+        sceneRef.current?.setClickable(true);
     } finally {
       pendingCellsRef.current.delete(cellIndex);
       busyRef.current = false;
@@ -239,6 +262,7 @@ export function MinesPage() {
   };
 
   const handleCashout = async () => {
+    if (!recovery.readyRef.current) return;
     const current = roundRef.current;
     if (!current || current.status !== 'ACTIVE' || current.revealed.length === 0) return;
     if (busyRef.current) return;
@@ -297,7 +321,13 @@ export function MinesPage() {
       );
     } catch (err) {
       setError(extractApiError(err).message);
-      if (roundRef.current?.status === 'ACTIVE') sceneRef.current?.setClickable(true);
+      await recovery.sync();
+      if (
+        sceneReadyRef.current &&
+        recovery.readyRef.current &&
+        roundRef.current?.status === 'ACTIVE'
+      )
+        sceneRef.current?.setClickable(true);
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -331,6 +361,23 @@ export function MinesPage() {
 
   return (
     <div>
+      {(sceneFailed || recovery.error) && (
+        <div role="alert" className="mb-3 rounded border border-amber-500/40 p-3 text-sm">
+          <p>
+            {sceneFailed
+              ? '遊戲畫面無法使用，已停止接受新下注。重新載入後會恢復未完成牌局。'
+              : recovery.error}
+          </p>
+          <button
+            type="button"
+            className="btn-acid mt-2"
+            disabled={busy || recovery.syncing}
+            onClick={() => (sceneFailed ? window.location.reload() : void recovery.sync())}
+          >
+            {sceneFailed ? '重新載入遊戲' : recovery.syncing ? '同步中…' : '重新同步牌局與餘額'}
+          </button>
+        </div>
+      )}
       <GameHeader
         artwork="/game-art/mines/background.png"
         section="§ GAME 02"
@@ -444,7 +491,6 @@ export function MinesPage() {
               )}
             </div>
           </div>
-
         </div>
 
         <div className="game-control-stack space-y-4">
@@ -506,7 +552,9 @@ export function MinesPage() {
                 <button
                   type="button"
                   onClick={handleStart}
-                  disabled={busy || (!!user && balance < amount)}
+                  disabled={
+                    busy || !sceneReady || (!!user && (!recovery.ready || balance < amount))
+                  }
                   className="btn-acid w-full py-4 text-base"
                 >
                   {busy ? (
@@ -523,7 +571,7 @@ export function MinesPage() {
                 <button
                   type="button"
                   onClick={handleCashout}
-                  disabled={busy || !round || round.revealed.length === 0}
+                  disabled={busy || !recovery.ready || !round || round.revealed.length === 0}
                   className="btn-acid w-full py-4 text-base"
                 >
                   {busy ? (

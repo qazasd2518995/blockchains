@@ -22,6 +22,7 @@ import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
 import { GameHeader } from '@/components/game/GameHeader';
+import { UnfinishedRoundExitGuard } from '@/components/game/UnfinishedRoundExitGuard';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
@@ -632,6 +633,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
 
   return (
     <div>
+      <UnfinishedRoundExitGuard key={gameId} active={tableActive} />
       <GameHeader
         section="§ TABLE"
         breadcrumb={theme.breadcrumb}

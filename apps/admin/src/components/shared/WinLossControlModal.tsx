@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useActionLock } from '@/hooks/useActionLock';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { AccountSearchSelect, type AccountSearchOption } from './AccountSearchSelect';
 import { Modal } from './Modal';
@@ -20,14 +21,14 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
   const [startPeriod, setStartPeriod] = useState('');
   const [direction, setDirection] = useState<ControlDirection>('loss');
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, beginAction, endAction] = useActionLock();
 
   const submit = async (): Promise<void> => {
     if (!target) {
       setErr('请先从搜索选单选择目标账号');
       return;
     }
-    setBusy(true);
+    if (!beginAction()) return;
     setErr(null);
     try {
       const targetType = mode === 'AGENT_LINE' ? 'agent' : 'member';
@@ -47,12 +48,13 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
     } catch (e) {
       setErr(extractApiError(e).message);
     } finally {
-      setBusy(false);
+      endAction();
     }
   };
 
   return (
     <Modal
+      busy={busy}
       open={open}
       onClose={onClose}
       title="新增输赢控制"

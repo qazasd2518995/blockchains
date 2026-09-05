@@ -84,6 +84,33 @@ assert.ok(
   blackjackPage.includes('blackjack-score-tile--${tone}'),
   'Blackjack score tiles must expose stable tone hooks for accessible contrast',
 );
+const blackjackScoreTile = blackjackPage.slice(
+  blackjackPage.indexOf('function BlackjackScoreTile('),
+  blackjackPage.indexOf('function EmptySeat('),
+);
+assert.doesNotMatch(
+  blackjackScoreTile,
+  /\b(?:truncate|text-ellipsis|line-clamp-\d+|whitespace-nowrap)\b/,
+  'Blackjack score tiles must never abbreviate scores or payout amounts',
+);
+for (const part of ['label', 'value']) {
+  assert.match(
+    blackjackScoreTile,
+    new RegExp(`blackjack-score-tile__${part}[^\\n]+whitespace-normal[^\\n]+\\[overflow-wrap:anywhere\\]`),
+    `Blackjack score ${part} must wrap long text and unbroken amounts`,
+  );
+}
+for (const selector of [
+  '.game-fullscreen-shell .blackjack-table-label > div:last-child',
+  '.game-fullscreen-shell .blackjack-player-hand-header > div:last-child',
+]) {
+  const start = styles.indexOf(`${selector} {`);
+  assert.notEqual(start, -1, `missing Blackjack mobile rule: ${selector}`);
+  const rule = styles.slice(start, styles.indexOf('}', start));
+  assert.match(rule, /overflow-wrap:\s*anywhere/, `${selector} must wrap long text`);
+  assert.match(rule, /white-space:\s*normal/, `${selector} must allow multiple lines`);
+  assert.doesNotMatch(rule, /ellipsis|overflow:\s*hidden/, `${selector} must not clip text`);
+}
 assert.match(
   styles,
   /blackjack-scoreboard[\s\S]{0,100}blackjack-score-tile[\s\S]{0,100}blackjack-score-tile__label[\s\S]{0,500}font-size:\s*12px\s*!important[\s\S]{0,180}text-shadow:\s*none\s*!important/,

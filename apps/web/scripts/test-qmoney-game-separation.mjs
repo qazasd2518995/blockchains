@@ -6,6 +6,38 @@ import { fileURLToPath } from 'node:url';
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (relativePath) => readFile(path.join(webRoot, relativePath), 'utf8');
 
+// All card-table variants share these pages; game outcomes/wallet writes must
+// stay outside the common exit confirmation.
+for (const [page, state] of [
+  ['BlackjackPage', "active={busy || animating || round?.status === 'ACTIVE'}"],
+  ['LocalTablePage', 'active={tableActive}'],
+  ['HiLoPage', "active={busy || round?.status === 'ACTIVE'}"],
+  ['BaccaratTablePage', 'active={busy}'],
+]) {
+  const source = await read(`src/pages/games/${page}.tsx`);
+  assert.ok(
+    source.includes('<UnfinishedRoundExitGuard'),
+    `${page} needs an unfinished-round exit guard`,
+  );
+  assert.ok(
+    source.includes(state),
+    `${page} must use live round/request state for exit protection`,
+  );
+}
+const exitGuard = await read('src/components/game/UnfinishedRoundExitGuard.tsx');
+assert.ok(exitGuard.includes('useBlocker('), 'normal router links/back must also confirm exit');
+assert.ok(exitGuard.includes("window.addEventListener('qmoney:before-game-exit'"));
+assert.ok(
+  exitGuard.includes('dialog.showModal()'),
+  'confirmation must trap focus and block background input',
+);
+assert.ok(
+  !/from ['"]@\/lib\/api['"]|\b(?:api\.(?:post|put|delete)|setBalance|debitBalance)\(/.test(
+    exitGuard,
+  ),
+  'exit confirmation must never place bets, cash out, cancel, or change the wallet',
+);
+
 const [
   shell,
   router,

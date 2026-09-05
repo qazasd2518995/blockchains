@@ -208,14 +208,14 @@ const H5_SHELL_ASSETS: readonly CocosShellAsset[] = [
   { src: '/games/h5-slot-collection/cocos2d-js-min.22f51.js', as: 'script' },
   { src: '/games/h5-slot-collection/assets/resources/config.9bbee.json', as: 'fetch' },
   { src: '/games/h5-slot-collection/assets/resources/index.9bbee.js', as: 'script' },
-  { src: '/games/h5-slot-collection/assets/main/config.9d2e3.json', as: 'fetch' },
-  { src: '/games/h5-slot-collection/assets/main/index.9d2e3.js', as: 'script' },
+  { src: '/games/h5-slot-collection/assets/main/config.9d2e3r1.json', as: 'fetch' },
+  { src: '/games/h5-slot-collection/assets/main/index.9d2e3r1.js', as: 'script' },
 ];
 
 const FRUIT_MARY_SHELL_ASSETS: readonly CocosShellAsset[] = [
-  { src: '/games/fruit-mary/fruit-mary-adapter.js?v=17', as: 'script' },
+  { src: '/games/fruit-mary/fruit-mary-adapter.js?v=18', as: 'script' },
   { src: '/games/fruit-mary/src/settings.e124f.js', as: 'script' },
-  { src: '/games/fruit-mary/main.b4cc7.js?v=4', as: 'script' },
+  { src: '/games/fruit-mary/main.b4cc7.js?v=5', as: 'script' },
   { src: '/games/fruit-mary/cocos2d-js-min.3cdbc.js', as: 'script' },
   { src: '/games/fruit-mary/assets/resources/config.16aee.json', as: 'fetch' },
   { src: '/games/fruit-mary/assets/resources/index.16aee.js', as: 'script' },

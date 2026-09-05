@@ -24,6 +24,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
 import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { GameHeader } from '@/components/game/GameHeader';
+import { UnfinishedRoundExitGuard } from '@/components/game/UnfinishedRoundExitGuard';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -270,6 +271,10 @@ export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableI
 
   return (
     <div className={`blackjack-page blackjack-page--${tableId}`} data-blackjack-table={tableId}>
+      <UnfinishedRoundExitGuard
+        key={tableId}
+        active={busy || animating || round?.status === 'ACTIVE'}
+      />
       <GameHeader
         artwork="/game-art/blackjack/background.png"
         section={tableConfig.section}
@@ -377,11 +382,11 @@ export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableI
                               : 'border-white/10 bg-[#07111E]/64'
                           }`}
                         >
-                          <div className="blackjack-player-hand-header mb-2 flex items-center justify-between gap-2">
+                          <div className="blackjack-player-hand-header mb-2 flex flex-wrap items-center justify-between gap-2">
                             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/50">
                               {t.games.blackjack.hand} {index + 1}
                             </div>
-                            <div className="blackjack-hand-bet-pill rounded-full bg-white/[0.08] px-2 py-1 text-[10px] font-bold text-[#E8D48A]">
+                            <div className="blackjack-hand-bet-pill min-w-0 max-w-full whitespace-normal rounded-full bg-white/[0.08] px-2 py-1 text-[10px] font-bold text-[#E8D48A] [overflow-wrap:anywhere]">
                               下注 {formatAmount(hand.bet)} ·{' '}
                               {formatBlackjackScore(hand.cards.length > 0 ? hand.score : null)}
                             </div>
@@ -596,10 +601,10 @@ function ActionButton({
 function TableLabel({ title, value }: { title: string; value: string }) {
   return (
     <div className="blackjack-table-label flex items-center justify-between gap-3 rounded-full border border-white/10 bg-[#050A13]/58 px-3 py-2 backdrop-blur">
-      <div className="blackjack-table-label__title text-[11px] font-black uppercase tracking-[0.22em] text-[#E8D48A]">
+      <div className="blackjack-table-label__title min-w-0 text-[11px] font-black uppercase tracking-[0.22em] text-[#E8D48A] [overflow-wrap:anywhere]">
         {title}
       </div>
-      <div className="blackjack-table-label__value data-num text-[11px] font-black uppercase tracking-[0.18em] text-white/70">
+      <div className="blackjack-table-label__value data-num min-w-0 text-right text-[11px] font-black uppercase tracking-[0.18em] text-white/70 [overflow-wrap:anywhere]">
         {value}
       </div>
     </div>
@@ -620,13 +625,13 @@ function BlackjackScoreTile({
 
   return (
     <div
-      className={`blackjack-score-tile blackjack-score-tile--${tone} rounded-[14px] border border-white/10 bg-[#050A13]/68 px-2 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]`}
+      className={`blackjack-score-tile blackjack-score-tile--${tone} min-w-0 rounded-[14px] border border-white/10 bg-[#050A13]/68 px-2 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]`}
     >
-      <div className="blackjack-score-tile__label text-[9px] font-black uppercase tracking-[0.18em] text-white/50">
+      <div className="blackjack-score-tile__label whitespace-normal text-[9px] font-black uppercase tracking-[0.18em] text-white/50 [overflow-wrap:anywhere]">
         {label}
       </div>
       <div
-        className={`blackjack-score-tile__value mt-1 truncate font-display text-[18px] font-black leading-none sm:text-[24px] ${valueClass}`}
+        className={`blackjack-score-tile__value mt-1 whitespace-normal text-balance font-display text-[18px] font-black leading-tight [overflow-wrap:anywhere] sm:text-[24px] ${valueClass}`}
       >
         {value}
       </div>

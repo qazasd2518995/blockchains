@@ -6986,11 +6986,10 @@
     .game-fullscreen-shell .blackjack-table-label > div:first-child,
     .game-fullscreen-shell .blackjack-table-label > div:last-child {
       min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      overflow-wrap: anywhere;
+      white-space: normal;
       font-size: 9px !important;
-      line-height: 1 !important;
+      line-height: 1.25 !important;
       letter-spacing: 0.1em !important;
     }
 
@@ -7024,11 +7023,10 @@
     .game-fullscreen-shell .blackjack-player-hand-header > div:last-child {
       max-width: 72%;
       padding: 0.22rem 0.42rem !important;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      overflow-wrap: anywhere;
+      white-space: normal;
       font-size: 8px !important;
-      line-height: 1 !important;
+      line-height: 1.25 !important;
     }
 
     .game-fullscreen-shell .blackjack-player-card-row {
@@ -16226,7 +16224,7 @@
       font-size: 22px !important;
       font-variant-numeric: tabular-nums;
       font-weight: 800 !important;
-      line-height: 1.05 !important;
+      line-height: 1.25 !important;
       letter-spacing: 0 !important;
       -webkit-text-stroke: 0 transparent !important;
       text-shadow: none !important;

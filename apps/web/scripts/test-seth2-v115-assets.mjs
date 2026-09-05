@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const webRoot = fileURLToPath(new URL('..', import.meta.url));
 const gameRoot = path.join(webRoot, 'public/games/storm-of-seth-2-v115');
@@ -44,11 +45,69 @@ assert.ok(
   ),
   'the portrait loading label must be positioned on the progress bar center line',
 );
+// A centered saved position is not sufficient: Widget runs after deserialization
+// and on layout changes, and a RIGHT flag moves the label away from x = 0.
+const portraitLoadingData = JSON.parse(portraitLoadingPrefab);
+function decodeLoadingRecord(record) {
+  const layout = portraitLoadingData[4][record[0]];
+  const [type, fields] = portraitLoadingData[3][layout[0]];
+  return {
+    type,
+    properties: Object.fromEntries(
+      layout.slice(1, -1).map((field, index) => [fields[field], record[index + 1]]),
+    ),
+  };
+}
+const loadingMessage = portraitLoadingData[5]
+  .map(decodeLoadingRecord)
+  .find((record) => record.type === 'cc.Node' && record.properties._name === 'message');
+assert.ok(loadingMessage, 'the portrait Loading message node must exist');
+const loadingWidget = loadingMessage.properties._components
+  .map(decodeLoadingRecord)
+  .find((record) => record.type === 'cc.Widget');
+assert.ok(loadingWidget, 'the portrait Loading message must keep its responsive Widget');
+assert.equal(
+  loadingWidget.properties._alignFlags,
+  16 | 4, // Cocos Widget: horizontal CENTER + BOTTOM, never LEFT or RIGHT.
+  'the loading Widget must preserve horizontal centering when it recalculates layout',
+);
+assert.equal(loadingWidget.properties._bottom, 20, 'keep the original loading label height');
+assert.equal(
+  loadingWidget.properties._horizontalCenter ?? 0,
+  0,
+  'the loading Widget must not introduce a horizontal center offset',
+);
 assert.match(
   gameDocument,
-  /3e8965eb-cf9e-4542-b1f5-93891a50a8c9\.json[\s\S]*20260904-loading-center-1/,
+  /3e8965eb-cf9e-4542-b1f5-93891a50a8c9\.json[\s\S]*20260905-loading-widget-center-2/,
   'the corrected immutable prefab must use a revised request URL',
 );
+const loadingCacheScript = [...gameDocument.matchAll(/<script>([\s\S]*?)<\/script>/g)]
+  .map((match) => match[1])
+  .find((script) => script.includes('var revisedPath'));
+assert.ok(loadingCacheScript, 'the loading prefab cache revision hook must be present');
+const gameLocation = new URL('https://loading.test/games/storm-of-seth-2-v115/index.html');
+const revisedPrefabPath = `${gameLocation.pathname.replace('index.html', '')}assets/resources/import/3e/3e8965eb-cf9e-4542-b1f5-93891a50a8c9.json`;
+class LoadingRequest {
+  open(...args) {
+    this.openArguments = args;
+  }
+}
+vm.runInNewContext(loadingCacheScript, {
+  URL,
+  XMLHttpRequest: LoadingRequest,
+  window: { location: gameLocation },
+});
+const loadingRequest = new LoadingRequest();
+loadingRequest.open('GET', `${revisedPrefabPath}?v=old&locale=zh-Hant`, true);
+const revisedPrefabUrl = new URL(loadingRequest.openArguments[1]);
+assert.equal(revisedPrefabUrl.searchParams.get('v'), '20260905-loading-widget-center-2');
+assert.equal(revisedPrefabUrl.searchParams.get('locale'), 'zh-Hant');
+assert.equal(loadingRequest.openArguments[2], true, 'preserve the engine request arguments');
+for (const unchangedUrl of ['assets/resources/config.json', `https://external.test${revisedPrefabPath}`]) {
+  loadingRequest.open('GET', unchangedUrl, true);
+  assert.equal(loadingRequest.openArguments[1], unchangedUrl, 'do not revise unrelated resources');
+}
 
 assert.deepEqual(manifest.source, {
   gameRevision: '361d567d94ac569664c82068a30b762e8d8438b8',

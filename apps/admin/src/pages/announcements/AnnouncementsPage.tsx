@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useActionLock } from '@/hooks/useActionLock';
+import { RuleRowActions } from '@/components/shared/RuleRowActions';
+import { canWriteAdmin } from '@/lib/adminPermissions';
+import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { Megaphone } from 'lucide-react';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -31,6 +35,9 @@ function truncate(s: string, max: number): string {
 
 export function AnnouncementsPage(): JSX.Element {
   const { t } = useTranslation();
+  const canWrite = canWriteAdmin(useAdminAuthStore((state) => state.agent));
+  const [busy, beginAction, endAction] = useActionLock();
+  const [notice, setNotice] = useState<string | null>(null);
   const [items, setItems] = useState<AnnouncementRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +48,7 @@ export function AnnouncementsPage(): JSX.Element {
     try {
       const res = await adminApi.get<{ items: AnnouncementRow[] }>('/announcements');
       setItems(res.data.items);
+      setError(null);
     } catch (e) {
       setError(extractApiError(e).message);
     } finally {
@@ -60,21 +68,31 @@ export function AnnouncementsPage(): JSX.Element {
     setEditing(row);
     setFormOpen(true);
   };
-  const toggleRow = async (id: string, isActive: boolean): Promise<void> => {
+  const mutate = async (id: string, nextActive: boolean | null): Promise<boolean> => {
+    if (!canWrite || !beginAction()) return false;
+    setError(null);
+    setNotice(null);
     try {
-      await adminApi.patch(`/announcements/${id}/toggle`, { isActive: !isActive });
-      await reload();
+      if (nextActive === null) await adminApi.delete(`/announcements/${id}`);
+      else await adminApi.patch(`/announcements/${id}/toggle`, { isActive: nextActive });
+      setItems((rows) =>
+        nextActive === null
+          ? rows.filter((row) => row.id !== id)
+          : rows.map((row) => (row.id === id ? { ...row, isActive: nextActive } : row)),
+      );
+      setNotice(
+        nextActive === null
+          ? '公告已刪除。'
+          : nextActive
+            ? '公告已啟用。'
+            : '公告已停用，內容仍保留。',
+      );
+      return true;
     } catch (e) {
       setError(extractApiError(e).message);
-    }
-  };
-  const deleteRow = async (id: string): Promise<void> => {
-    if (!window.confirm('確定刪除此公告？')) return;
-    try {
-      await adminApi.delete(`/announcements/${id}`);
-      await reload();
-    } catch (e) {
-      setError(extractApiError(e).message);
+      return false;
+    } finally {
+      endAction();
     }
   };
 
@@ -130,23 +148,25 @@ export function AnnouncementsPage(): JSX.Element {
       align: 'right',
       render: (r) => (
         <div className="flex justify-end gap-1 text-[10px]">
-          <button type="button" onClick={() => openEdit(r)} className="btn-teal-outline px-2 py-1">
-            編輯
-          </button>
           <button
             type="button"
-            onClick={() => toggleRow(r.id, r.isActive)}
+            disabled={!canWrite || busy}
+            onClick={() => openEdit(r)}
             className="btn-teal-outline px-2 py-1"
           >
-            {r.isActive ? '停用' : '啟用'}
+            編輯
           </button>
-          <button
-            type="button"
-            onClick={() => deleteRow(r.id)}
-            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
-          >
-            刪除
-          </button>
+          <RuleRowActions
+            label={`公告 · ${r.content}`}
+            active={r.isActive}
+            busy={busy}
+            readOnly={!canWrite}
+            error={error ?? undefined}
+            onToggle={async () => {
+              await mutate(r.id, !r.isActive);
+            }}
+            onDelete={() => mutate(r.id, null)}
+          />
         </div>
       ),
     },
@@ -164,6 +184,7 @@ export function AnnouncementsPage(): JSX.Element {
         rightSlot={
           <button
             type="button"
+            disabled={!canWrite || busy}
             onClick={openCreate}
             className="btn-acid flex items-center gap-1.5 text-[12px]"
           >
@@ -172,6 +193,11 @@ export function AnnouncementsPage(): JSX.Element {
         }
       />
 
+      {notice && (
+        <p role="status" className="mb-4 text-sm text-[#1F7A4D]">
+          {notice}
+        </p>
+      )}
       {error && (
         <div className="mb-4 border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
           ⚠ {error}

@@ -1,3 +1,4 @@
+import { useActionLock } from '@/hooks/useActionLock';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -192,30 +193,36 @@ export function CreateMemberModal({
     setBettingLimits(buildBettingLimitsSelection(null, watchedBettingLimitLevel, parentLimits));
   }, [customLimitOpen, open, parentLimits, watchedBettingLimitLevel]);
 
+  const [busy, beginAction, endAction] = useActionLock();
   const onSubmit = async (data: FormInput) => {
-    setErr(null);
+    if (!beginAction()) return;
     try {
-      const res = await adminApi.post<MemberPublic>('/members', {
-        agentId: data.agentId,
-        username: data.username,
-        password: data.password,
-        initialBalance: data.initialBalance || undefined,
-        bettingLimitLevel: data.bettingLimitLevel,
-        bettingLimits,
-        notes: data.notes || undefined,
-      });
-      requestAdminLiveRefresh();
-      const nextShareInfo: CreatedAccountShareInfo = {
-        kind: 'member',
-        username: res.data.username,
-        password: data.password,
-        bettingLimitLevel: res.data.bettingLimitLevel,
-      };
-      onCreated(res.data, nextShareInfo);
-      onClose();
-      setShareInfo(nextShareInfo);
-    } catch (e) {
-      setErr(extractApiError(e).message);
+      setErr(null);
+      try {
+        const res = await adminApi.post<MemberPublic>('/members', {
+          agentId: data.agentId,
+          username: data.username,
+          password: data.password,
+          initialBalance: data.initialBalance || undefined,
+          bettingLimitLevel: data.bettingLimitLevel,
+          bettingLimits,
+          notes: data.notes || undefined,
+        });
+        requestAdminLiveRefresh();
+        const nextShareInfo: CreatedAccountShareInfo = {
+          kind: 'member',
+          username: res.data.username,
+          password: data.password,
+          bettingLimitLevel: res.data.bettingLimitLevel,
+        };
+        onCreated(res.data, nextShareInfo);
+        onClose();
+        setShareInfo(nextShareInfo);
+      } catch (e) {
+        setErr(extractApiError(e).message);
+      }
+    } finally {
+      endAction();
     }
   };
 
@@ -223,7 +230,14 @@ export function CreateMemberModal({
 
   return (
     <>
-      <Modal open={open} onClose={onClose} title={modalTitle} subtitle="新增下线会员" width="md">
+      <Modal
+        busy={busy || isSubmitting}
+        open={open}
+        onClose={onClose}
+        title={modalTitle}
+        subtitle="新增下线会员"
+        width="md"
+      >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {lockedAgent ? (
             <div className="rounded-md border border-[#C9A247]/35 bg-[#FFF8DA] px-4 py-3">
