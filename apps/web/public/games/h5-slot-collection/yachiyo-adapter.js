@@ -537,6 +537,19 @@
       target = window.cc.find('Canvas/GameNode/ControlGround/player' + seatId + '/userML');
     }
     if (!target) return 0;
+    var infoBackground = target.getChildByName && target.getChildByName('userInfoBG');
+    if (infoBackground) {
+      // Keep the authored frame's left edge fixed and extend only the balance
+      // side. This gives decimal balances room without covering the cannon.
+      infoBackground.x = -76.5;
+      infoBackground.width = 220;
+    }
+    var moneyNode = target.getChildByName && target.getChildByName('money');
+    var moneyLabel =
+      moneyNode && moneyNode.getComponent && window.cc
+        ? moneyNode.getComponent(window.cc.Label)
+        : null;
+    fitHappyFishingBalanceLabel(moneyLabel);
     var cannon = main && main.cannonList && main.cannonList[seatId];
     if (cannon && !cannon.__yachiyoExactBalance && typeof cannon.update === 'function') {
       var originalUpdate = cannon.update;
@@ -544,6 +557,7 @@
         var result = originalUpdate.apply(this, arguments);
         var exactBalance = Number(this.dataInfo && this.dataInfo.score);
         if (this.goldLbl && Number.isFinite(exactBalance)) {
+          fitHappyFishingBalanceLabel(this.goldLbl);
           this.goldLbl.string = formatHappyFishingBalance(exactBalance);
         }
         return result;
@@ -585,6 +599,21 @@
     });
   }
 
+  function fitHappyFishingBalanceLabel(label) {
+    if (!label || !label.node) return false;
+    var overflow =
+      window.cc && window.cc.Label && window.cc.Label.Overflow
+        ? window.cc.Label.Overflow.SHRINK
+        : 3;
+    label.overflow = overflow;
+    label.enableWrapText = false;
+    label.fontSize = 25;
+    label.lineHeight = 30;
+    label.node.width = 115;
+    label.node.height = 32;
+    return true;
+  }
+
   function updateHappyFishingOriginalBalance(balance, panel) {
     if (gameCode !== '14' || !Number.isFinite(balance) || !window.cc) return false;
     var target = panel;
@@ -596,8 +625,8 @@
     var moneyNode = target && target.getChildByName && target.getChildByName('money');
     var label = moneyNode && moneyNode.getComponent && moneyNode.getComponent(window.cc.Label);
     if (!label) return false;
+    fitHappyFishingBalanceLabel(label);
     label.string = formatHappyFishingBalance(balance);
-    if (moneyNode.width < 210) moneyNode.width = 210;
     return true;
   }
 
@@ -2406,11 +2435,7 @@
       fishType = Math.max(0, typeCount - 1 - (typeRoll % Math.min(4, typeCount)));
     }
 
-    if (
-      sequence === lastFishSpawnSequence + 1 &&
-      fishType === lastFishSpawnType &&
-      typeCount > 1
-    ) {
+    if (sequence === lastFishSpawnSequence + 1 && fishType === lastFishSpawnType && typeCount > 1) {
       fishType =
         (fishType + 1 + (mixFishSequence(sequence, 0x42108421) % (typeCount - 1))) % typeCount;
     }

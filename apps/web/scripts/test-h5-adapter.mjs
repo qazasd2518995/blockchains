@@ -49,7 +49,7 @@ assert.match(
 );
 assert.match(
   collectionIndexSource,
-  /yachiyo-adapter\.js\?v=50/,
+  /yachiyo-adapter\.js\?v=51/,
   'the shared collection must load the fishing-layout adapter revision',
 );
 assert.doesNotMatch(

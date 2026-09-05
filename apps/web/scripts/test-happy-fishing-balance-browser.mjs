@@ -17,7 +17,7 @@ const user = {
   id: 'fish-fixture',
   username: 'fixture',
   role: 'PLAYER',
-  balance: '32157.37',
+  balance: '72299.42',
   bettingLimits: {},
 };
 try {
@@ -64,58 +64,113 @@ try {
     { timeout: 45000 },
   );
   await page.waitForTimeout(3500);
-  const measurements = await page.evaluate(() => {
-    const win = document.querySelector('iframe').contentWindow,
-      cc = win.cc;
-    const panel = cc.find('Canvas/GameNode/ControlGround/player0/userML');
-    const moneyNode = panel.getChildByName('money');
-    const money = moneyNode.getComponent(cc.Label);
-    const canvasRect = win.document.querySelector('#GameCanvas').getBoundingClientRect();
-    const design = cc.view.getDesignResolutionSize();
-    const worldRect = panel.getBoundingBoxToWorld();
-    return {
-      duplicateHud: Boolean(win.document.getElementById('yachiyo-fish-balance')),
-      text: money.string,
-      panelScale: panel.scaleX,
-      effectiveFontSize: money.fontSize * panel.scaleX * (canvasRect.width / design.width),
-      worldRect: { x: worldRect.x, y: worldRect.y, width: worldRect.width, height: worldRect.height },
-      viewportWidth: win.innerWidth,
-      design,
-    };
-  });
-  assert.equal(measurements.duplicateHud, false, 'do not add a second HTML balance display');
-  assert.equal(measurements.text, '32,157.37');
-  assert.equal(measurements.panelScale, 1.65, 'enlarge the authored lower-left player panel');
-  assert.ok(measurements.effectiveFontSize >= 13, 'the authored wallet text must remain readable');
-  assert.ok(measurements.worldRect.x >= -1);
-  assert.ok(measurements.worldRect.x + measurements.worldRect.width <= measurements.design.width);
-  assert.equal(measurements.design.width, 1920, 'do not reduce game resolution for larger text');
-  await page.setViewportSize({ width: 667, height: 375 });
-  await page.waitForTimeout(300);
-  const resized = await page.evaluate(() => {
-    const win = document.querySelector('iframe').contentWindow,
-      cc = win.cc,
-      panel = cc.find('Canvas/GameNode/ControlGround/player0/userML'),
-      money = panel.getChildByName('money').getComponent(cc.Label),
-      canvasRect = win.document.querySelector('#GameCanvas').getBoundingClientRect(),
-      design = cc.view.getDesignResolutionSize();
-    return {
-      duplicateHud: Boolean(win.document.getElementById('yachiyo-fish-balance')),
-      text: money.string,
-      panelScale: panel.scaleX,
-      effectiveFontSize: money.fontSize * panel.scaleX * (canvasRect.width / design.width),
-    };
-  });
-  assert.deepEqual(
-    { duplicateHud: resized.duplicateHud, text: resized.text, panelScale: resized.panelScale },
-    { duplicateHud: false, text: '32,157.37', panelScale: 1.65 },
-  );
+  const readLayout = () =>
+    page.evaluate(() => {
+      const win = document.querySelector('iframe').contentWindow,
+        cc = win.cc;
+      const panel = cc.find('Canvas/GameNode/ControlGround/player0/userML');
+      const background = panel.getChildByName('userInfoBG');
+      const moneyNode = panel.getChildByName('money');
+      const money = moneyNode.getComponent(cc.Label);
+      const canvasRect = win.document.querySelector('#GameCanvas').getBoundingClientRect();
+      const design = cc.view.getDesignResolutionSize();
+      const worldRect = panel.getBoundingBoxToWorld();
+      const bounds = (node) => ({
+        left: node.x - node.width * node.anchorX,
+        right: node.x + node.width * (1 - node.anchorX),
+        bottom: node.y - node.height * node.anchorY,
+        top: node.y + node.height * (1 - node.anchorY),
+      });
+      return {
+        duplicateHud: Boolean(win.document.getElementById('yachiyo-fish-balance')),
+        text: money.string,
+        panelScale: panel.scaleX,
+        background: { width: background.width, x: background.x, bounds: bounds(background) },
+        moneyNode: {
+          width: moneyNode.width,
+          height: moneyNode.height,
+          bounds: bounds(moneyNode),
+        },
+        label: {
+          fontSize: money.fontSize,
+          actualFontSize: money._actualFontSize,
+          lineHeight: money.lineHeight,
+          overflow: money.overflow,
+          shrinkOverflow: cc.Label.Overflow.SHRINK,
+          wrap: money.enableWrapText,
+        },
+        effectiveFontSize:
+          (money._actualFontSize || money.fontSize) *
+          panel.scaleX *
+          Math.min(canvasRect.width / design.width, canvasRect.height / design.height),
+        worldRect: {
+          x: worldRect.x,
+          y: worldRect.y,
+          width: worldRect.width,
+          height: worldRect.height,
+        },
+        viewport: { width: win.innerWidth, height: win.innerHeight },
+        design,
+      };
+    });
+  const assertLayout = (layout, name) => {
+    assert.equal(layout.duplicateHud, false, `${name}: do not add a second HTML balance display`);
+    assert.equal(layout.text, '72,299.42', `${name}: retain the exact fractional balance`);
+    assert.equal(layout.panelScale, 1.65, `${name}: keep the authored player panel enlarged`);
+    assert.deepEqual(
+      { x: layout.background.x, width: layout.background.width },
+      { x: -76.5, width: 220 },
+      `${name}: extend the original frame toward the balance only`,
+    );
+    assert.equal(layout.moneyNode.width, 115, `${name}: reserve a bounded balance area`);
+    assert.equal(layout.moneyNode.height, 32, `${name}: keep the glyphs inside the frame height`);
+    assert.equal(
+      layout.label.overflow,
+      layout.label.shrinkOverflow,
+      `${name}: long balances must shrink`,
+    );
+    assert.equal(layout.label.wrap, false, `${name}: balances must stay on one line`);
+    assert.ok(
+      layout.moneyNode.bounds.left >= layout.background.bounds.left,
+      `${name}: balance starts outside the original frame`,
+    );
+    assert.ok(
+      layout.moneyNode.bounds.right <= layout.background.bounds.right,
+      `${name}: balance ends outside the original frame`,
+    );
+    assert.ok(
+      layout.moneyNode.bounds.bottom >= layout.background.bounds.bottom &&
+        layout.moneyNode.bounds.top <= layout.background.bounds.top,
+      `${name}: balance exceeds the frame vertically`,
+    );
+    assert.ok(layout.worldRect.x >= -1, `${name}: player panel exceeds the canvas left edge`);
+    assert.ok(
+      layout.worldRect.x + layout.worldRect.width <= layout.design.width,
+      `${name}: player panel exceeds the canvas right edge`,
+    );
+    assert.equal(
+      layout.design.width,
+      1920,
+      `${name}: do not reduce game resolution for larger text`,
+    );
+  };
+
+  const landscape = await readLayout();
+  assertLayout(landscape, 'landscape');
   assert.ok(
-    resized.effectiveFontSize >= 13,
-    `resized effective font size was ${resized.effectiveFontSize}`,
+    landscape.effectiveFontSize >= 13,
+    `landscape effective font size was ${landscape.effectiveFontSize}`,
   );
+  if (process.env.FISH_LANDSCAPE_SCREENSHOT) {
+    await page.screenshot({ path: process.env.FISH_LANDSCAPE_SCREENSHOT });
+  }
+
+  await page.setViewportSize({ width: 390, height: 665 });
+  await page.waitForTimeout(500);
+  const portrait = await readLayout();
+  assertLayout(portrait, 'portrait');
   console.log(
-    'PASS Happy Fishing: original lower-left wallet enlarged, fractional balance synced, no duplicate HUD',
+    'PASS Happy Fishing: original wallet fits its frame in landscape and rotated portrait layouts',
   );
   if (process.env.FISH_SCREENSHOT) await page.screenshot({ path: process.env.FISH_SCREENSHOT });
 } finally {
