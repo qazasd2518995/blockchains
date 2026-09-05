@@ -58,6 +58,7 @@ export function TowerPage() {
   const sceneRef = useRef<TowerScene | null>(null);
   const roundRef = useRef<TowerRoundState | null>(null);
   const pickLockRef = useRef(false);
+  const pickHandlerRef = useRef<(level: number, col: number) => void>(() => {});
   const recovery = useRoundRecovery<TowerRoundState>('tower', (state) => {
     setRound(state);
     roundRef.current = state;
@@ -138,7 +139,7 @@ export function TowerPage() {
       sceneRef.current = scene;
       void scene
         .init(canvas, w, h, (level, col) => {
-          void pickInternal(level, col);
+          pickHandlerRef.current(level, col);
         })
         .then(() => {
           if (cancelled) return;
@@ -315,6 +316,12 @@ export function TowerPage() {
         sceneRef.current?.setInputLocked(!sceneReadyRef.current || !recovery.readyRef.current);
       }, 420);
     }
+  };
+
+  // The long-lived Pixi listener must use the current login/recovery/amount,
+  // not the render captured while its canvas was first mounted.
+  pickHandlerRef.current = (level, col) => {
+    void pickInternal(level, col);
   };
 
   const cashout = async () => {

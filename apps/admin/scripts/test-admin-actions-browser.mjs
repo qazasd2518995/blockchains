@@ -180,6 +180,7 @@ const pageErrors = [];
 let held = null;
 let holdNext = false;
 let failNext = false;
+let disconnectNext = false;
 let failRead = false;
 let failSearch = false;
 let failAuthAfterTransfer = false;
@@ -212,6 +213,10 @@ await context.route('**/*', async (route) => {
   if (method !== 'GET') {
     const body = route.request().postData() ? route.request().postDataJSON() : null;
     writes.push({ method, path, body });
+    if (disconnectNext) {
+      disconnectNext = false;
+      return route.abort('failed');
+    }
     if (holdNext) {
       holdNext = false;
       await new Promise((resolve) => {
@@ -414,6 +419,17 @@ try {
   await button(page.getByRole('dialog'), '確認刪除').click();
   await page.getByRole('dialog').getByRole('alert').waitFor();
   await button(page.getByRole('dialog'), '取消').click();
+  checks++;
+  await button(row, '刪除').click();
+  disconnectNext = true;
+  await button(page.getByRole('dialog'), '確認刪除').click();
+  await page.getByRole('dialog').getByText('無法連線或確認操作結果。', { exact: false }).waitFor();
+  assert.ok(await button(page.getByRole('dialog'), '取消').isEnabled());
+  await button(page.getByRole('dialog'), '取消').click();
+  assert.ok(
+    await button(row, '停用').isEnabled(),
+    'network failure does not remove the rule locally',
+  );
   checks++;
   failRead = true;
   await button(row, '停用').click();

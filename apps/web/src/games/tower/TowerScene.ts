@@ -93,6 +93,7 @@ export class TowerScene {
   private baseLevelY = 0;
   private onClick: TowerCellClick | null = null;
   private inputLocked = false;
+  private focusTimer: ReturnType<typeof setTimeout> | null = null;
   private winFx: WinCelebration | null = null;
 
   async init(
@@ -300,6 +301,8 @@ export class TowerScene {
    * 設定塔的形狀
    */
   setup(totalLevels: number, cols: number): void {
+    if (this.focusTimer) clearTimeout(this.focusTimer);
+    this.focusTimer = null;
     this.totalLevels = totalLevels;
     this.cols = cols;
     this.currentLevel = 0;
@@ -389,7 +392,11 @@ export class TowerScene {
     const c = new Container();
     c.eventMode = 'static';
     c.cursor = 'default';
-    c.hitArea = new Rectangle(-w / 2 - 6, -h / 2 - 8, w + 12, h + 16);
+    // Touch padding must stop at the midpoint between cells. The previous
+    // +8px vertical halo overlapped the next (later rendered) row, swallowing
+    // taps on the visible upper edge of the currently playable cell.
+    const gap = this.cellDims().gap;
+    c.hitArea = new Rectangle(-w / 2 - gap / 2, -this.levelHeight / 2, w + gap, this.levelHeight);
 
     const tile = new Graphics();
     this.drawCellTile(tile, w, h, 'hidden');
@@ -420,7 +427,8 @@ export class TowerScene {
       if (this.inputLocked) return;
       if (handle.state !== 'hidden') return;
       if (level !== this.currentLevel) return;
-      this.inputLocked = true;
+      // The page locks synchronously only after accepting this pick. Locking
+      // here strands the scene when recovery/the page rejects an early tap.
       this.onClick?.(level, col);
     });
     c.on('pointerover', () => {
@@ -522,6 +530,8 @@ export class TowerScene {
    * 對焦至某一層（相機平移）
    */
   focusOnLevel(level: number, animate = true): void {
+    if (this.focusTimer) clearTimeout(this.focusTimer);
+    this.focusTimer = null;
     if (!this.cameraContainer) return;
     this.currentLevel = level;
     this.cameraContainer.y = 0;
@@ -640,7 +650,9 @@ export class TowerScene {
       }
 
       // 爬升到下一層
-      setTimeout(() => {
+      if (this.focusTimer) clearTimeout(this.focusTimer);
+      this.focusTimer = setTimeout(() => {
+        this.focusTimer = null;
         if (level + 1 < this.totalLevels) {
           this.focusOnLevel(level + 1, true);
         }
@@ -803,6 +815,8 @@ export class TowerScene {
   }
 
   dispose(): void {
+    if (this.focusTimer) clearTimeout(this.focusTimer);
+    this.focusTimer = null;
     if (this.ambientTicker && this.app) this.app.ticker.remove(this.ambientTicker);
     if (this.particleTicker && this.app) this.app.ticker.remove(this.particleTicker);
     if (this.poolTicker && this.app) this.app.ticker.remove(this.poolTicker);

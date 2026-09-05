@@ -49,15 +49,13 @@ function finalMultiplier(outcome: Seth2Outcome): number {
   const upgrades = outcome.returnData.list.flatMap((round) => round.upgrade_mul_list);
   const multipliers = firstRound.start_data
     .filter((current) => current.type === 10)
-    .map((current) => ({ ...current, upgraded: false }));
+    .map((current) => ({ ...current }));
   for (const upgrade of upgrades) {
     const target = multipliers.find(
-      (current) =>
-        current.mul_type === 0 && current.mul === upgrade.mul && current.upgraded === false,
+      (current) => current.mul_type === 0 && current.mul === upgrade.mul,
     );
     if (target) {
       target.mul = upgrade.new_mul;
-      target.upgraded = true;
     }
   }
   const currentMultiplier =
@@ -608,6 +606,32 @@ describe('Storm of Seth 2 provably-fair engine', () => {
         }
       });
     }
+  });
+
+  it('upgrades opening female balls on each winning cascade, preserving final payout', () => {
+    let repeated = 0;
+    for (let nonce = 0; nonce < 2000; nonce++) {
+      const outcome = seth2Spin('female-every-tumble', 'client', nonce, BET, 'awakening_free');
+      const rounds = outcome.returnData.list;
+      if (rounds.length < 2 || rounds[0]!.remove_type.length === 0) continue;
+      rounds[0]!.start_data.forEach((ball, code) => {
+        if (ball.type !== 10 || ball.mul_type !== 0) return;
+        let value = ball.mul;
+        for (const round of rounds) {
+          if (!round.remove_type.length) continue;
+          const upgrade = round.upgrade_mul_list.find((item) => item.code === code);
+          expect(upgrade?.mul).toBe(value);
+          const index = (SETH2_MULTIPLIER_VALUES as readonly number[]).indexOf(value);
+          expect(upgrade?.new_mul).toBe(SETH2_MULTIPLIER_VALUES[index + 1]);
+          value = upgrade!.new_mul;
+        }
+        repeated++;
+      });
+      expect(outcome.returnData.total_gold).toBe(
+        money(outcome.returnData.score * (finalMultiplier(outcome) || 1)),
+      );
+    }
+    expect(repeated).toBeGreaterThan(10);
   });
 
   it('limits both character skills to awakening mode', () => {

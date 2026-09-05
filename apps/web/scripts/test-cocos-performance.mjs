@@ -166,7 +166,7 @@ assert.doesNotMatch(
   /await preloadGameAssets\(gameId\)/,
   'route rendering must not wait for image decoding before mounting the game page',
 );
-assert.match(gameManifestSource, /yachiyo-adapter\.js\?v=48/);
+assert.match(gameManifestSource, /yachiyo-adapter\.js\?v=49/);
 assert.match(gameManifestSource, /fruit-mary-adapter\.js\?v=18/);
 assert.match(gameManifestSource, /seth2-local-adapter\.js\?v=20260905-split-completion-2/);
 assert.match(gameManifestSource, /thor2-original-adapter\.js\?v=20260901-auth-recovery-1/);

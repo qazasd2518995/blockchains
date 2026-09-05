@@ -125,6 +125,35 @@ function expectSourceBoardReplay(states: Seth2SourceGameState[]) {
 }
 
 describe('Seth 2 v1.1.5 source contract', () => {
+  it("replays female upgrades after each cascade at the ball's current falling position", () => {
+    let checked = 0;
+    for (let nonce = 0; nonce < 1000 && checked < 25; nonce++) {
+      const outcome = seth2SpinForFactor('every-tumble-source', 'client', nonce, 10, 20, 'base');
+      if (
+        outcome.returnData.list.length !== 2 ||
+        !outcome.returnData.list[0]!.upgrade_mul_list.length
+      )
+        continue;
+      const states = seth2SourceGameStates(outcome.returnData, SOURCE_OPTIONS);
+      expectSourceBoardReplay(states);
+      for (let i = 0; i < 2; i++) {
+        const state = states[i]!;
+        expect(state.timesUpgrade.length).toBeGreaterThan(0);
+        for (const upgrade of state.timesUpgrade) {
+          const nextPos =
+            state.posTransform.find((move) => move.beforePos === upgrade.symbolPos)?.afterPos ??
+            upgrade.symbolPos;
+          expect(states[i + 1]!.timesSymbols).toContainEqual(
+            expect.objectContaining({ symbolPos: nextPos, times: upgrade.afterTimes }),
+          );
+        }
+      }
+      expect(states.at(-1)!.totalWinnings).toBe(outcome.returnData.total_gold);
+      checked++;
+    }
+    expect(checked).toBe(25);
+  });
+
   it('does not leave a phantom uncollected 4x after a male split and refill', () => {
     const outcome = seth2SpinForFactor('clone-extra-4x', 'client', 0, 10, 20, 'awakening_free');
     expect(outcome.returnData.type17_beishu?.mul).toBe(4);

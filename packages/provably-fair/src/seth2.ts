@@ -659,6 +659,7 @@ function regularMultiplierPlan(
   total: number,
   maxParts: number,
   rng: Seth2RandomSource,
+  cascadeCount = 1,
 ): MultiplierPlan | null {
   const directValues = splitSeth2MultiplierTotal(total, maxParts);
   if (!directValues) return null;
@@ -667,12 +668,22 @@ function regularMultiplierPlan(
   const upgradeIndex = forceUpgradeStep
     ? 0
     : values.length > 0 && rng() < 0.25
-      ? values.findIndex((value) => previousMultiplierValue(value) !== null)
+      ? values.findIndex(
+          (value) =>
+            SETH2_MULTIPLIER_VALUES.indexOf(value as (typeof SETH2_MULTIPLIER_VALUES)[number]) >=
+            cascadeCount,
+        )
       : -1;
   const upgrades: Seth2MultiplierUpgrade[] = [];
   const cells = values.map((value, index) => {
     if (index !== upgradeIndex) return cell(10, value, 1);
-    const displayed = previousMultiplierValue(value)!;
+    // Plan backwards from the already selected final multiplier. A rare ball
+    // must advance on EVERY winning tumble, not wait until the last one.
+    // Values without enough predecessor steps stay ordinary (male) balls.
+    const finalIndex = SETH2_MULTIPLIER_VALUES.indexOf(
+      value as (typeof SETH2_MULTIPLIER_VALUES)[number],
+    );
+    const displayed = SETH2_MULTIPLIER_VALUES[finalIndex - cascadeCount]!;
     upgrades.push({ mul: displayed, new_mul: value });
     return cell(10, displayed, 0);
   });
@@ -994,7 +1005,7 @@ function buildWin(
       : null) ??
     malePlan ??
     femalePlan ??
-    regularMultiplierPlan(multiplierTotal, multiplierRoom, rng)!;
+    regularMultiplierPlan(multiplierTotal, multiplierRoom, rng, selected.patterns.length)!;
   const currentMultiplierContribution =
     multiplierPlan.cells.length > 0 ? multiplierPlan.finalTotal : 0;
   const effectiveMultiplier =
@@ -1059,7 +1070,18 @@ function buildWin(
       code: match?.code ?? -1,
     };
   });
-  firstRound.upgrade_mul_list = secondPattern ? [] : animatedUpgrades;
+  const cascadeUpgrades = (index: number) =>
+    animatedUpgrades.map((upgrade) => {
+      const startIndex = SETH2_MULTIPLIER_VALUES.indexOf(
+        upgrade.mul as (typeof SETH2_MULTIPLIER_VALUES)[number],
+      );
+      return {
+        ...upgrade,
+        mul: SETH2_MULTIPLIER_VALUES[startIndex + index]!,
+        new_mul: SETH2_MULTIPLIER_VALUES[startIndex + index + 1]!,
+      };
+    });
+  firstRound.upgrade_mul_list = cascadeUpgrades(0);
   const rounds = [firstRound];
   if (secondPattern) {
     const secondScore = money(bet * secondPattern.factor);
@@ -1068,7 +1090,7 @@ function buildWin(
       remove_type: [secondPattern.type],
       round_data: safeFill(secondPattern.count, new Set([secondPattern.type]), rng),
       scoreList: [secondScore],
-      upgrade_mul_list: animatedUpgrades,
+      upgrade_mul_list: cascadeUpgrades(1),
       total_mul: effectiveMultiplier > 1 ? effectiveMultiplier : 0,
       score: secondScore,
       total_gold: payout,
@@ -1139,15 +1161,7 @@ export function seth2Spin(
     ? buildScatterTrigger(bet, rng)
     : !selection.factor
       ? buildLoss(rng, mode, multiplierBank)
-      : buildWin(
-          bet,
-          selection.factor,
-          mode,
-          rng,
-          multiplierBank,
-          false,
-          hasPersistentMultiplier,
-        );
+      : buildWin(bet, selection.factor, mode, rng, multiplierBank, false, hasPersistentMultiplier);
   return applySpinFeatureMode(outcome, mode);
 }
 

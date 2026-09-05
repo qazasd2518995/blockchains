@@ -30,6 +30,7 @@
   var FISH_FREEZE_SKILL_COST = 100;
   var fishPendingSettlements = 0;
   var fishAvailableBalance = null;
+  var fishBalanceSyncRevision = 0;
   var fishBalanceReconcileInFlight = false;
   var slotSettlementInFlight = false;
   var SLOT_SPIN_PAUSE_MS = 650;
@@ -2298,9 +2299,30 @@
     return Boolean(bullet && bullet.result && bullet.hit);
   }
 
+  function renderHappyFishingBalance(balance) {
+    if (gameCode !== '14' || typeof document === 'undefined' || !document.body) return;
+    var hud = document.getElementById('yachiyo-fish-balance');
+    if (!hud) {
+      hud = document.createElement('div');
+      hud.id = 'yachiyo-fish-balance';
+      hud.setAttribute('aria-label', '可用餘額');
+      // CSS pixels, independent of the archived 1920px design canvas. Keep
+      // clear of the cannon buttons, and never intercept aiming/touch input.
+      hud.style.cssText =
+        'position:fixed;left:max(12px,env(safe-area-inset-left));bottom:max(64px,env(safe-area-inset-bottom));z-index:20;pointer-events:none;padding:8px 12px;border:1px solid #d8b755;border-radius:10px;background:rgba(3,18,30,.9);color:#ffe38a;font:bold 20px/1.3 system-ui,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap;max-width:calc(100vw - 24px);box-sizing:border-box;';
+      document.body.appendChild(hud);
+    }
+    hud.textContent =
+      '餘額 ' +
+      balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
   function syncFishBalance(balance) {
     if (!window.cc || !Number.isFinite(balance)) return;
+    var revision = ++fishBalanceSyncRevision;
     function applyBalance() {
+      // A late 1200ms source-UI repair must not restore a pre-shot balance.
+      if (revision !== fishBalanceSyncRevision || gameDisposing) return;
       try {
         var main = findFishMainComponent();
         var seatId = main && main.fishNet ? main.fishNet.seatId : 0;
@@ -2308,6 +2330,7 @@
           main.playerList[seatId].score = balance;
         }
         if (main && main.pInfo) main.pInfo.playerCoin = balance;
+        if (main) renderHappyFishingBalance(balance);
       } catch (_error) {
         // The parent balance remains authoritative if a source scene uses a different component layout.
       }
@@ -3741,6 +3764,7 @@
         maxPendingSettlements: FISH_MAX_PENDING_SETTLEMENTS,
       };
     },
+    syncFishBalance: syncFishBalance,
     sourceFontFallback: sourceFontFallback,
     rewriteMissingSourceFontStyle: rewriteMissingSourceFontStyle,
     isLegacyBrandWebViewUrl: isLegacyBrandWebViewUrl,

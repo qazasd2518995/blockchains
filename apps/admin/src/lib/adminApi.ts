@@ -314,6 +314,12 @@ function translateMessage(code: string, rawMessage: string): string {
  */
 export function extractApiError(err: unknown): ApiErrorBody {
   if (axios.isAxiosError(err)) {
+    if (!err.response) {
+      return {
+        code: 'NETWORK_ERROR',
+        message: '無法連線或確認操作結果。請重新整理確認狀態，勿重複送出；若持續發生請聯絡管理員。',
+      };
+    }
     const body = err.response?.data as ApiErrorBody | undefined;
     if (body && typeof body === 'object' && 'code' in body) {
       return { ...body, message: translateMessage(body.code, body.message) };

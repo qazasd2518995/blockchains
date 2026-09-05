@@ -49,7 +49,7 @@ assert.match(
 );
 assert.match(
   collectionIndexSource,
-  /yachiyo-adapter\.js\?v=48/,
+  /yachiyo-adapter\.js\?v=49/,
   'the shared collection must load the fishing-layout adapter revision',
 );
 assert.doesNotMatch(
@@ -242,12 +242,42 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
     },
     localStorage: storage,
     parent: { localStorage: storage, postMessage: () => {} },
-    setTimeout,
+    setTimeout: options.setTimeout ?? setTimeout,
     clearTimeout,
   };
   context.window = context;
   vm.runInNewContext(adapterSource, context, { filename: adapterPath });
   return context.__YachiyoH5AdapterTest;
+}
+
+{
+  const delayed = [];
+  const main = { fishNet: { seatId: 0 }, playerList: [{ score: 0 }], pInfo: {} };
+  const adapter = loadAdapter(
+    '14',
+    {},
+    {
+      cc: {
+        find: () => ({ getComponent: () => main }),
+        director: { getScene: () => ({ name: 'FishkuailebuyuMain' }) },
+      },
+      setTimeout: (fn, ms) => {
+        if (ms === 1200) delayed.push(fn);
+        return 0;
+      },
+    },
+  );
+  adapter.syncFishBalance(10.37);
+  adapter.syncFishBalance(0.37);
+  assert.equal(main.playerList[0].score, 0.37);
+  delayed[0]();
+  assert.equal(
+    main.playerList[0].score,
+    0.37,
+    'stale pre-shot repair must not restore already spent money',
+  );
+  delayed[1]();
+  assert.equal(main.pInfo.playerCoin, 0.37);
 }
 
 {

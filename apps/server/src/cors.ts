@@ -9,5 +9,9 @@ export const corsOptions: FastifyCorsOptions = {
     callback(null, isAllowedOrigin(origin));
   },
   credentials: true,
+  // @fastify/cors defaults to GET/HEAD/POST. Our separately hosted admin
+  // needs PATCH/PUT/DELETE too; otherwise the browser blocks valid actions
+  // before authentication/the route, so no failed DELETE reaches API logs.
+  methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   maxAge: CORS_PREFLIGHT_MAX_AGE_SECONDS,
 };
