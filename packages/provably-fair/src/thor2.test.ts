@@ -172,7 +172,7 @@ describe('Power of Thor II observed-rules engine', () => {
     }
   });
 
-  it('collects the final screen once and applies it to the complete tumble win', () => {
+  it('collects the final screen once and only applies the bank when that screen has a ball', () => {
     let checkedRounds = 0;
     let observedLastRefillMultiplier = false;
     let observedAccumulatedOnlyRound = false;
@@ -202,8 +202,10 @@ describe('Power of Thor II observed-rules engine', () => {
         );
         expect(finalCascade.collectedMultiplier).toBe(collectedMultiplier);
         expect(finalCascade.accumulatedMultiplier).toBe(accumulatedMultiplier);
+        const appliedMultiplier =
+          collectedMultiplier > 0 ? Math.max(1, accumulatedMultiplier) : 1;
         expect(finalCascade.payoutMultiplier).toBeCloseTo(
-          baseWinMultiplier * Math.max(1, accumulatedMultiplier),
+          baseWinMultiplier * appliedMultiplier,
           10,
         );
         expect(round.payoutMultiplier).toBeCloseTo(
@@ -212,10 +214,8 @@ describe('Power of Thor II observed-rules engine', () => {
         );
         if (collectedMultiplier === 0 && multiplierBeforeRound > 0) {
           observedAccumulatedOnlyRound = true;
-          expect(finalCascade.payoutMultiplier).toBeCloseTo(
-            baseWinMultiplier * multiplierBeforeRound,
-            10,
-          );
+          expect(finalCascade.payoutMultiplier).toBeCloseTo(baseWinMultiplier, 10);
+          expect(finalCascade.accumulatedMultiplier).toBe(multiplierBeforeRound);
         }
 
         const beforeCount = finalCascade.before.filter((cell) => cell.multiplier).length;

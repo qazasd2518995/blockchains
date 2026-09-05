@@ -19,6 +19,8 @@
   var fishBullets = {};
   var fishExplosionSettlements = {};
   var fishSequence = 0;
+  var lastFishSpawnSequence = 0;
+  var lastFishSpawnType = null;
   var fishTargets = [];
   var fishStreamToken = 0;
   var fishFrozenUntil = 0;
@@ -44,11 +46,10 @@
   // restricting every room to ids 1-12 left most of the original prefabs
   // unused and made the stream look like the same school repeating forever.
   var FISH_TYPE_COUNTS = { 2: 24, 12: 28, 13: 24, 14: 34 };
-  // The live source emits roughly one school every 0.3-0.8 seconds.  Keep the
-  // same density while retaining a bounded target list below, so movement
-  // stays populated without accumulating off-screen objects indefinitely.
-  var FISH_STREAM_MIN_INTERVAL_MS = 420;
-  var FISH_STREAM_JITTER_MS = 480;
+  // Keep the authored schools/formations, but leave enough space between
+  // packets that several identical schools do not pile up on a phone screen.
+  var FISH_STREAM_MIN_INTERVAL_MS = 850;
+  var FISH_STREAM_JITTER_MS = 650;
   var pendingLegacyResponses = [];
   var freeSelectionCount = 0;
   var pendingFreeModeBetId = null;
@@ -527,39 +528,77 @@
     return hiddenCount;
   }
 
-  function improveHappyFishingTextReadability(root, LabelClass) {
+  function improveHappyFishingPlayerPanel(panel) {
     if (gameCode !== '14') return 0;
-    var CocosLabel = LabelClass || (window.cc && window.cc.Label);
-    if (!CocosLabel) return 0;
-    var scene =
-      root ||
-      (window.cc.director &&
-        typeof window.cc.director.getScene === 'function' &&
-        window.cc.director.getScene());
-    if (!scene || typeof scene.getComponentsInChildren !== 'function') return 0;
-    var labels = scene.getComponentsInChildren(CocosLabel) || [];
-    var adjustedCount = 0;
-    labels.forEach(function (label) {
-      if (!label || label.__yachiyoReadableText) return;
-      var fontSize = Number(label.fontSize || label._fontSize || 0);
-      // Leave headings and tiny decorative glyphs untouched. The source UI's
-      // 16-34px labels become difficult to read after its 1920px canvas is
-      // fitted onto a phone, so enlarge only that text band.
-      if (!Number.isFinite(fontSize) || fontSize < 16 || fontSize > 34) return;
-      var targetSize = Math.min(42, Math.round(fontSize * 1.25));
-      var lineHeight = Number(label.lineHeight || label._lineHeight || 0);
-      try {
-        label.fontSize = targetSize;
-        if (lineHeight > 0 && lineHeight < targetSize) {
-          label.lineHeight = Math.ceil(targetSize * 1.12);
+    var target = panel;
+    var main = window.cc ? findFishMainComponent() : null;
+    var seatId = main && main.fishNet ? Number(main.fishNet.seatId || 0) : 0;
+    if (!target && window.cc) {
+      target = window.cc.find('Canvas/GameNode/ControlGround/player' + seatId + '/userML');
+    }
+    if (!target) return 0;
+    var cannon = main && main.cannonList && main.cannonList[seatId];
+    if (cannon && !cannon.__yachiyoExactBalance && typeof cannon.update === 'function') {
+      var originalUpdate = cannon.update;
+      cannon.update = function () {
+        var result = originalUpdate.apply(this, arguments);
+        var exactBalance = Number(this.dataInfo && this.dataInfo.score);
+        if (this.goldLbl && Number.isFinite(exactBalance)) {
+          this.goldLbl.string = formatHappyFishingBalance(exactBalance);
         }
-        label.__yachiyoReadableText = true;
-        adjustedCount += 1;
-      } catch (_error) {
-        // A custom source component may expose a read-only label facade.
+        return result;
+      };
+      cannon.__yachiyoExactBalance = true;
+    }
+    if (target.__yachiyoReadablePlayerPanel) return 0;
+    var scale = 1.65;
+    var baseScaleX = Number(target.scaleX == null ? 1 : target.scaleX);
+    var baseScaleY = Number(target.scaleY == null ? 1 : target.scaleY);
+    var baseX = Number(target.x || 0);
+    var baseY = Number(target.y || 0);
+    try {
+      if (typeof target.setScale === 'function') {
+        target.setScale(baseScaleX * scale, baseScaleY * scale);
+      } else {
+        target.scaleX = baseScaleX * scale;
+        target.scaleY = baseScaleY * scale;
       }
+      // The source panel is centred at half its width/height. Move its centre
+      // with the scale so its original lower-left edge remains in place.
+      if (typeof target.setPosition === 'function') {
+        target.setPosition(baseX * scale, baseY * scale);
+      } else {
+        target.x = baseX * scale;
+        target.y = baseY * scale;
+      }
+      target.__yachiyoReadablePlayerPanel = true;
+      return 1;
+    } catch (_error) {
+      return 0;
+    }
+  }
+
+  function formatHappyFishingBalance(balance) {
+    return balance.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     });
-    return adjustedCount;
+  }
+
+  function updateHappyFishingOriginalBalance(balance, panel) {
+    if (gameCode !== '14' || !Number.isFinite(balance) || !window.cc) return false;
+    var target = panel;
+    if (!target) {
+      var main = findFishMainComponent();
+      var seatId = main && main.fishNet ? Number(main.fishNet.seatId || 0) : 0;
+      target = window.cc.find('Canvas/GameNode/ControlGround/player' + seatId + '/userML');
+    }
+    var moneyNode = target && target.getChildByName && target.getChildByName('money');
+    var label = moneyNode && moneyNode.getComponent && moneyNode.getComponent(window.cc.Label);
+    if (!label) return false;
+    label.string = formatHappyFishingBalance(balance);
+    if (moneyNode.width < 210) moneyNode.width = 210;
+    return true;
   }
 
   function disableLegacyBrandWebViews() {
@@ -729,7 +768,7 @@
     hideUnsupportedLegacyButtons();
     enhanceFishAimControls();
     hideUnusedFishSeats();
-    improveHappyFishingTextReadability();
+    improveHappyFishingPlayerPanel();
     disableLegacyBrandWebViews();
     patchLegacyFreeSpinCountdown();
     patchDeferredFeatureCompletion();
@@ -2299,24 +2338,6 @@
     return Boolean(bullet && bullet.result && bullet.hit);
   }
 
-  function renderHappyFishingBalance(balance) {
-    if (gameCode !== '14' || typeof document === 'undefined' || !document.body) return;
-    var hud = document.getElementById('yachiyo-fish-balance');
-    if (!hud) {
-      hud = document.createElement('div');
-      hud.id = 'yachiyo-fish-balance';
-      hud.setAttribute('aria-label', '可用餘額');
-      // CSS pixels, independent of the archived 1920px design canvas. Keep
-      // clear of the cannon buttons, and never intercept aiming/touch input.
-      hud.style.cssText =
-        'position:fixed;left:max(12px,env(safe-area-inset-left));bottom:max(64px,env(safe-area-inset-bottom));z-index:20;pointer-events:none;padding:8px 12px;border:1px solid #d8b755;border-radius:10px;background:rgba(3,18,30,.9);color:#ffe38a;font:bold 20px/1.3 system-ui,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap;max-width:calc(100vw - 24px);box-sizing:border-box;';
-      document.body.appendChild(hud);
-    }
-    hud.textContent =
-      '餘額 ' +
-      balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
   function syncFishBalance(balance) {
     if (!window.cc || !Number.isFinite(balance)) return;
     var revision = ++fishBalanceSyncRevision;
@@ -2330,7 +2351,8 @@
           main.playerList[seatId].score = balance;
         }
         if (main && main.pInfo) main.pInfo.playerCoin = balance;
-        if (main) renderHappyFishingBalance(balance);
+        improveHappyFishingPlayerPanel();
+        updateHappyFishingOriginalBalance(balance);
       } catch (_error) {
         // The parent balance remains authoritative if a source scene uses a different component layout.
       }
@@ -2367,8 +2389,7 @@
     return (value ^ (value >>> 16)) >>> 0;
   }
 
-  function buildFishSpawn(sequence) {
-    var typeCount = FISH_TYPE_COUNTS[gameCode] || 24;
+  function selectFishType(sequence, typeCount) {
     var typeRoll = mixFishSequence(sequence, 0x13579bdf);
     var rarityRoll = typeRoll % 100;
     var commonCount = Math.min(10, typeCount);
@@ -2385,29 +2406,44 @@
       fishType = Math.max(0, typeCount - 1 - (typeRoll % Math.min(4, typeCount)));
     }
 
-    var formationRoll = mixFishSequence(sequence, 0x55aa55aa) % 20;
+    if (
+      sequence === lastFishSpawnSequence + 1 &&
+      fishType === lastFishSpawnType &&
+      typeCount > 1
+    ) {
+      fishType =
+        (fishType + 1 + (mixFishSequence(sequence, 0x42108421) % (typeCount - 1))) % typeCount;
+    }
+    lastFishSpawnSequence = sequence;
+    lastFishSpawnType = fishType;
+    return fishType;
+  }
+
+  function buildFishSpawn(sequence) {
+    var typeCount = FISH_TYPE_COUNTS[gameCode] || 24;
+    var fishType = selectFishType(sequence, typeCount);
+
+    var formationRoll = mixFishSequence(sequence, 0x55aa55aa) % 100;
     var fishLineup = 0;
     var fishCount = 1;
     var canSchool = fishType < Math.min(16, typeCount);
-    if (canSchool && formationRoll < 10) {
-      if (formationRoll < 5) {
+    if (canSchool && formationRoll < 18) {
+      if (formationRoll < 6) {
         fishLineup = 0;
-        fishCount = 2 + (mixFishSequence(sequence, 0x11223344) % 4);
-      } else if (formationRoll < 7) {
+        fishCount = 2 + (mixFishSequence(sequence, 0x11223344) % 2);
+      } else if (formationRoll < 11) {
         fishLineup = 1;
-        fishCount = 2 + (mixFishSequence(sequence, 0x22334455) % 3);
-      } else if (formationRoll === 7) {
+        fishCount = 2 + (mixFishSequence(sequence, 0x22334455) % 2);
+      } else if (formationRoll < 14) {
         fishLineup = 2;
         fishCount = 4;
-      } else if (formationRoll === 8) {
+      } else if (formationRoll < 17) {
         fishLineup = 3;
-        fishCount = 3 + (mixFishSequence(sequence, 0x33445566) % 3);
+        fishCount = 3;
       } else {
         fishLineup = 4;
         fishCount = 6;
       }
-    } else if (!canSchool && formationRoll === 0) {
-      fishCount = 2;
     }
     var fishIds = Array.from({ length: fishCount }, function (_value, index) {
       return 'yachiyo-fish-' + sequence + '-' + index;
@@ -3751,7 +3787,8 @@
     hideLegacyLaunchSplash: hideLegacyLaunchSplash,
     shouldHideLegacyButtonHandler: shouldHideLegacyButtonHandler,
     shouldHideFishSeatNode: shouldHideFishSeatNode,
-    improveHappyFishingTextReadability: improveHappyFishingTextReadability,
+    improveHappyFishingPlayerPanel: improveHappyFishingPlayerPanel,
+    updateHappyFishingOriginalBalance: updateHappyFishingOriginalBalance,
     calculateCannonAimAngle: calculateCannonAimAngle,
     buildFishSpawn: buildFishSpawn,
     getFishSpawnDelay: getFishSpawnDelay,

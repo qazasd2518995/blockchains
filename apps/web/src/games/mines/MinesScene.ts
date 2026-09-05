@@ -70,7 +70,9 @@ export class MinesScene {
   private cellTextures: Texture[] = [];
   private particleTicker: ((tk: Ticker) => void) | null = null;
   private ambientTicker: ((tk: Ticker) => void) | null = null;
+  private backgroundLayer: Container | null = null;
   private gridContainer: Container | null = null;
+  private baseGridSize = 0;
   private width = 0;
   private height = 0;
 
@@ -102,6 +104,9 @@ export class MinesScene {
       antialias: true,
     });
     this.app = app;
+    this.backgroundLayer = new Container();
+    this.backgroundLayer.eventMode = 'none';
+    app.stage.addChild(this.backgroundLayer);
     this.winFx = new WinCelebration({
       app,
       parent: app.stage,
@@ -120,6 +125,7 @@ export class MinesScene {
     const padding = 24;
     const gap = 8;
     const gridSize = Math.min(width, height) - padding * 2;
+    this.baseGridSize = gridSize;
     const cellSize = (gridSize - gap * 4) / 5;
     this.gridContainer.x = (width - gridSize) / 2;
     this.gridContainer.y = (height - gridSize) / 2;
@@ -173,6 +179,35 @@ export class MinesScene {
     this.startTickers();
   }
 
+  /** Keep Pixi's renderer, display tree and hit areas aligned with the CSS canvas. */
+  resize(width: number, height: number): void {
+    if (!this.app || width < 10 || height < 10) return;
+    const nextWidth = Math.max(1, Math.round(width));
+    const nextHeight = Math.max(1, Math.round(height));
+    if (nextWidth === this.width && nextHeight === this.height) return;
+
+    this.width = nextWidth;
+    this.height = nextHeight;
+    this.app.renderer.resize(nextWidth, nextHeight);
+    this.createBackground();
+
+    if (this.gridContainer && this.baseGridSize > 0) {
+      const gridSize = Math.max(1, Math.min(nextWidth, nextHeight) - 48);
+      const scale = gridSize / this.baseGridSize;
+      this.gridContainer.scale.set(scale);
+      this.gridContainer.position.set((nextWidth - gridSize) / 2, (nextHeight - gridSize) / 2);
+    }
+
+    this.winFx?.dispose();
+    this.winFx = new WinCelebration({
+      app: this.app,
+      parent: this.app.stage,
+      shakeTarget: this.app.stage,
+      width: nextWidth,
+      height: nextHeight,
+    });
+  }
+
   private async preloadAssets(): Promise<void> {
     const [backgroundTexture, spriteSheetTexture] = await Promise.all([
       loadTextureOrNull(MINES_BACKGROUND_ASSET),
@@ -183,14 +218,15 @@ export class MinesScene {
   }
 
   private createBackground(): void {
-    if (!this.app) return;
+    if (!this.app || !this.backgroundLayer) return;
+    for (const child of this.backgroundLayer.removeChildren()) child.destroy();
     const bg = new Graphics()
       .rect(0, 0, this.width, this.height)
       .fill({ color: COLOR_BG, alpha: 1 });
-    this.app.stage.addChild(bg);
+    this.backgroundLayer.addChild(bg);
 
     const artwork = addCoverSprite(
-      this.app.stage,
+      this.backgroundLayer,
       this.backgroundTexture,
       this.width,
       this.height,
@@ -200,14 +236,14 @@ export class MinesScene {
       const veil = new Graphics()
         .rect(0, 0, this.width, this.height)
         .fill({ color: COLOR_BG, alpha: 0.5 });
-      this.app.stage.addChild(veil);
+      this.backgroundLayer.addChild(veil);
     }
 
     const glow = new Graphics()
       .circle(this.width / 2, this.height / 2, this.width * 0.5)
       .fill({ color: COLOR_ACID, alpha: artwork ? 0.035 : 0.06 });
     glow.filters = [new BlurFilter({ strength: 50 })];
-    this.app.stage.addChild(glow);
+    this.backgroundLayer.addChild(glow);
 
     const grid = new Graphics();
     const step = 32;
@@ -216,7 +252,7 @@ export class MinesScene {
         grid.circle(x, y, 1).fill({ color: COLOR_ACID, alpha: artwork ? 0.035 : 0.08 });
       }
     }
-    this.app.stage.addChild(grid);
+    this.backgroundLayer.addChild(grid);
   }
 
   private startTickers(): void {
@@ -520,7 +556,9 @@ export class MinesScene {
     this.particles = null;
     this.shockwaves = null;
     this.floatingTexts = null;
+    this.backgroundLayer = null;
     this.gridContainer = null;
+    this.baseGridSize = 0;
     this.particleList = [];
   }
 

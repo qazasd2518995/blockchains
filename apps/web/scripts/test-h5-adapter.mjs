@@ -49,7 +49,7 @@ assert.match(
 );
 assert.match(
   collectionIndexSource,
-  /yachiyo-adapter\.js\?v=49/,
+  /yachiyo-adapter\.js\?v=50/,
   'the shared collection must load the fishing-layout adapter revision',
 );
 assert.doesNotMatch(
@@ -1226,7 +1226,13 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
     ),
     true,
   );
-  assert.ok(spawns.filter((spawn) => spawn.fishCount > 1).length > spawns.length / 3);
+  const schoolRate = spawns.filter((spawn) => spawn.fishCount > 1).length / spawns.length;
+  assert.ok(schoolRate > 0.1 && schoolRate < 0.25);
+  assert.equal(
+    spawns.every((spawn, index) => index === 0 || spawn.fishType !== spawns[index - 1].fishType),
+    true,
+    'adjacent packets must not repeat the same fish type',
+  );
   assert.equal(
     spawns.every(
       (spawn) =>
@@ -1236,7 +1242,7 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
   );
   const spawnDelays = spawns.map((_, index) => adapter.getFishSpawnDelay(index + 1));
   assert.ok(new Set(spawnDelays).size > 20);
-  assert.ok(spawnDelays.every((delay) => delay >= 420 && delay < 900));
+  assert.ok(spawnDelays.every((delay) => delay >= 850 && delay < 1500));
 
   for (const [gameCode, typeCount] of [
     ['2', 24],
@@ -1286,33 +1292,37 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
 }
 
 {
-  const labels = [
-    { fontSize: 16, lineHeight: 18 },
-    { fontSize: 32, lineHeight: 34 },
-    { fontSize: 12, lineHeight: 14 },
-    { fontSize: 40, lineHeight: 44 },
-  ];
-  const root = { getComponentsInChildren: () => labels };
+  const panel = {
+    x: 200,
+    y: 50,
+    scaleX: 1,
+    scaleY: 1,
+    setScale(x, y) {
+      this.scaleX = x;
+      this.scaleY = y;
+    },
+    setPosition(x, y) {
+      this.x = x;
+      this.y = y;
+    },
+  };
   const happyFishing = loadAdapter('14');
+  assert.equal(happyFishing.improveHappyFishingPlayerPanel(panel), 1);
+  assert.equal(panel.scaleX, 1.65);
+  assert.equal(panel.scaleY, 1.65);
+  assert.equal(panel.x, 330, 'the original lower-left edge must remain anchored');
+  assert.equal(panel.y, 82.5, 'the original bottom edge must remain anchored');
   assert.equal(
-    happyFishing.improveHappyFishingTextReadability(root, function Label() {}),
-    2,
-  );
-  assert.equal(labels[0].fontSize, 20);
-  assert.equal(labels[1].fontSize, 40);
-  assert.equal(labels[2].fontSize, 12, 'tiny decorative glyphs must retain their source size');
-  assert.equal(labels[3].fontSize, 40, 'existing headings must retain their source size');
-  assert.equal(
-    happyFishing.improveHappyFishingTextReadability(root, function Label() {}),
+    happyFishing.improveHappyFishingPlayerPanel(panel),
     0,
-    'the readability adjustment must be idempotent',
+    'the original player-panel enlargement must be idempotent',
   );
 
   const otherFishing = loadAdapter('2');
   assert.equal(
-    otherFishing.improveHappyFishingTextReadability(root, function Label() {}),
+    otherFishing.improveHappyFishingPlayerPanel(panel),
     0,
-    'other fishing scene typography must remain unchanged',
+    'other fishing scenes must retain their source player-panel layout',
   );
 }
 

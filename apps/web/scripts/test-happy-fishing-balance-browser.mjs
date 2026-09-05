@@ -67,35 +67,55 @@ try {
   const measurements = await page.evaluate(() => {
     const win = document.querySelector('iframe').contentWindow,
       cc = win.cc;
-    const hud = win.document.getElementById('yachiyo-fish-balance');
+    const panel = cc.find('Canvas/GameNode/ControlGround/player0/userML');
+    const moneyNode = panel.getChildByName('money');
+    const money = moneyNode.getComponent(cc.Label);
+    const canvasRect = win.document.querySelector('#GameCanvas').getBoundingClientRect();
+    const design = cc.view.getDesignResolutionSize();
+    const worldRect = panel.getBoundingBoxToWorld();
     return {
-      text: hud?.textContent,
-      fontSize: hud && parseFloat(win.getComputedStyle(hud).fontSize),
-      pointerEvents: hud && win.getComputedStyle(hud).pointerEvents,
-      rect: hud?.getBoundingClientRect().toJSON(),
+      duplicateHud: Boolean(win.document.getElementById('yachiyo-fish-balance')),
+      text: money.string,
+      panelScale: panel.scaleX,
+      effectiveFontSize: money.fontSize * panel.scaleX * (canvasRect.width / design.width),
+      worldRect: { x: worldRect.x, y: worldRect.y, width: worldRect.width, height: worldRect.height },
       viewportWidth: win.innerWidth,
-      design: cc.view.getDesignResolutionSize(),
+      design,
     };
   });
-  assert.equal(measurements.text, '餘額 32,157.37');
-  assert.ok(
-    measurements.fontSize >= 20,
-    'wallet size is measured in screen CSS pixels, not design pixels',
-  );
-  assert.equal(measurements.pointerEvents, 'none', 'wallet must not swallow aiming gestures');
-  assert.ok(measurements.rect.x >= 0 && measurements.rect.right <= measurements.viewportWidth);
+  assert.equal(measurements.duplicateHud, false, 'do not add a second HTML balance display');
+  assert.equal(measurements.text, '32,157.37');
+  assert.equal(measurements.panelScale, 1.65, 'enlarge the authored lower-left player panel');
+  assert.ok(measurements.effectiveFontSize >= 13, 'the authored wallet text must remain readable');
+  assert.ok(measurements.worldRect.x >= -1);
+  assert.ok(measurements.worldRect.x + measurements.worldRect.width <= measurements.design.width);
   assert.equal(measurements.design.width, 1920, 'do not reduce game resolution for larger text');
   await page.setViewportSize({ width: 667, height: 375 });
   await page.waitForTimeout(300);
-  assert.equal(
-    await page.evaluate(() => {
-      const win = document.querySelector('iframe').contentWindow;
-      return win.getComputedStyle(win.document.getElementById('yachiyo-fish-balance')).fontSize;
-    }),
-    '20px',
+  const resized = await page.evaluate(() => {
+    const win = document.querySelector('iframe').contentWindow,
+      cc = win.cc,
+      panel = cc.find('Canvas/GameNode/ControlGround/player0/userML'),
+      money = panel.getChildByName('money').getComponent(cc.Label),
+      canvasRect = win.document.querySelector('#GameCanvas').getBoundingClientRect(),
+      design = cc.view.getDesignResolutionSize();
+    return {
+      duplicateHud: Boolean(win.document.getElementById('yachiyo-fish-balance')),
+      text: money.string,
+      panelScale: panel.scaleX,
+      effectiveFontSize: money.fontSize * panel.scaleX * (canvasRect.width / design.width),
+    };
+  });
+  assert.deepEqual(
+    { duplicateHud: resized.duplicateHud, text: resized.text, panelScale: resized.panelScale },
+    { duplicateHud: false, text: '32,157.37', panelScale: 1.65 },
+  );
+  assert.ok(
+    resized.effectiveFontSize >= 13,
+    `resized effective font size was ${resized.effectiveFontSize}`,
   );
   console.log(
-    'PASS Happy Fishing: readable 20px wallet with fractional balance at 844px and 667px, aiming unobstructed',
+    'PASS Happy Fishing: original lower-left wallet enlarged, fractional balance synced, no duplicate HUD',
   );
   if (process.env.FISH_SCREENSHOT) await page.screenshot({ path: process.env.FISH_SCREENSHOT });
 } finally {

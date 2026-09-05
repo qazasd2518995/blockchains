@@ -99,10 +99,28 @@ export function MinesPage() {
     let cancelled = false;
     let scene: MinesScene | null = null;
     let rafId = 0;
+    let resizeRafId = 0;
+    let resizeObserver: ResizeObserver | null = null;
+    const canvasSize = () => {
+      const shell = canvas.parentElement;
+      return {
+        width: shell?.clientWidth ?? canvas.clientWidth,
+        height: shell?.clientHeight ?? canvas.clientHeight,
+      };
+    };
+    const resizeScene = () => {
+      resizeRafId = 0;
+      if (cancelled || !scene) return;
+      const size = canvasSize();
+      scene.resize(size.width, size.height);
+    };
+    const scheduleResize = () => {
+      if (resizeRafId) cancelAnimationFrame(resizeRafId);
+      resizeRafId = requestAnimationFrame(resizeScene);
+    };
     const tryInit = () => {
       if (cancelled) return;
-      const w = canvas.clientWidth;
-      const h = canvas.clientHeight;
+      const { width: w, height: h } = canvasSize();
       if (w < 10 || h < 10) {
         rafId = requestAnimationFrame(tryInit);
         return;
@@ -121,6 +139,11 @@ export function MinesPage() {
         )
         .then(() => {
           if (cancelled) return;
+          resizeObserver = new ResizeObserver(scheduleResize);
+          resizeObserver.observe(canvas.parentElement ?? canvas);
+          window.addEventListener('resize', scheduleResize);
+          window.visualViewport?.addEventListener('resize', scheduleResize);
+          scheduleResize();
           sceneReadyRef.current = true;
           setSceneReady(true);
           const active = roundRef.current;
@@ -155,6 +178,10 @@ export function MinesPage() {
       sceneReadyRef.current = false;
       cancelled = true;
       if (rafId) cancelAnimationFrame(rafId);
+      if (resizeRafId) cancelAnimationFrame(resizeRafId);
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', scheduleResize);
+      window.visualViewport?.removeEventListener('resize', scheduleResize);
       scene?.dispose();
       sceneRef.current = null;
     };
@@ -415,7 +442,7 @@ export function MinesPage() {
               </div>
             </div>
             <div
-              className="game-canvas-shell game-canvas-tall relative mx-auto aspect-square w-full max-w-[720px] p-2 sm:p-3"
+              className="game-canvas-shell game-canvas-tall mines-canvas-shell relative mx-auto aspect-square w-full max-w-[720px] min-h-0"
               style={{ width: 'min(100%, 720px, 76svh)', maxHeight: 'none' }}
             >
               <canvas ref={canvasRef} className="h-full w-full" />

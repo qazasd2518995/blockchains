@@ -1,6 +1,6 @@
 import { hmacIntStream } from './hmac.js';
 
-export const THOR2_MODEL_VERSION = 'thor2-observed-rules-v8-independent-ball-drops';
+export const THOR2_MODEL_VERSION = 'thor2-observed-rules-v9-collect-gated-bank';
 export const THOR2_REELS = 6;
 export const THOR2_ROWS = 5;
 export const THOR2_MAX_CASCADES = 8;
@@ -497,9 +497,14 @@ function playRound(
       (sum, cascade) => sum + cascade.baseWinMultiplier,
       0,
     );
+    // The accumulated bank is carried between free-game rounds, but it only
+    // participates when this winning final screen actually collects a ball.
+    // A no-ball win is settled at its base tumble value.
     const effectiveMultiplier = lucky
       ? Math.max(1, collectedMultiplier)
-      : Math.max(1, runningMultiplier);
+      : collectedMultiplier > 0
+        ? Math.max(1, runningMultiplier)
+        : 1;
     roundPayout = baseRoundMultiplier * effectiveMultiplier;
 
     const finalCascade = cascades[cascades.length - 1];
@@ -746,7 +751,9 @@ function controlledWinningRound(
   const nextAccumulatedMultiplier = accumulatedMultiplier + collectedMultiplier;
   const effectiveMultiplier = lucky
     ? Math.max(1, collectedMultiplier)
-    : Math.max(1, nextAccumulatedMultiplier);
+    : collectedMultiplier > 0
+      ? Math.max(1, nextAccumulatedMultiplier)
+      : 1;
   const baseWinMultiplier = wins.reduce((total, win) => total + win.payMultiplier, 0);
   const payoutMultiplier = normalizeThor2Multiplier(baseWinMultiplier * effectiveMultiplier);
   if (!sameThor2Multiplier(payoutMultiplier, factor)) {
