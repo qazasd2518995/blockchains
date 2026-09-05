@@ -53,8 +53,8 @@ assert.doesNotMatch(
 );
 assert.match(
   styles,
-  /\.qmoney-game-shell\s*\{[\s\S]{0,220}height:\s*100svh;[\s\S]{0,100}min-height:\s*100svh;/,
-  'Qmoney game shell must use the stable small viewport height',
+  /\.qmoney-game-shell\[data-platform-realm='qmoney'\]\s*\{[\s\S]{0,240}height:\s*100svh\s*!important;[\s\S]{0,120}min-height:\s*100svh\s*!important;/,
+  'Qmoney game shell must enforce the stable small viewport above shared shell rules',
 );
 assert.ok(
   betControls.includes('bet-controls__balance') && betControls.includes('t.bet.balance'),

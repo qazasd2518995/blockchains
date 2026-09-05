@@ -149,6 +149,18 @@ assert.ok(
   'Qmoney game routes need a branded boot loader',
 );
 assert.ok(
+  buildScript.includes('height:100svh;min-height:100svh'),
+  'Qmoney boot loader must not follow dynamic mobile browser toolbar height',
+);
+assert.doesNotMatch(
+  buildScript.slice(
+    buildScript.indexOf('const qmoneyBootStyle'),
+    buildScript.indexOf('const qmoneyBootMarkup'),
+  ),
+  /100dvh/,
+  'Qmoney boot loader must use the stable viewport height',
+);
+assert.ok(
   buildScript.includes("throw new Error('Qmoney platform shell still contains"),
   'Qmoney build must fail if a visible legacy brand remains in its HTML shell',
 );

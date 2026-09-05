@@ -2496,31 +2496,31 @@
     width: 100%;
     height: 100vh;
     min-height: 100vh;
-    height: 100svh;
-    min-height: 100svh;
+    height: 100svh !important;
+    min-height: 100svh !important;
     overflow: hidden;
     background: #000;
   }
 
-  .qmoney-game-shell {
+  .qmoney-game-shell[data-platform-realm='qmoney'] {
     position: fixed;
     inset: 0;
     width: 100vw;
     height: 100vh;
     min-height: 100vh;
-    height: 100svh;
-    min-height: 100svh;
+    height: 100svh !important;
+    min-height: 100svh !important;
     overflow: hidden;
     background: #000;
   }
 
-  .qmoney-game-shell > .qmoney-game-stage {
+  .qmoney-game-shell[data-platform-realm='qmoney'] > .qmoney-game-stage {
     position: absolute;
     inset: 0;
     width: 100vw;
     max-width: none;
     height: 100vh;
-    height: 100svh;
+    height: 100svh !important;
     min-height: 0;
     overflow: hidden;
     padding: 0;

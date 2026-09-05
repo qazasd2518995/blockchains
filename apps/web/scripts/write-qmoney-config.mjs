@@ -31,7 +31,7 @@ if (qmoneyRoot) {
   // the separately deployed Qmoney service open its own lobby at `/`.
   const sourcePlatformHtml = await readFile(path.join(distDirectory, 'index.html'), 'utf8');
   const qmoneyBootStyle = `<style id="qmoney-game-boot-style">
-      html,body,#root{width:100%;height:100%;min-height:100dvh;margin:0;overflow:hidden;background:#000}
+      html,body,#root{width:100%;height:100vh;min-height:100vh;height:100svh;min-height:100svh;margin:0;overflow:hidden;background:#000}
       .qmoney-game-boot{position:fixed;inset:0;display:grid;place-items:center;background:rgba(255,255,255,.62);backdrop-filter:blur(12px);font-family:system-ui,-apple-system,sans-serif;color:#1a467c}
       .qmoney-game-boot__content{display:flex;flex-direction:column;align-items:center}
       .qmoney-game-boot img{width:92px;height:92px;object-fit:contain}
