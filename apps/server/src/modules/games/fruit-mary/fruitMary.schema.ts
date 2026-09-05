@@ -9,12 +9,10 @@ const fruitIdSchema = z.coerce
   });
 
 export const fruitMarySpinSchema = z.object({
+  operationId: z.string().uuid().optional(),
   fruits: z
     .array(
-      z.tuple([
-        fruitIdSchema,
-        z.coerce.number().int().min(1).max(FRUIT_MARY_MAX_UNITS_PER_FRUIT),
-      ]),
+      z.tuple([fruitIdSchema, z.coerce.number().int().min(1).max(FRUIT_MARY_MAX_UNITS_PER_FRUIT)]),
     )
     .min(1)
     .max(FRUIT_MARY_BET_IDS.length),
@@ -23,7 +21,8 @@ export const fruitMarySpinSchema = z.object({
 });
 
 export const fruitMaryGambleSchema = z.object({
-  balance: z.coerce.number().positive(),
+  operationId: z.string().uuid().optional(),
+  balance: z.coerce.number().finite().positive().multipleOf(0.01),
   size: z.coerce.number().int().min(1).max(2),
   uid: z.union([z.string(), z.number()]).optional(),
 });

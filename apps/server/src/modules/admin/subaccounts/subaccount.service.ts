@@ -266,24 +266,29 @@ export class SubAccountService {
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot reset password of this sub-account');
 
     const passwordHash = await bcrypt.hash(input.newPassword, BCRYPT_ROUNDS);
-    await this.prisma.agent.update({ where: { id }, data: { passwordHash } });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.agent.update({
+        where: { id },
+        data: { passwordHash, activeSessionId: null, activeSessionAt: null },
+      });
 
-    // 撤銷所有 refresh tokens
-    await this.prisma.agentRefreshToken.updateMany({
-      where: { agentId: id, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+      // 撤銷所有 refresh tokens
+      await tx.agentRefreshToken.updateMany({
+        where: { agentId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
 
-    await writeAudit(this.prisma, {
-      actor: {
-        id: operator.id,
-        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
-        username: operator.username,
-      },
-      action: 'subaccount.password.reset',
-      targetType: 'agent',
-      targetId: id,
-      req,
+      await writeAudit(tx, {
+        actor: {
+          id: operator.id,
+          type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+          username: operator.username,
+        },
+        action: 'subaccount.password.reset',
+        targetType: 'agent',
+        targetId: id,
+        req,
+      });
     });
   }
 

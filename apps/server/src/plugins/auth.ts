@@ -50,7 +50,7 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
         },
       });
       if (!user || user.disabledAt) throw new Error('user disabled');
-      if (user.activeSessionId && user.activeSessionId !== tokenUser.sid) {
+      if (!user.activeSessionId || !tokenUser.sid || user.activeSessionId !== tokenUser.sid) {
         throw new ApiError(
           'SESSION_REPLACED',
           'Logged out because this account signed in on another device',

@@ -300,95 +300,64 @@ function skillTriggerRound(data: Seth2ReturnData, symbol: 17 | 18): number {
 
 function splitList(
   source: Seth2Cell | null,
-  copies: readonly Seth2Cell[],
-  transition: BoardTransition | null,
+  targets: readonly number[],
   originalToCurrent: ReadonlyMap<number, number>,
-  currentBoard: readonly Seth2Cell[],
 ) {
-  if (!source || copies.length === 0) return [];
+  if (!source || targets.length === 0) return [];
   const originalFrom = Number(source.code);
   const from = originalToCurrent.get(originalFrom) ?? originalFrom;
-  const candidatePositions = transition
-    ? [...transition.newPositions].filter((position) => {
-        const cell = transition.board[position];
-        // The source animation clones before the ordinary fall. Cloning onto
-        // a multiplier that is still visible at the destination deletes that
-        // existing ball, which looked like the split collided with it.
-        return (
-          currentBoard[position]?.type !== 10 &&
-          position !== from &&
-          cell?.type === 10 &&
-          cell.mul === source.mul &&
-          Number(cell.mul_type ?? 0) === Number(source.mul_type ?? 0)
-        );
-      })
-    : [];
-  const targets = candidatePositions.slice(0, copies.length);
-  return targets.length > 0 ? [{ from, to: targets }] : [];
+  return [{ from, to: [...targets] }];
 }
 
-function roundRefill(
+function prepareSplitBoard(
   maleCopies: readonly Seth2Cell[],
   round: Seth2ReturnData['list'][number],
   board: readonly Seth2Cell[],
-  fixedPositions: ReadonlySet<number> = new Set<number>(),
 ) {
-  if (maleCopies.length === 0) return round.round_data;
+  if (maleCopies.length === 0) {
+    return { board: [...board], refill: round.round_data, targets: [] as number[] };
+  }
   const removed = new Set(round.remove_type);
-  const refillPositions: number[] = [];
+  const erasedPositions: number[] = [];
   for (let column = 0; column < 6; column += 1) {
-    const movableSurvivors: Seth2Cell[] = [];
-    const availableRows: number[] = [];
     for (let row = 0; row < 5; row += 1) {
       const position = row * 6 + column;
-      const current = board[position]!;
-      if (fixedPositions.has(position) && current.type === 10) continue;
-      availableRows.push(row);
-      if (!removed.has(current.type)) movableSurvivors.push(current);
-    }
-    const missing = availableRows.length - movableSurvivors.length;
-    for (let index = 0; index < missing; index += 1) {
-      refillPositions.push(availableRows[index]! * 6 + column);
+      if (board[position]!.type !== 10 && removed.has(board[position]!.type)) {
+        erasedPositions.push(position);
+      }
     }
   }
-  // The authoritative math payload keeps the man's cloned multiplier balls in
-  // type17_mul_list and deliberately omits them from round_data.  The source
-  // client, however, needs those balls in the collapsed board so splitList can
-  // animate to real target nodes.  Captured upstream responses may already put
-  // them in round_data, so only supply the exact missing number here.
-  const missing = Math.max(0, refillPositions.length - round.round_data.length);
-  const ordinaryRefill = [...round.round_data];
-  const copies =
-    missing > 0
-      ? maleCopies.slice(0, missing)
-      : maleCopies.flatMap((copy) => {
-          const existingIndex = ordinaryRefill.findIndex(
-            (current) =>
-              current.type === 10 &&
-              current.mul === copy.mul &&
-              Number(current.mul_type ?? 0) === Number(copy.mul_type ?? 0),
-          );
-          return existingIndex >= 0 ? [ordinaryRefill.splice(existingIndex, 1)[0]!] : [];
-        });
-  if (copies.length === 0) return round.round_data;
-  const result = Array<Seth2Cell | undefined>(refillPositions.length);
-  const safeIndexes = refillPositions.flatMap((position, index) =>
-    board[position]?.type === 10 ? [] : [index],
-  );
-  const fallbackIndexes = refillPositions.flatMap((position, index) =>
-    board[position]?.type === 10 ? [index] : [],
-  );
-  const copyIndexes = [...safeIndexes, ...fallbackIndexes];
-  copies.forEach((copy, index) => {
-    const targetIndex = copyIndexes[index];
-    if (targetIndex !== undefined) result[targetIndex] = { ...copy };
+
+  // Cocos erases first, clones at splitList.to, then applies posTransform. A
+  // post-fall refill position may still contain an un-erased survivor at clone
+  // time. Replacing it moves a phantom ball down and creates another on refill.
+  // Instead clone only into an erased pre-fall slot and let gravity move the
+  // new ball just like every other unlocked survivor.
+  const targets = erasedPositions.slice(0, maleCopies.length);
+  const withCopies = board.map((current) => ({ ...current }));
+  targets.forEach((position, index) => {
+    withCopies[position] = { ...maleCopies[index]! };
   });
-  let ordinaryCursor = 0;
-  for (let index = 0; index < result.length; index += 1) {
-    if (result[index]) continue;
-    result[index] = ordinaryRefill[ordinaryCursor++];
+
+  // Current math sends copies separately; older payloads can embed some/all of
+  // them in round_data. Remove only those embedded copies, never a genuinely
+  // new refill multiplier. Copy births are not newPositions in the next view.
+  const refill = [...round.round_data];
+  let embeddedCopies = Math.max(0, refill.length - (erasedPositions.length - targets.length));
+  for (const copy of maleCopies) {
+    if (embeddedCopies === 0) break;
+    const index = refill.findIndex(
+      (current) =>
+        current.type === copy.type &&
+        current.mul === copy.mul &&
+        Number(current.mul_type ?? 0) === Number(copy.mul_type ?? 0),
+    );
+    if (index >= 0) {
+      refill.splice(index, 1);
+      embeddedCopies -= 1;
+    }
   }
-  return result.filter((current): current is Seth2Cell => current !== undefined);
+  return { board: withCopies, refill, targets };
 }
 
 function totemLevel(count: number): number {
@@ -543,6 +512,7 @@ export function seth2SourceGameStates(
     // animates them.  Treating them as an ordinary erase win removes their
     // nodes before playScatterWin runs and crashes the source client.
     const isFeatureEntry = data.is_sjc === 1 && roundIndex === 0;
+    const splitBoard = prepareSplitBoard(isMaleTrigger ? maleCopies : [], round, board);
     const transition = isFeatureEntry
       ? {
           board: board.map((cell) => ({ ...cell })),
@@ -551,9 +521,9 @@ export function seth2SourceGameStates(
           beforeToAfter: new Map<number, number>(),
         }
       : collapseBoard(
-          board,
+          splitBoard.board,
           round.remove_type,
-          roundRefill(isMaleTrigger ? maleCopies : [], round, board, fixedMultiplierPositions),
+          splitBoard.refill,
           fixedMultiplierPositions,
         );
     // The source client maps timesUpgrade.symbolPos through this state's
@@ -588,7 +558,7 @@ export function seth2SourceGameStates(
           ? -1
           : sourceCurrentTimes(data, options.action),
       currentView: states.length,
-      splitList: splitList(maleSource, maleCopies, transition, originalToCurrent, board),
+      splitList: splitList(maleSource, splitBoard.targets, originalToCurrent),
       newTimesSymbols: currentTimes.filter((entry) =>
         transitionFromPrevious
           ? transitionFromPrevious.newPositions.has(entry.symbolPos) || isFemaleTrigger
@@ -611,6 +581,8 @@ export function seth2SourceGameStates(
     applyUpgrades(transition.board, resolvedUpgrades, transition);
     const nextOriginalToCurrent = new Map<number, number>();
     for (const [originalPosition, currentPosition] of originalToCurrent) {
+      // A clone can reuse an erased slot, but not the erased symbol's identity.
+      if (round.remove_type.includes(board[currentPosition]?.type ?? -1)) continue;
       const nextPosition = transition.beforeToAfter.get(currentPosition);
       if (nextPosition !== undefined) nextOriginalToCurrent.set(originalPosition, nextPosition);
       else if (!round.remove_type.includes(board[currentPosition]?.type ?? -1)) {

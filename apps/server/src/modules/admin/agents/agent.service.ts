@@ -555,22 +555,27 @@ export class AgentService {
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot reset password');
     const passwordHash = await bcrypt.hash(input.newPassword, BCRYPT_ROUNDS);
-    await this.prisma.agent.update({ where: { id }, data: { passwordHash } });
-    // 撤銷所有 refresh tokens
-    await this.prisma.agentRefreshToken.updateMany({
-      where: { agentId: id, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
-    await writeAudit(this.prisma, {
-      actor: {
-        id: operator.id,
-        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
-        username: operator.username,
-      },
-      action: 'agent.password.reset',
-      targetType: 'agent',
-      targetId: id,
-      req,
+    await this.prisma.$transaction(async (tx) => {
+      await tx.agent.update({
+        where: { id },
+        data: { passwordHash, activeSessionId: null, activeSessionAt: null },
+      });
+      // 撤銷所有 refresh tokens
+      await tx.agentRefreshToken.updateMany({
+        where: { agentId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await writeAudit(tx, {
+        actor: {
+          id: operator.id,
+          type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+          username: operator.username,
+        },
+        action: 'agent.password.reset',
+        targetType: 'agent',
+        targetId: id,
+        req,
+      });
     });
   }
 

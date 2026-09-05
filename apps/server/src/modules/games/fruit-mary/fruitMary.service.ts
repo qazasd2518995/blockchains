@@ -17,6 +17,7 @@ import {
 } from '@bg/shared';
 import {
   SeedHelper,
+  checkLockedUserFunds,
   creditAndRecord,
   debitAndRecord,
   lockUserAndCheckFunds,
@@ -107,9 +108,22 @@ export class FruitMaryService {
     return runLockedTransaction(this.prisma, async (tx) => {
       const amount = new Prisma.Decimal(totalUnits).mul(FRUIT_MARY_DENOMINATION);
       const user = await lockUserAndCheckFunds(tx, userId, amount, GAME_ID, {
-        limitAmounts: [amount],
+        skipBetValidation: true,
       });
       requireMemberUser(user.username);
+      const fingerprint = JSON.stringify([
+        'wheel',
+        [...bets].sort((a, b) => a.fruitId - b.fruitId),
+      ]);
+      const replay = await replayFruitMaryOperation(tx, userId, input.operationId, fingerprint);
+      if (replay) {
+        return spinResponse(
+          replay.result.outcome as unknown as FruitMaryOutcome,
+          user.balance,
+          replay.id,
+        );
+      }
+      checkLockedUserFunds(user, amount, GAME_ID, { limitAmounts: [amount] });
 
       const seed = await new SeedHelper(tx).getActiveBundle(userId, GAME_ID);
       const originalOutcome = fruitMarySpin(seed.serverSeed, seed.clientSeed, seed.nonce, bets);
@@ -139,6 +153,7 @@ export class FruitMaryService {
       const originalResult = serializeSpinResult(originalOutcome, bets, totalUnits);
       const finalResult = {
         ...serializeSpinResult(finalOutcome, bets, totalUnits),
+        requestFingerprint: fingerprint,
         gambleAmount: finalPayout.toFixed(2),
         controlled: controlled.controlled,
         flipReason: controlled.flipReason ?? null,
@@ -148,6 +163,7 @@ export class FruitMaryService {
         data: {
           userId,
           gameId: GAME_ID,
+          operationId: input.operationId,
           amount,
           multiplier: betMultiplier,
           payout: finalPayout,
@@ -183,22 +199,7 @@ export class FruitMaryService {
         { member: user, balance },
       );
 
-      const firstPosition = finalOutcome.positions[0] ?? 10;
-      return {
-        code: 1,
-        data: {
-          data: {
-            type: finalOutcome.legacyType,
-            pos:
-              finalOutcome.legacyType === 0
-                ? firstPosition
-                : { pos: firstPosition, luck: finalOutcome.positions.slice(1) },
-          },
-          money: finalOutcome.payoutByPosition,
-        },
-        balance: Number(balance.toFixed(2)),
-        spinId: bet.id,
-      };
+      return spinResponse(finalOutcome, balance, bet.id);
     });
   }
 
@@ -209,9 +210,20 @@ export class FruitMaryService {
         Prisma.Decimal.ROUND_DOWN,
       );
       const user = await lockUserAndCheckFunds(tx, userId, new Prisma.Decimal(0), GAME_ID, {
-        limitAmounts: [amount],
+        skipBetValidation: true,
       });
       requireMemberUser(user.username);
+      const fingerprint = JSON.stringify(['gamble', amount.toFixed(2), input.size]);
+      const replay = await replayFruitMaryOperation(tx, userId, input.operationId, fingerprint);
+      if (replay) {
+        return {
+          code: 1,
+          data: Number(replay.result.number),
+          balance: Number(user.balance.toFixed(2)),
+          spinId: replay.id,
+        };
+      }
+      checkLockedUserFunds(user, amount, GAME_ID, { limitAmounts: [amount] });
       const previous = await tx.bet.findFirst({
         where: { userId, gameId: GAME_ID },
         orderBy: { createdAt: 'desc' },
@@ -239,6 +251,7 @@ export class FruitMaryService {
       const finalPrediction = prediction(amount, finalPayout);
       const result = {
         kind: 'gamble',
+        requestFingerprint: fingerprint,
         choice,
         number: finalOutcome.number,
         won: finalOutcome.won,
@@ -251,6 +264,7 @@ export class FruitMaryService {
         data: {
           userId,
           gameId: GAME_ID,
+          operationId: input.operationId,
           amount,
           multiplier: finalOutcome.won ? new Prisma.Decimal(2) : new Prisma.Decimal(0),
           payout: finalPayout,
@@ -339,6 +353,50 @@ export class FruitMaryService {
     }
     return user;
   }
+}
+
+async function replayFruitMaryOperation(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  operationId: string | undefined,
+  fingerprint: string,
+) {
+  if (!operationId) return null;
+  // The user row is already locked. A lost-response retry reads the same bet
+  // before checking current funds, even when that bet spent the last 10 points.
+  const bet = await tx.bet.findUnique({
+    where: { userId_gameId_operationId: { userId, gameId: GAME_ID, operationId } },
+    select: { id: true, resultData: true },
+  });
+  if (!bet) return null;
+  const result = bet.resultData as Record<string, Prisma.JsonValue>;
+  if (!result || result.requestFingerprint !== fingerprint) {
+    throw new ApiError('INVALID_ACTION', '相同操作編號的下注內容不一致');
+  }
+  return { id: bet.id, result };
+}
+
+function spinResponse(
+  outcome: FruitMaryOutcome,
+  balance: Prisma.Decimal,
+  spinId: string,
+): FruitMaryLegacySpinResponse {
+  const firstPosition = outcome.positions[0] ?? 10;
+  return {
+    code: 1,
+    data: {
+      data: {
+        type: outcome.legacyType,
+        pos:
+          outcome.legacyType === 0
+            ? firstPosition
+            : { pos: firstPosition, luck: outcome.positions.slice(1) },
+      },
+      money: outcome.payoutByPosition,
+    },
+    balance: Number(balance.toFixed(2)),
+    spinId,
+  };
 }
 
 export function resolveFruitMaryBettingLimit(

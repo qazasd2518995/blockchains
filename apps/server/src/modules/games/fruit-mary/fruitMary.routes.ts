@@ -21,6 +21,20 @@ export async function fruitMaryRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post('/gamble', async (request) =>
     service.gamble(request.userId, fruitMaryGambleSchema.parse(request.body)),
   );
+  // Separate paths keep new-client retries safe during a rolling deployment:
+  // an older API must return 404, never silently strip operationId and bet twice.
+  fastify.post('/operations/spin', async (request) =>
+    service.spin(
+      request.userId,
+      fruitMarySpinSchema.required({ operationId: true }).parse(request.body),
+    ),
+  );
+  fastify.post('/operations/gamble', async (request) =>
+    service.gamble(
+      request.userId,
+      fruitMaryGambleSchema.required({ operationId: true }).parse(request.body),
+    ),
+  );
   fastify.post('/history', async (request) =>
     service.history(request.userId, fruitMaryHistorySchema.parse(request.body ?? {})),
   );

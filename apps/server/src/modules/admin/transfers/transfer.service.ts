@@ -7,8 +7,8 @@ import {
   isAgentInSharedSuperAdminLine,
   listAgentDescendants,
 } from '../../../utils/hierarchy.js';
-import { runSerializable } from '../../games/_common/BaseGameService.js';
-import { writeAudit } from '../audit/audit.service.js';
+import { commitTransfer } from './transfer.operation.js';
+import { agentToAgentSchema, agentToMemberSchema, csTransferSchema } from './transfer.schema.js';
 import {
   cancelMemberDepositControlsForBalanceMovement,
   resetMemberAutoBalanceControl,
@@ -30,6 +30,7 @@ export class TransferService {
     input: AgentToAgentInput,
     req?: FastifyRequest,
   ): Promise<TransferEntry> {
+    input = agentToAgentSchema.parse(input);
     const amount = new Prisma.Decimal(input.amount);
     if (amount.lessThanOrEqualTo(0)) throw new ApiError('INVALID_TRANSFER', 'amount must be > 0');
     if (input.fromId === input.toId) throw new ApiError('INVALID_TRANSFER', 'from == to');
@@ -40,53 +41,49 @@ export class TransferService {
     ]);
     if (!canFrom || !canTo) throw new ApiError('FORBIDDEN', 'Cannot transfer between these agents');
 
-    const result = await runSerializable(this.prisma, async (tx) => {
-      const from = await tx.agent.findUnique({ where: { id: input.fromId } });
-      const to = await tx.agent.findUnique({ where: { id: input.toId } });
-      if (!from || !to) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
-      if (from.role === 'SUB_ACCOUNT' || to.role === 'SUB_ACCOUNT') {
-        throw new ApiError('INVALID_TRANSFER', 'Sub-account cannot transfer points');
-      }
-      if (from.balance.lessThan(amount))
-        throw new ApiError('INSUFFICIENT_FUNDS', 'From agent insufficient');
-
-      const fromAfter = from.balance.sub(amount);
-      const toAfter = to.balance.add(amount);
-      await tx.agent.update({ where: { id: from.id }, data: { balance: fromAfter } });
-      await tx.agent.update({ where: { id: to.id }, data: { balance: toAfter } });
-      const transfer = await tx.pointTransfer.create({
-        data: {
-          type: 'AGENT_TO_AGENT',
-          fromType: 'agent',
-          fromId: from.id,
-          toType: 'agent',
-          toId: to.id,
-          amount,
-          fromBeforeBalance: from.balance,
-          fromAfterBalance: fromAfter,
-          toBeforeBalance: to.balance,
-          toAfterBalance: toAfter,
-          description: input.description ?? null,
-          operatorId: operator.id,
-          operatorType: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
-          ipAddress: req?.ip ?? null,
-        },
-      });
-      return transfer;
-    });
-
-    await writeAudit(this.prisma, {
-      actor: {
-        id: operator.id,
-        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
-        username: operator.username,
-      },
-      action: 'transfer.agent_to_agent',
-      targetType: 'transfer',
-      targetId: result.id,
-      newValues: { fromId: input.fromId, toId: input.toId, amount: amount.toFixed(2) },
+    const result = await commitTransfer(
+      this.prisma,
+      operator,
+      'agent_to_agent',
+      input,
       req,
-    });
+      async (tx, transferId) => {
+        const from = await tx.agent.findUnique({ where: { id: input.fromId } });
+        const to = await tx.agent.findUnique({ where: { id: input.toId } });
+        if (!from || !to) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
+        if (from.role === 'SUB_ACCOUNT' || to.role === 'SUB_ACCOUNT') {
+          throw new ApiError('INVALID_TRANSFER', 'Sub-account cannot transfer points');
+        }
+        if (from.balance.lessThan(amount))
+          throw new ApiError('INSUFFICIENT_FUNDS', 'From agent insufficient');
+
+        const fromAfter = from.balance.sub(amount);
+        const toAfter = to.balance.add(amount);
+        await tx.agent.update({ where: { id: from.id }, data: { balance: fromAfter } });
+        await tx.agent.update({ where: { id: to.id }, data: { balance: toAfter } });
+        const transfer = await tx.pointTransfer.create({
+          data: {
+            ...(transferId ? { id: transferId } : {}),
+            type: 'AGENT_TO_AGENT',
+            fromType: 'agent',
+            fromId: from.id,
+            toType: 'agent',
+            toId: to.id,
+            amount,
+            fromBeforeBalance: from.balance,
+            fromAfterBalance: fromAfter,
+            toBeforeBalance: to.balance,
+            toAfterBalance: toAfter,
+            description: input.description ?? null,
+            operatorId: operator.id,
+            operatorType: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+            ipAddress: req?.ip ?? null,
+          },
+        });
+        return transfer;
+      },
+    );
+
     return toEntry(result);
   }
 
@@ -95,6 +92,7 @@ export class TransferService {
     input: AgentToMemberInput,
     req?: FastifyRequest,
   ): Promise<TransferEntry> {
+    input = agentToMemberSchema.parse(input);
     const amount = new Prisma.Decimal(input.amount);
     if (amount.isZero()) throw new ApiError('INVALID_TRANSFER', 'amount cannot be zero');
 
@@ -105,95 +103,93 @@ export class TransferService {
     if (!canAg || !canMem)
       throw new ApiError('FORBIDDEN', 'Cannot transfer between these accounts');
 
-    const result = await runSerializable(this.prisma, async (tx) => {
-      const agent = await tx.agent.findUnique({ where: { id: input.agentId } });
-      const member = await tx.user.findUnique({ where: { id: input.memberId } });
-      if (!agent || !member) throw new ApiError('AGENT_NOT_FOUND', 'Agent or member not found');
-      if (agent.role === 'SUB_ACCOUNT') {
-        throw new ApiError('INVALID_TRANSFER', 'Sub-account cannot transfer points');
-      }
-      if (!member.agentId) throw new ApiError('FORBIDDEN', 'Member has no agent');
-      const memberBelongsToFundingLine =
-        agent.role === 'SUPER_ADMIN'
-          ? await isAgentInSharedSuperAdminLine(tx, member.agentId)
-          : (await listAgentDescendants(tx, agent.id)).includes(member.agentId);
-      if (!memberBelongsToFundingLine) {
-        throw new ApiError('FORBIDDEN', 'Member does not belong to this agent line');
-      }
-
-      const isDeposit = amount.greaterThan(0); // 代理→會員
-      const absAmount = amount.abs();
-
-      if (isDeposit && agent.balance.lessThan(absAmount)) {
-        throw new ApiError('INSUFFICIENT_FUNDS', 'Agent balance insufficient');
-      }
-      if (!isDeposit && member.balance.lessThan(absAmount)) {
-        throw new ApiError('INSUFFICIENT_FUNDS', 'Member balance insufficient');
-      }
-
-      const agentAfter = isDeposit ? agent.balance.sub(absAmount) : agent.balance.add(absAmount);
-      const memberAfter = isDeposit ? member.balance.add(absAmount) : member.balance.sub(absAmount);
-
-      await tx.agent.update({ where: { id: agent.id }, data: { balance: agentAfter } });
-      await tx.user.update({ where: { id: member.id }, data: { balance: memberAfter } });
-
-      const transfer = await tx.pointTransfer.create({
-        data: {
-          type: isDeposit ? 'AGENT_TO_MEMBER' : 'MEMBER_TO_AGENT',
-          fromType: isDeposit ? 'agent' : 'member',
-          fromId: isDeposit ? agent.id : member.id,
-          toType: isDeposit ? 'member' : 'agent',
-          toId: isDeposit ? member.id : agent.id,
-          amount: absAmount,
-          fromBeforeBalance: isDeposit ? agent.balance : member.balance,
-          fromAfterBalance: isDeposit ? agentAfter : memberAfter,
-          toBeforeBalance: isDeposit ? member.balance : agent.balance,
-          toAfterBalance: isDeposit ? memberAfter : agentAfter,
-          description: input.description ?? null,
-          operatorId: operator.id,
-          operatorType: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
-          ipAddress: req?.ip ?? null,
-        },
-      });
-
-      await tx.transaction.create({
-        data: {
-          userId: member.id,
-          type: isDeposit ? 'TRANSFER_IN' : 'TRANSFER_OUT',
-          amount: isDeposit ? absAmount : absAmount.neg(),
-          balanceAfter: memberAfter,
-          meta: { from: 'agent', agentId: agent.id, operatorId: operator.id },
-        },
-      });
-      await cancelMemberDepositControlsForBalanceMovement(tx, {
-        id: member.id,
-        username: member.username,
-        agentId: member.agentId,
-        balanceAfter: memberAfter,
-      });
-      await resetMemberAutoBalanceControl(tx, {
-        memberId: member.id,
-        memberUsername: member.username,
-        agentId: member.agentId,
-        balanceAfter: memberAfter,
-        reason: isDeposit ? 'agent_to_member' : 'member_to_agent',
-        operatorUsername: operator.username,
-      });
-      return transfer;
-    });
-
-    await writeAudit(this.prisma, {
-      actor: {
-        id: operator.id,
-        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
-        username: operator.username,
-      },
-      action: amount.greaterThan(0) ? 'transfer.agent_to_member' : 'transfer.member_to_agent',
-      targetType: 'transfer',
-      targetId: result.id,
-      newValues: { agentId: input.agentId, memberId: input.memberId, amount: input.amount },
+    const result = await commitTransfer(
+      this.prisma,
+      operator,
+      'agent_to_member',
+      input,
       req,
-    });
+      async (tx, transferId) => {
+        const agent = await tx.agent.findUnique({ where: { id: input.agentId } });
+        const member = await tx.user.findUnique({ where: { id: input.memberId } });
+        if (!agent || !member) throw new ApiError('AGENT_NOT_FOUND', 'Agent or member not found');
+        if (agent.role === 'SUB_ACCOUNT') {
+          throw new ApiError('INVALID_TRANSFER', 'Sub-account cannot transfer points');
+        }
+        if (!member.agentId) throw new ApiError('FORBIDDEN', 'Member has no agent');
+        const memberBelongsToFundingLine =
+          agent.role === 'SUPER_ADMIN'
+            ? await isAgentInSharedSuperAdminLine(tx, member.agentId)
+            : (await listAgentDescendants(tx, agent.id)).includes(member.agentId);
+        if (!memberBelongsToFundingLine) {
+          throw new ApiError('FORBIDDEN', 'Member does not belong to this agent line');
+        }
+
+        const isDeposit = amount.greaterThan(0); // 代理→會員
+        const absAmount = amount.abs();
+
+        if (isDeposit && agent.balance.lessThan(absAmount)) {
+          throw new ApiError('INSUFFICIENT_FUNDS', 'Agent balance insufficient');
+        }
+        if (!isDeposit && member.balance.lessThan(absAmount)) {
+          throw new ApiError('INSUFFICIENT_FUNDS', 'Member balance insufficient');
+        }
+
+        const agentAfter = isDeposit ? agent.balance.sub(absAmount) : agent.balance.add(absAmount);
+        const memberAfter = isDeposit
+          ? member.balance.add(absAmount)
+          : member.balance.sub(absAmount);
+
+        await tx.agent.update({ where: { id: agent.id }, data: { balance: agentAfter } });
+        await tx.user.update({ where: { id: member.id }, data: { balance: memberAfter } });
+
+        const transfer = await tx.pointTransfer.create({
+          data: {
+            ...(transferId ? { id: transferId } : {}),
+            type: isDeposit ? 'AGENT_TO_MEMBER' : 'MEMBER_TO_AGENT',
+            fromType: isDeposit ? 'agent' : 'member',
+            fromId: isDeposit ? agent.id : member.id,
+            toType: isDeposit ? 'member' : 'agent',
+            toId: isDeposit ? member.id : agent.id,
+            amount: absAmount,
+            fromBeforeBalance: isDeposit ? agent.balance : member.balance,
+            fromAfterBalance: isDeposit ? agentAfter : memberAfter,
+            toBeforeBalance: isDeposit ? member.balance : agent.balance,
+            toAfterBalance: isDeposit ? memberAfter : agentAfter,
+            description: input.description ?? null,
+            operatorId: operator.id,
+            operatorType: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+            ipAddress: req?.ip ?? null,
+          },
+        });
+
+        await tx.transaction.create({
+          data: {
+            userId: member.id,
+            type: isDeposit ? 'TRANSFER_IN' : 'TRANSFER_OUT',
+            amount: isDeposit ? absAmount : absAmount.neg(),
+            balanceAfter: memberAfter,
+            meta: { from: 'agent', agentId: agent.id, operatorId: operator.id },
+          },
+        });
+        await cancelMemberDepositControlsForBalanceMovement(tx, {
+          id: member.id,
+          username: member.username,
+          agentId: member.agentId,
+          balanceAfter: memberAfter,
+        });
+        await resetMemberAutoBalanceControl(tx, {
+          memberId: member.id,
+          memberUsername: member.username,
+          agentId: member.agentId,
+          balanceAfter: memberAfter,
+          reason: isDeposit ? 'agent_to_member' : 'member_to_agent',
+          operatorUsername: operator.username,
+        });
+        return transfer;
+      },
+    );
+
     return toEntry(result);
   }
 
@@ -204,43 +200,45 @@ export class TransferService {
   ): Promise<TransferEntry> {
     if (operator.role !== 'SUPER_ADMIN')
       throw new ApiError('FORBIDDEN', 'CS transfer requires super admin');
+    input = csTransferSchema.parse(input);
     const amount = new Prisma.Decimal(input.amount);
     if (amount.isZero()) throw new ApiError('INVALID_TRANSFER', 'amount cannot be zero');
 
-    const result = await runSerializable(this.prisma, async (tx) => {
-      const agent = await tx.agent.findUnique({ where: { id: input.targetId } });
-      if (!agent) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
-      const after = agent.balance.add(amount);
-      if (after.isNegative()) throw new ApiError('INSUFFICIENT_FUNDS', 'Would go negative');
-      await tx.agent.update({ where: { id: agent.id }, data: { balance: after } });
-      const transfer = await tx.pointTransfer.create({
-        data: {
-          type: 'CS_AGENT_TRANSFER',
-          fromType: 'cs',
-          fromId: operator.id,
-          toType: 'agent',
-          toId: agent.id,
-          amount: amount.abs(),
-          fromBeforeBalance: new Prisma.Decimal(0),
-          fromAfterBalance: new Prisma.Decimal(0),
-          toBeforeBalance: agent.balance,
-          toAfterBalance: after,
-          description: input.description ?? null,
-          operatorId: operator.id,
-          operatorType: 'super_admin',
-          ipAddress: req?.ip ?? null,
-        },
-      });
-      return transfer;
-    });
-    await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: 'super_admin', username: operator.username },
-      action: 'transfer.cs_agent',
-      targetType: 'transfer',
-      targetId: result.id,
-      newValues: { targetId: input.targetId, amount: input.amount },
+    const result = await commitTransfer(
+      this.prisma,
+      operator,
+      'cs_agent',
+      input,
       req,
-    });
+      async (tx, transferId) => {
+        const agent = await tx.agent.findUnique({ where: { id: input.targetId } });
+        if (!agent) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
+        const after = agent.balance.add(amount);
+        if (after.isNegative()) throw new ApiError('INSUFFICIENT_FUNDS', 'Would go negative');
+        await tx.agent.update({ where: { id: agent.id }, data: { balance: after } });
+        const transfer = await tx.pointTransfer.create({
+          data: {
+            ...(transferId ? { id: transferId } : {}),
+            type: 'CS_AGENT_TRANSFER',
+            fromType: 'cs',
+            fromId: operator.id,
+            toType: 'agent',
+            toId: agent.id,
+            amount: amount.abs(),
+            fromBeforeBalance: new Prisma.Decimal(0),
+            fromAfterBalance: new Prisma.Decimal(0),
+            toBeforeBalance: agent.balance,
+            toAfterBalance: after,
+            description: input.description ?? null,
+            operatorId: operator.id,
+            operatorType: 'super_admin',
+            ipAddress: req?.ip ?? null,
+          },
+        });
+        return transfer;
+      },
+    );
+
     return toEntry(result);
   }
 
@@ -251,66 +249,68 @@ export class TransferService {
   ): Promise<TransferEntry> {
     if (operator.role !== 'SUPER_ADMIN')
       throw new ApiError('FORBIDDEN', 'CS transfer requires super admin');
+    input = csTransferSchema.parse(input);
     const amount = new Prisma.Decimal(input.amount);
     if (amount.isZero()) throw new ApiError('INVALID_TRANSFER', 'amount cannot be zero');
 
-    const result = await runSerializable(this.prisma, async (tx) => {
-      const member = await tx.user.findUnique({ where: { id: input.targetId } });
-      if (!member) throw new ApiError('MEMBER_NOT_FOUND', 'Member not found');
-      const after = member.balance.add(amount);
-      if (after.isNegative()) throw new ApiError('INSUFFICIENT_FUNDS', 'Would go negative');
-      await tx.user.update({ where: { id: member.id }, data: { balance: after } });
-      const transfer = await tx.pointTransfer.create({
-        data: {
-          type: 'CS_MEMBER_TRANSFER',
-          fromType: 'cs',
-          fromId: operator.id,
-          toType: 'member',
-          toId: member.id,
-          amount: amount.abs(),
-          fromBeforeBalance: new Prisma.Decimal(0),
-          fromAfterBalance: new Prisma.Decimal(0),
-          toBeforeBalance: member.balance,
-          toAfterBalance: after,
-          description: input.description ?? null,
-          operatorId: operator.id,
-          operatorType: 'super_admin',
-          ipAddress: req?.ip ?? null,
-        },
-      });
-      await tx.transaction.create({
-        data: {
-          userId: member.id,
-          type: amount.greaterThan(0) ? 'TRANSFER_IN' : 'TRANSFER_OUT',
-          amount,
-          balanceAfter: after,
-          meta: { from: 'cs', operatorId: operator.id },
-        },
-      });
-      await cancelMemberDepositControlsForBalanceMovement(tx, {
-        id: member.id,
-        username: member.username,
-        agentId: member.agentId,
-        balanceAfter: after,
-      });
-      await resetMemberAutoBalanceControl(tx, {
-        memberId: member.id,
-        memberUsername: member.username,
-        agentId: member.agentId,
-        balanceAfter: after,
-        reason: amount.greaterThan(0) ? 'cs_member_in' : 'cs_member_out',
-        operatorUsername: operator.username,
-      });
-      return transfer;
-    });
-    await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: 'super_admin', username: operator.username },
-      action: 'transfer.cs_member',
-      targetType: 'transfer',
-      targetId: result.id,
-      newValues: { targetId: input.targetId, amount: input.amount },
+    const result = await commitTransfer(
+      this.prisma,
+      operator,
+      'cs_member',
+      input,
       req,
-    });
+      async (tx, transferId) => {
+        const member = await tx.user.findUnique({ where: { id: input.targetId } });
+        if (!member) throw new ApiError('MEMBER_NOT_FOUND', 'Member not found');
+        const after = member.balance.add(amount);
+        if (after.isNegative()) throw new ApiError('INSUFFICIENT_FUNDS', 'Would go negative');
+        await tx.user.update({ where: { id: member.id }, data: { balance: after } });
+        const transfer = await tx.pointTransfer.create({
+          data: {
+            ...(transferId ? { id: transferId } : {}),
+            type: 'CS_MEMBER_TRANSFER',
+            fromType: 'cs',
+            fromId: operator.id,
+            toType: 'member',
+            toId: member.id,
+            amount: amount.abs(),
+            fromBeforeBalance: new Prisma.Decimal(0),
+            fromAfterBalance: new Prisma.Decimal(0),
+            toBeforeBalance: member.balance,
+            toAfterBalance: after,
+            description: input.description ?? null,
+            operatorId: operator.id,
+            operatorType: 'super_admin',
+            ipAddress: req?.ip ?? null,
+          },
+        });
+        await tx.transaction.create({
+          data: {
+            userId: member.id,
+            type: amount.greaterThan(0) ? 'TRANSFER_IN' : 'TRANSFER_OUT',
+            amount,
+            balanceAfter: after,
+            meta: { from: 'cs', operatorId: operator.id },
+          },
+        });
+        await cancelMemberDepositControlsForBalanceMovement(tx, {
+          id: member.id,
+          username: member.username,
+          agentId: member.agentId,
+          balanceAfter: after,
+        });
+        await resetMemberAutoBalanceControl(tx, {
+          memberId: member.id,
+          memberUsername: member.username,
+          agentId: member.agentId,
+          balanceAfter: after,
+          reason: amount.greaterThan(0) ? 'cs_member_in' : 'cs_member_out',
+          operatorUsername: operator.username,
+        });
+        return transfer;
+      },
+    );
+
     return toEntry(result);
   }
 

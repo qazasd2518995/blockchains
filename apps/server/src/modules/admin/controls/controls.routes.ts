@@ -1089,19 +1089,27 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
       const { id } = req.params as { id: string };
       const { isActive } = toggleSchema.parse(req.body);
       await requireOwnedWinLossControl(req.admin, id);
-      const updated = await fastify.prisma.winLossControl.update({
-        where: { id },
-        data: { isActive },
+      return fastify.prisma.$transaction(async (tx) => {
+        const changed = await tx.winLossControl.updateMany({
+          where: { id, ...(isActive ? { isCompleted: false } : {}) },
+          data: { isActive },
+        });
+        if (changed.count !== 1)
+          throw new ApiError(
+            'INVALID_ACTION',
+            '此控制已完成或不存在，請新增規則；不會重設已結算進度',
+          );
+        const updated = await tx.winLossControl.findUniqueOrThrow({ where: { id } });
+        await writeAudit(tx, {
+          actor: auditActor(req),
+          action: 'control.win_loss.toggle',
+          targetType: 'control',
+          targetId: id,
+          newValues: { isActive },
+          req,
+        });
+        return updated;
       });
-      await writeAudit(fastify.prisma, {
-        actor: auditActor(req),
-        action: 'control.win_loss.toggle',
-        targetType: 'control',
-        targetId: id,
-        newValues: { isActive },
-        req,
-      });
-      return updated;
     },
   );
 
@@ -1111,13 +1119,15 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req, reply) => {
       const { id } = req.params as { id: string };
       await requireOwnedWinLossControl(req.admin, id);
-      await fastify.prisma.winLossControl.delete({ where: { id } });
-      await writeAudit(fastify.prisma, {
-        actor: auditActor(req),
-        action: 'control.win_loss.delete',
-        targetType: 'control',
-        targetId: id,
-        req,
+      await fastify.prisma.$transaction(async (tx) => {
+        await tx.winLossControl.delete({ where: { id } });
+        await writeAudit(tx, {
+          actor: auditActor(req),
+          action: 'control.win_loss.delete',
+          targetType: 'control',
+          targetId: id,
+          req,
+        });
       });
       reply.code(204).send();
     },
@@ -1192,19 +1202,21 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req) => {
       const { id } = req.params as { id: string };
       const { isActive } = toggleSchema.parse(req.body);
-      const updated = await fastify.prisma.memberWinCapControl.update({
-        where: { id },
-        data: { isActive },
+      return fastify.prisma.$transaction(async (tx) => {
+        const updated = await tx.memberWinCapControl.update({
+          where: { id },
+          data: { isActive },
+        });
+        await writeAudit(tx, {
+          actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+          action: 'control.win_cap.toggle',
+          targetType: 'control',
+          targetId: id,
+          newValues: { isActive },
+          req,
+        });
+        return updated;
       });
-      await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-        action: 'control.win_cap.toggle',
-        targetType: 'control',
-        targetId: id,
-        newValues: { isActive },
-        req,
-      });
-      return updated;
     },
   );
 
@@ -1213,13 +1225,15 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
     async (req, reply) => {
       const { id } = req.params as { id: string };
-      await fastify.prisma.memberWinCapControl.delete({ where: { id } });
-      await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-        action: 'control.win_cap.delete',
-        targetType: 'control',
-        targetId: id,
-        req,
+      await fastify.prisma.$transaction(async (tx) => {
+        await tx.memberWinCapControl.delete({ where: { id } });
+        await writeAudit(tx, {
+          actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+          action: 'control.win_cap.delete',
+          targetType: 'control',
+          targetId: id,
+          req,
+        });
       });
       reply.code(204).send();
     },
@@ -1391,31 +1405,41 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     const { id } = req.params as { id: string };
     const { isActive } = toggleSchema.parse(req.body);
     await requireOwnedDepositControl(req.admin, id);
-    const updated = await fastify.prisma.memberDepositControl.update({
-      where: { id },
-      data: { isActive },
+    return fastify.prisma.$transaction(async (tx) => {
+      const changed = await tx.memberDepositControl.updateMany({
+        where: { id, ...(isActive ? { isCompleted: false } : {}) },
+        data: { isActive },
+      });
+      if (changed.count !== 1)
+        throw new ApiError(
+          'INVALID_ACTION',
+          '此控制已完成或不存在，請新增規則；不會重設已結算進度',
+        );
+      const updated = await tx.memberDepositControl.findUniqueOrThrow({ where: { id } });
+      await writeAudit(tx, {
+        actor: auditActor(req),
+        action: 'control.deposit.toggle',
+        targetType: 'control',
+        targetId: id,
+        newValues: { isActive },
+        req,
+      });
+      return updated;
     });
-    await writeAudit(fastify.prisma, {
-      actor: auditActor(req),
-      action: 'control.deposit.toggle',
-      targetType: 'control',
-      targetId: id,
-      newValues: { isActive },
-      req,
-    });
-    return updated;
   });
 
   fastify.delete('/deposit/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
     await requireOwnedDepositControl(req.admin, id);
-    await fastify.prisma.memberDepositControl.delete({ where: { id } });
-    await writeAudit(fastify.prisma, {
-      actor: auditActor(req),
-      action: 'control.deposit.delete',
-      targetType: 'control',
-      targetId: id,
-      req,
+    await fastify.prisma.$transaction(async (tx) => {
+      await tx.memberDepositControl.delete({ where: { id } });
+      await writeAudit(tx, {
+        actor: auditActor(req),
+        action: 'control.deposit.delete',
+        targetType: 'control',
+        targetId: id,
+        req,
+      });
     });
     reply.code(204).send();
   });
@@ -1483,19 +1507,21 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req) => {
       const { id } = req.params as { id: string };
       const { isActive } = toggleSchema.parse(req.body);
-      const updated = await fastify.prisma.agentLineWinCap.update({
-        where: { id },
-        data: { isActive },
+      return fastify.prisma.$transaction(async (tx) => {
+        const updated = await tx.agentLineWinCap.update({
+          where: { id },
+          data: { isActive },
+        });
+        await writeAudit(tx, {
+          actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+          action: 'control.agent_line.toggle',
+          targetType: 'control',
+          targetId: id,
+          newValues: { isActive },
+          req,
+        });
+        return updated;
       });
-      await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-        action: 'control.agent_line.toggle',
-        targetType: 'control',
-        targetId: id,
-        newValues: { isActive },
-        req,
-      });
-      return updated;
     },
   );
 
@@ -1504,13 +1530,15 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
     async (req, reply) => {
       const { id } = req.params as { id: string };
-      await fastify.prisma.agentLineWinCap.delete({ where: { id } });
-      await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-        action: 'control.agent_line.delete',
-        targetType: 'control',
-        targetId: id,
-        req,
+      await fastify.prisma.$transaction(async (tx) => {
+        await tx.agentLineWinCap.delete({ where: { id } });
+        await writeAudit(tx, {
+          actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+          action: 'control.agent_line.delete',
+          targetType: 'control',
+          targetId: id,
+          req,
+        });
       });
       reply.code(204).send();
     },
@@ -1641,19 +1669,21 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req) => {
       const { id } = req.params as { id: string };
       const { isActive } = toggleSchema.parse(req.body);
-      const updated = await fastify.prisma.burstControl.update({
-        where: { id },
-        data: { isActive },
+      return fastify.prisma.$transaction(async (tx) => {
+        const updated = await tx.burstControl.update({
+          where: { id },
+          data: { isActive },
+        });
+        await writeAudit(tx, {
+          actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+          action: 'control.burst.toggle',
+          targetType: 'control',
+          targetId: id,
+          newValues: { isActive },
+          req,
+        });
+        return updated;
       });
-      await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-        action: 'control.burst.toggle',
-        targetType: 'control',
-        targetId: id,
-        newValues: { isActive },
-        req,
-      });
-      return updated;
     },
   );
 
@@ -1662,13 +1692,15 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
     async (req, reply) => {
       const { id } = req.params as { id: string };
-      await fastify.prisma.burstControl.delete({ where: { id } });
-      await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-        action: 'control.burst.delete',
-        targetType: 'control',
-        targetId: id,
-        req,
+      await fastify.prisma.$transaction(async (tx) => {
+        await tx.burstControl.delete({ where: { id } });
+        await writeAudit(tx, {
+          actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+          action: 'control.burst.delete',
+          targetType: 'control',
+          targetId: id,
+          req,
+        });
       });
       reply.code(204).send();
     },

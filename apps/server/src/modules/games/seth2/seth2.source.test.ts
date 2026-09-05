@@ -10,6 +10,7 @@ import {
   seth2SourceGameStates,
   seth2SourceInitialState,
   seth2SourcePlatform,
+  type Seth2SourceGameState,
 } from './seth2.source.js';
 
 const SOURCE_OPTIONS = {
@@ -66,7 +67,174 @@ function sourceFixture(overrides: Partial<Seth2ReturnData> = {}): Seth2ReturnDat
   };
 }
 
+// Replay the imported SymbolView contract: erase -> clone -> move survivors ->
+// fill only EMPTY positions. Rebuilding the whole board from view would hide
+// phantom multiplier nodes that the real client leaves visible and uncollected.
+function expectSourceBoardReplay(states: Seth2SourceGameState[]) {
+  const symbols = new Map<number, { symbol: number; times: number }>();
+  for (let index = 0; index < states.length; index += 1) {
+    const state = states[index]!;
+    if (index === 0 || !states[index - 1]!.winSymbols.length) symbols.clear();
+    const board = state.view.flat();
+    board.forEach((symbol, position) => {
+      if (!symbols.has(position)) {
+        symbols.set(position, {
+          symbol,
+          times:
+            state.newTimesSymbols.find((ball) => ball.symbolPos === position)?.times ??
+            state.timesSymbols.find((ball) => ball.symbolPos === position)?.times ??
+            0,
+        });
+      }
+    });
+    expect([...symbols].sort(([a], [b]) => a - b).map(([, cell]) => cell.symbol)).toEqual(board);
+    const visibleBalls = [...symbols]
+      .filter(([, cell]) => cell.symbol >= 10 && cell.symbol <= 13)
+      .map(([symbolPos, cell]) => ({ symbolPos, symbol: cell.symbol, times: cell.times }))
+      .sort((a, b) => a.symbolPos - b.symbolPos);
+    expect(visibleBalls).toEqual(
+      state.timesSymbols.map(({ symbolPos, symbol, times }) => ({ symbolPos, symbol, times })),
+    );
+    for (const win of state.winSymbols) {
+      for (const position of win.symbolPos) {
+        expect(symbols.get(position)?.symbol).toBe(win.symbol);
+        symbols.delete(position);
+      }
+    }
+    for (const split of state.splitList) {
+      const source = symbols.get(split.from)!;
+      expect(source.times).toBeGreaterThan(0);
+      for (const target of split.to) {
+        expect(symbols.has(target), 'a clone must never replace an un-erased survivor').toBe(false);
+        symbols.set(target, { ...source });
+      }
+    }
+    for (const move of state.posTransform) {
+      expect(symbols.has(move.beforePos)).toBe(true);
+      expect(symbols.has(move.afterPos), 'falling must not overwrite another node').toBe(false);
+      symbols.set(move.afterPos, symbols.get(move.beforePos)!);
+      symbols.delete(move.beforePos);
+    }
+    for (const upgrade of state.timesUpgrade) {
+      const position =
+        state.posTransform.find((move) => move.beforePos === upgrade.symbolPos)?.afterPos ??
+        upgrade.symbolPos;
+      symbols.set(position, { symbol: upgrade.afterSymbol, times: upgrade.afterTimes });
+    }
+  }
+}
+
 describe('Seth 2 v1.1.5 source contract', () => {
+  it('does not leave a phantom uncollected 4x after a male split and refill', () => {
+    const outcome = seth2SpinForFactor('clone-extra-4x', 'client', 0, 10, 20, 'awakening_free');
+    expect(outcome.returnData.type17_beishu?.mul).toBe(4);
+    expect(outcome.returnData.type17_mul_list).toHaveLength(3);
+    const unchanged = structuredClone(outcome.returnData);
+    const states = seth2SourceGameStates(outcome.returnData, SOURCE_OPTIONS);
+    expectSourceBoardReplay(states);
+    const final = states.at(-1)!;
+    expect(final.timesSymbols.map((ball) => ball.times)).toEqual([4, 4, 4, 4]);
+    expect(final.totalWinnings).toBe(outcome.returnData.total_gold);
+    expect(outcome.returnData).toEqual(unchanged);
+  });
+
+  it('lets the newborn unlocked clone fall before the next refill instead of pinning it', () => {
+    const outcome = seth2SpinForFactor(
+      'male-gravity-audit',
+      'client',
+      0,
+      10,
+      100,
+      'awakening_free',
+    );
+    const states = seth2SourceGameStates(outcome.returnData, SOURCE_OPTIONS);
+    expect(states[0]!.splitList).toEqual([{ from: 15, to: [0] }]);
+    expect(states[0]!.posTransform).toContainEqual({ beforePos: 0, afterPos: 12 });
+    expect(states[1]!.timesSymbols).toContainEqual(
+      expect.objectContaining({ symbolPos: 12, times: 50, lock: 0 }),
+    );
+    expect(states[1]!.newTimesSymbols).not.toContainEqual(
+      expect.objectContaining({ symbolPos: 12 }),
+    );
+    expectSourceBoardReplay(states);
+  });
+
+  it('preserves the same split balls when legacy round_data already contains some or all copies', () => {
+    const outcome = seth2SpinForFactor('clone-extra-4x', 'client', 0, 10, 20, 'awakening_free');
+    const expected = seth2SourceGameStates(outcome.returnData, SOURCE_OPTIONS);
+    for (const count of [1, 2, 3]) {
+      const data = structuredClone(outcome.returnData);
+      data.list[0]!.round_data.push(...data.type17_mul_list.slice(0, count));
+      const actual = seth2SourceGameStates(data, SOURCE_OPTIONS);
+      expect(actual).toEqual(expected);
+      expectSourceBoardReplay(actual);
+    }
+  });
+
+  it('collects a genuinely new 4x refill ball in addition to all equal-valued split copies', () => {
+    const data = seth2SpinForFactor(
+      'clone-extra-4x',
+      'client',
+      0,
+      10,
+      20,
+      'awakening_free',
+    ).returnData;
+    // A real refill multiplier is within the ordinary refill budget, not an
+    // extra embedded copy. Equality of multiplier values must not deduplicate it.
+    data.list[0]!.round_data[0] = cell(10, 4, 1);
+    data.list[0]!.total_mul += 4;
+    data.total_gold = data.score * data.list[0]!.total_mul;
+    data.list[0]!.total_gold = data.total_gold;
+    for (const embedded of [false, true]) {
+      const payload = structuredClone(data);
+      if (embedded) payload.list[0]!.round_data.push(...payload.type17_mul_list);
+      const states = seth2SourceGameStates(payload, SOURCE_OPTIONS);
+      expectSourceBoardReplay(states);
+      const final = states.at(-1)!;
+      expect(final.timesSymbols.map((ball) => ball.times)).toEqual([4, 4, 4, 4, 4]);
+      expect(final.newTimesSymbols).toHaveLength(1);
+      expect(final.newTimesSymbols[0]!.times).toBe(4);
+      expect(final.totalWinnings).toBe(250);
+    }
+  });
+
+  it('keeps visible balls, collection totals and payouts consistent across generated male skills', () => {
+    const levels = new Set<number>();
+    for (let nonce = 0; nonce < 1000; nonce += 1) {
+      const outcome = seth2SpinForFactor(
+        'male-board-replay',
+        'client',
+        nonce,
+        10,
+        100,
+        'awakening_free',
+      );
+      if (!outcome.returnData.type17_mul_list.length) continue;
+      const states = seth2SourceGameStates(outcome.returnData, SOURCE_OPTIONS);
+      levels.add(states[0]!.maleTotemLevel);
+      expectSourceBoardReplay(states);
+      const final = states.at(-1)!;
+      expect(final.timesSymbols.reduce((sum, ball) => sum + ball.times, 0)).toBe(
+        outcome.returnData.list.at(-1)!.total_mul,
+      );
+      expect(final.totalWinnings).toBe(outcome.returnData.total_gold);
+    }
+    expect([...levels].sort()).toEqual([1, 2, 3]);
+  });
+
+  it('replays split, upgrades and locked follow-up boards throughout Eternal Rise', () => {
+    for (let nonce = 0; nonce < 100; nonce += 1) {
+      const outcome = seth2SuperMainSpinForFactor('split-super-replay', 'client', nonce, 2, 5000);
+      const states = seth2SourceGameStates(outcome.returnData, {
+        ...SOURCE_OPTIONS,
+        action: 'superSpin',
+      });
+      expectSourceBoardReplay(states);
+      expect(states.at(-1)!.totalWinnings).toBe(outcome.returnData.total_gold);
+    }
+  });
+
   it('deep-merges persisted setting patches with all framework defaults', () => {
     const platform = seth2SourcePlatform(
       { id: 'player', username: 'player', displayName: null, balance: 100 },
@@ -138,6 +306,52 @@ describe('Seth 2 v1.1.5 source contract', () => {
     expect(states[0]!.winSymbols).toEqual([]);
     expect(states[0]!.posTransform).toEqual([]);
   });
+
+  it.each(['standard', 'awakening'] as const)(
+    'keeps purchased %s scatters separated in the final 5-by-6 client view',
+    (featureMode) => {
+      for (let nonce = 0; nonce < 100; nonce += 1) {
+        const outcome = seth2BuyFeatureEntry(
+          'source-entry-layout',
+          'client',
+          nonce,
+          featureMode,
+          10,
+        );
+        const states = seth2SourceGameStates(outcome.returnData, {
+          action: 'spin',
+          spinId: `entry-${nonce}`,
+          totalStake: 10,
+          freeGameCount: 15,
+          featureWinningsBefore: 0,
+          isGoldenFg: featureMode === 'awakening',
+        });
+        const view = states[0]!.view as number[][];
+        expect(view).toHaveLength(5);
+        expect(view.every((row) => row.length === 6)).toBe(true);
+        const scatters = view.flatMap((row, rowIndex) =>
+          row.flatMap((symbol, columnIndex) =>
+            symbol === 15 || symbol === 16 ? [{ rowIndex, columnIndex, symbol }] : [],
+          ),
+        );
+        expect(scatters).toHaveLength(4);
+        expect(new Set(scatters.map((symbol) => symbol.rowIndex)).size).toBe(4);
+        expect(new Set(scatters.map((symbol) => symbol.columnIndex)).size).toBe(4);
+        expect(scatters.filter((symbol) => symbol.symbol === 16)).toHaveLength(
+          featureMode === 'awakening' ? 1 : 0,
+        );
+        expect(states).toHaveLength(1);
+        expect(states[0]).toMatchObject({
+          startFreeGame: true,
+          freeGameCount: 15,
+          roundWinnings: 30,
+          totalWinnings: 30,
+          winSymbols: [],
+          posTransform: [],
+        });
+      }
+    },
+  );
 
   it.each([
     [14, 'jp-mini'],
@@ -581,6 +795,7 @@ describe('Seth 2 v1.1.5 source contract', () => {
     expect(states[1]!.timesSymbols.filter((entry) => entry.times === 25)).toHaveLength(copies + 1);
     expect(states[1]!.maleTotemLevel).toBe(0);
     expect(states[1]!.splitList).toEqual([]);
+    expectSourceBoardReplay(states);
   });
 
   it.each([1, 2, 3] as const)(
@@ -739,6 +954,7 @@ describe('Seth 2 v1.1.5 source contract', () => {
     );
     expect(states[0]!.posTransform).not.toContainEqual(expect.objectContaining({ beforePos: 0 }));
     expect(states.at(-1)!.timesSymbols.filter((entry) => entry.times === 25)).toHaveLength(1);
+    expectSourceBoardReplay(states);
   });
 
   it('keeps upgrade positions pre-fall so the Cocos client transforms them exactly once', () => {

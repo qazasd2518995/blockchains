@@ -60,7 +60,7 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
     if (!agent || agent.status === 'DISABLED' || agent.status === 'DELETED') {
       throw new ApiError('AGENT_FROZEN', 'Agent account is not active');
     }
-    if (agent.activeSessionId && agent.activeSessionId !== raw.sid) {
+    if (!agent.activeSessionId || !raw.sid || agent.activeSessionId !== raw.sid) {
       throw new ApiError(
         'SESSION_REPLACED',
         'Logged out because this account signed in on another device',

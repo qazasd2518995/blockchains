@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import {
   SETH2_BOUGHT_AWAKENING_SHARE,
   SETH2_FREE_SPINS,
@@ -265,6 +266,74 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       expect(outcome.featureMode).toBe('standard');
       expect(scatterTypes).toEqual([15, 15, 15, 15]);
     }
+  });
+
+  it.each(['standard', 'awakening'] as const)(
+    'places purchased %s entry scatters on four different rows and columns',
+    (featureMode) => {
+      const layouts = new Set<string>();
+      const allRows = new Set<number>();
+      const allColumns = new Set<number>();
+      for (let nonce = 0; nonce < 1_000; nonce += 1) {
+        const outcome = seth2BuyFeatureEntry(
+          'separate-entry-scatters',
+          'client',
+          nonce,
+          featureMode,
+          BET,
+        );
+        const board = outcome.returnData.list[0]!.start_data;
+        const positions = board.flatMap((current, position) =>
+          current.type === 15 || current.type === 16 ? [position] : [],
+        );
+        const rows = positions.map((position) => Math.floor(position / 6));
+        const columns = positions.map((position) => position % 6);
+        expect(board).toHaveLength(SETH2_GRID_SIZE);
+        expect(positions, `${featureMode} nonce ${nonce}`).toHaveLength(4);
+        expect(new Set(rows).size, `rows at ${featureMode} nonce ${nonce}`).toBe(4);
+        expect(new Set(columns).size, `columns at ${featureMode} nonce ${nonce}`).toBe(4);
+        expect(board.filter((current) => current.type === 16)).toHaveLength(
+          featureMode === 'awakening' ? 1 : 0,
+        );
+        expect(outcome.payoutFactor).toBe(SETH2_SCATTER_PAYTABLE.four / 20);
+        expect(outcome.returnData.total_gold).toBe(BET * 3);
+        expect(outcome.returnData.freeGameCount).toBe(SETH2_FREE_SPINS);
+        expect(outcome.returnData.addGameCiShu).toBe(0);
+        layouts.add(positions.join(','));
+        rows.forEach((row) => allRows.add(row));
+        columns.forEach((column) => allColumns.add(column));
+      }
+      expect(allRows.size).toBe(5);
+      expect(allColumns.size).toBe(6);
+      expect(layouts.size).toBeGreaterThan(100);
+      expect(
+        seth2BuyFeatureEntry('separate-entry-scatters', 'client', 42, featureMode, BET),
+      ).toEqual(seth2BuyFeatureEntry('separate-entry-scatters', 'client', 42, featureMode, BET));
+    },
+  );
+
+  it('preserves every non-positional field in existing purchased-entry fixtures', () => {
+    const hash = createHash('sha256');
+    for (const featureMode of ['standard', 'awakening'] as const) {
+      for (let nonce = 0; nonce < 1_000; nonce += 1) {
+        const outcome = seth2BuyFeatureEntry(
+          'entry-layout-baseline',
+          'client',
+          nonce,
+          featureMode,
+          10,
+        );
+        for (const round of outcome.returnData.list) {
+          // Ignore only the positions, not symbol counts, payouts, refill order
+          // or feature metadata. This digest was captured before the layout fix.
+          round.start_data.sort((left, right) => left.type - right.type || left.mul - right.mul);
+        }
+        hash.update(JSON.stringify(outcome));
+      }
+    }
+    expect(hash.digest('hex')).toBe(
+      '3d709b3600fb2273b64adf34cde8bb28c2592bceaf9302b306b3bec46edec67e',
+    );
   });
 
   it('guarantees a real paying character event at the legal 2x minimum', () => {

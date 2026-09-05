@@ -477,21 +477,26 @@ export class MemberService {
     const ok = await canManageMember(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot reset this member');
     const passwordHash = await bcrypt.hash(input.newPassword, BCRYPT_ROUNDS);
-    await this.prisma.user.update({ where: { id }, data: { passwordHash } });
-    await this.prisma.refreshToken.updateMany({
-      where: { userId: id, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
-    await writeAudit(this.prisma, {
-      actor: {
-        id: operator.id,
-        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
-        username: operator.username,
-      },
-      action: 'member.password.reset',
-      targetType: 'member',
-      targetId: id,
-      req,
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id },
+        data: { passwordHash, activeSessionId: null, activeSessionAt: null },
+      });
+      await tx.refreshToken.updateMany({
+        where: { userId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await writeAudit(tx, {
+        actor: {
+          id: operator.id,
+          type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+          username: operator.username,
+        },
+        action: 'member.password.reset',
+        targetType: 'member',
+        targetId: id,
+        req,
+      });
     });
   }
 

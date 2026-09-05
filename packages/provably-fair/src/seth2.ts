@@ -533,6 +533,10 @@ function buildBoughtFeatureEntry(
     remove_count: 0,
     is_over: 1,
   };
+  // This is presentation-only and runs after the original payout/refill draws.
+  // Keep every symbol and financial field, but never stack purchased entry
+  // SCATTERs on the same row or reel in the source client's row-major 5x6 view.
+  round.start_data = separateBoughtEntryScatters(startData, rng);
   const returnData = baseReturnData(round);
   returnData.featureMode = featureMode;
   returnData.gameModelType = awakening ? 1 : 0;
@@ -544,6 +548,21 @@ function buildBoughtFeatureEntry(
     featureMode,
     returnData,
   };
+}
+
+function separateBoughtEntryScatters(board: Seth2Cell[], rng: Seth2RandomSource): Seth2Cell[] {
+  const rows = shuffle([0, 1, 2, 3, 4], rng);
+  const columns = shuffle([0, 1, 2, 3, 4, 5], rng);
+  const scatters = board.filter((current) => current.type === 15 || current.type === 16);
+  const regularCells = board.filter((current) => current.type !== 15 && current.type !== 16);
+  const scatterPositions = new Map(
+    scatters.map((current, index) => [rows[index]! * 6 + columns[index]!, current]),
+  );
+  let regularIndex = 0;
+  return Array.from(
+    { length: SETH2_GRID_SIZE },
+    (_, position) => scatterPositions.get(position) ?? regularCells[regularIndex++]!,
+  );
 }
 
 function scatterCount(rng: Seth2RandomSource): 4 | 5 | 6 {
