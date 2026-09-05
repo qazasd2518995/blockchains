@@ -81,8 +81,9 @@ assert.match(
   'zero-value local-table results must remain legible on the light result surface',
 );
 assert.ok(
-  blackjackPage.includes('blackjack-score-tile--${tone}'),
-  'Blackjack score tiles must expose stable tone hooks for accessible contrast',
+  blackjackPage.includes('blackjack-score-tile--${tone}') &&
+    blackjackPage.includes('blackjack-control-card--active'),
+  'Blackjack score and active-round controls must expose stable mobile layout hooks',
 );
 const blackjackScoreTile = blackjackPage.slice(
   blackjackPage.indexOf('function BlackjackScoreTile('),
@@ -96,7 +97,9 @@ assert.doesNotMatch(
 for (const part of ['label', 'value']) {
   assert.match(
     blackjackScoreTile,
-    new RegExp(`blackjack-score-tile__${part}[^\\n]+whitespace-normal[^\\n]+\\[overflow-wrap:anywhere\\]`),
+    new RegExp(
+      `blackjack-score-tile__${part}[^\\n]+whitespace-normal[^\\n]+\\[overflow-wrap:anywhere\\]`,
+    ),
     `Blackjack score ${part} must wrap long text and unbroken amounts`,
   );
 }
@@ -113,13 +116,33 @@ for (const selector of [
 }
 assert.match(
   styles,
-  /blackjack-scoreboard[\s\S]{0,100}blackjack-score-tile[\s\S]{0,100}blackjack-score-tile__label[\s\S]{0,500}font-size:\s*12px\s*!important[\s\S]{0,180}text-shadow:\s*none\s*!important/,
-  'Qmoney Blackjack score labels must remain clear and high contrast',
+  /blackjack-scoreboard[\s\S]{0,100}blackjack-score-tile[\s\S]{0,100}blackjack-score-tile__label[\s\S]{0,500}font-size:\s*9px\s*!important[\s\S]{0,180}text-shadow:\s*none\s*!important/,
+  'Qmoney Blackjack score labels must remain compact, clear and high contrast',
 );
 assert.match(
   styles,
-  /blackjack-scoreboard[\s\S]{0,100}blackjack-score-tile[\s\S]{0,100}blackjack-score-tile__value[\s\S]{0,500}font-size:\s*22px\s*!important[\s\S]{0,260}text-shadow:\s*none\s*!important/,
-  'Qmoney Blackjack score values must use clear tabular numerals without blur effects',
+  /blackjack-scoreboard[\s\S]{0,100}blackjack-score-tile[\s\S]{0,100}blackjack-score-tile__value[\s\S]{0,500}font-size:\s*clamp\(13px,\s*3\.8vw,\s*16px\)\s*!important[\s\S]{0,260}text-shadow:\s*none\s*!important/,
+  'Qmoney Blackjack score values must stay readable without overwhelming the cards',
+);
+assert.match(
+  styles,
+  /blackjack-control-card--active[\s\S]{0,120}bet-controls__entry[\s\S]{0,220}display:\s*none\s*!important/,
+  'An active Blackjack round must hide the disabled stake editor on mobile',
+);
+assert.match(
+  styles,
+  /blackjack-stage-divider[\s\S]{0,120}blackjack-stage-subtitle[\s\S]{0,180}game-activity-heat[\s\S]{0,80}display:\s*none\s*!important/,
+  'The mobile Blackjack title bar must remove duplicated metadata',
+);
+assert.match(
+  styles,
+  /\.blackjack-page\s*\{[\s\S]{0,220}--blackjack-felt:\s*#08231f[\s\S]{0,500}\.blackjack-page--royal\s+\.blackjack-table-stage/,
+  'Royal Blackjack must expose its own green-and-gold table theme',
+);
+assert.match(
+  styles,
+  /\.blackjack-page\[data-blackjack-table='classic'\]\s*\{[\s\S]{0,220}--blackjack-felt:\s*#0b1730[\s\S]{0,500}\.blackjack-page--classic\s+\.blackjack-table-stage/,
+  'Classic Blackjack must expose its own blue-and-silver table theme',
 );
 
 console.log('Local-table mobile layout contract passed');

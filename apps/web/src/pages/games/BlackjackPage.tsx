@@ -289,15 +289,17 @@ export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableI
 
       <div className="game-play-grid game-play-grid--blackjack grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(320px,0.82fr)]">
         <div className="game-main-stack space-y-4">
-          <div className="game-stage-panel scanlines overflow-hidden p-3 sm:p-4">
-            <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px] sm:-mx-4 sm:-mt-4 sm:mb-4">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">
+          <div className="blackjack-game-stage-panel game-stage-panel scanlines overflow-hidden p-3 sm:p-4">
+            <div className="blackjack-stage-bar game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px] sm:-mx-4 sm:-mt-4 sm:mb-4">
+              <span className="blackjack-stage-name font-semibold tracking-[0.12em] text-[#E8D48A]">
                 {tableConfig.stageName}
               </span>
-              <span className="ml-2 text-white/40">·</span>
-              <span className="ml-2 text-white/55 uppercase">{tableConfig.titleSuffix}</span>
+              <span className="blackjack-stage-divider ml-2 text-white/40">·</span>
+              <span className="blackjack-stage-subtitle ml-2 text-white/55 uppercase">
+                {tableConfig.titleSuffix}
+              </span>
               <GameActivityHeat gameId={tableConfig.catalogGameId} />
-              <span className="text-[#7EE0A4]">
+              <span className="blackjack-round-state text-[#7EE0A4]">
                 <span className="dot-online" />
                 {tableRound
                   ? tableRound.status === 'ACTIVE'
@@ -317,7 +319,7 @@ export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableI
               <div className="blackjack-table-wash absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(221,214,254,0.22),transparent_34%),linear-gradient(180deg,rgba(250,245,255,0.2)_0%,rgba(255,228,236,0.28)_55%,rgba(237,233,254,0.36)_100%)]" />
 
               <div className="blackjack-table-body relative z-10 flex min-h-[580px] flex-col justify-between gap-5 p-3 sm:min-h-[620px] sm:p-5">
-                <section>
+                <section className="blackjack-dealer-zone">
                   <TableLabel title={t.games.blackjack.dealer} value={dealerScoreLabel} />
                   <div className="blackjack-dealer-card-row mt-3 flex min-h-[150px] flex-wrap items-center justify-center gap-2 sm:gap-3">
                     {tableRound ? (
@@ -348,7 +350,11 @@ export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableI
                   </div>
                 </section>
 
-                <div className="blackjack-scoreboard mx-auto grid w-full max-w-[720px] grid-cols-3 gap-2 rounded-[18px] border border-[#C9A247]/24 bg-[#06101C]/76 p-2 text-center backdrop-blur">
+                <div
+                  className="blackjack-scoreboard mx-auto grid w-full max-w-[720px] grid-cols-3 gap-2 rounded-[18px] border border-[#C9A247]/24 bg-[#06101C]/76 p-2 text-center backdrop-blur"
+                  aria-live="polite"
+                  aria-label="本局點數與可贏金額"
+                >
                   <BlackjackScoreTile label="莊家點數" value={dealerScoreLabel} tone="dealer" />
                   <BlackjackScoreTile label="玩家點數" value={playerScoreLabel} tone="player" />
                   <BlackjackScoreTile
@@ -358,7 +364,7 @@ export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableI
                   />
                 </div>
 
-                <section>
+                <section className="blackjack-player-zone">
                   <TableLabel
                     title={t.games.blackjack.player}
                     value={
@@ -378,8 +384,8 @@ export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableI
                               : 'max-w-[560px]'
                           } ${
                             index === tableRound.activeHandIndex && tableRound.status === 'ACTIVE'
-                              ? 'border-[#E8D48A]/70 bg-[#0F1E2E]/84 shadow-[0_0_28px_rgba(232,212,138,0.12)]'
-                              : 'border-white/10 bg-[#07111E]/64'
+                              ? 'blackjack-player-hand--active'
+                              : 'blackjack-player-hand--inactive'
                           }`}
                         >
                           <div className="blackjack-player-hand-header mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -467,7 +473,11 @@ export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableI
         </div>
 
         <div className="game-control-stack space-y-4">
-          <div className={`game-side-card p-5 ${settled ? 'blackjack-control-card-settled' : ''}`}>
+          <div
+            className={`blackjack-control-card game-side-card p-5 ${
+              round?.status === 'ACTIVE' ? 'blackjack-control-card--active' : ''
+            } ${settled ? 'blackjack-control-card-settled' : ''}`}
+          >
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
