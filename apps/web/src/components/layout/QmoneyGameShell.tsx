@@ -74,41 +74,6 @@ export function QmoneyGameShell() {
   const layoutGameId = game.id === 'blackjack-table-2' ? 'blackjack' : game.id;
 
   useLayoutEffect(() => {
-    const shell = shellRef.current;
-    if (!shell) return;
-
-    const root = document.documentElement;
-    let rafId = 0;
-    const applyViewportHeight = () => {
-      rafId = 0;
-      const height = Math.max(1, Math.round(window.visualViewport?.height ?? window.innerHeight));
-      const value = `${height}px`;
-      shell.style.setProperty('--game-shell-height', value);
-      root.style.setProperty('--game-shell-height', value);
-    };
-    const scheduleViewportHeight = () => {
-      if (rafId) window.cancelAnimationFrame(rafId);
-      rafId = window.requestAnimationFrame(applyViewportHeight);
-    };
-
-    applyViewportHeight();
-    window.addEventListener('resize', scheduleViewportHeight);
-    window.addEventListener('orientationchange', scheduleViewportHeight);
-    window.visualViewport?.addEventListener('resize', scheduleViewportHeight);
-    window.visualViewport?.addEventListener('scroll', scheduleViewportHeight);
-
-    return () => {
-      if (rafId) window.cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', scheduleViewportHeight);
-      window.removeEventListener('orientationchange', scheduleViewportHeight);
-      window.visualViewport?.removeEventListener('resize', scheduleViewportHeight);
-      window.visualViewport?.removeEventListener('scroll', scheduleViewportHeight);
-      shell.style.removeProperty('--game-shell-height');
-      root.style.removeProperty('--game-shell-height');
-    };
-  }, []);
-
-  useLayoutEffect(() => {
     const previousTitle = document.title;
     const previousRootRealm = document.documentElement.dataset.platformRealm;
     const previousBodyRealm = document.body.dataset.platformRealm;

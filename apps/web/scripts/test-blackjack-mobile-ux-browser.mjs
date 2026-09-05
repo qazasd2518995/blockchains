@@ -1,4 +1,4 @@
-// Start the Qmoney Vite app locally, then run with an available Playwright module:
+// Start the Qmoney Vite app with VITE_PLATFORM_REALM=qmoney, then run with Playwright:
 // GAME_TEST_URL=http://127.0.0.1:5192 PLAYWRIGHT_MODULE=playwright node scripts/test-blackjack-mobile-ux-browser.mjs
 import assert from 'node:assert/strict';
 
@@ -99,12 +99,16 @@ for (const viewport of [
   }, user);
 
   let activeRound = null;
+  let activeRoundGate = null;
   await context.route('**/api/**', async (route) => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
     if (request.method() !== 'GET') return route.abort();
     if (pathname.endsWith('/games/blackjack/active')) {
-      return route.fulfill({ json: { state: activeRound } });
+      const state = activeRound;
+      const gate = activeRoundGate;
+      if (gate) await gate;
+      return route.fulfill({ json: { state } });
     }
     if (pathname.endsWith('/auth/me')) return route.fulfill({ json: user });
     if (pathname.endsWith('/wallet/balance')) {
@@ -117,6 +121,69 @@ for (const viewport of [
   const page = await context.newPage();
   page.on('pageerror', (error) => errors.push(error.message));
 
+  activeRound = blackjackRound('royal');
+  let releaseActiveRound;
+  activeRoundGate = new Promise((resolve) => {
+    releaseActiveRound = resolve;
+  });
+  await page.goto(`${origin}/games/blackjack?returnTo=/qmoney/`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page.locator('.blackjack-round-restoring').waitFor({ state: 'visible' });
+  assert.equal(
+    await page.locator(".qmoney-game-shell--table[data-game-id='blackjack']").count(),
+    1,
+    'Blackjack mobile UX test requires the Qmoney platform realm',
+  );
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
+  const restoringLayout = await page.evaluate(() => {
+    const stage = document.querySelector('.blackjack-table-stage');
+    const controls = document.querySelector('.blackjack-control-card');
+    if (!(stage instanceof HTMLElement) || !(controls instanceof HTMLElement)) {
+      throw new Error('Blackjack restoring layout did not render');
+    }
+    return {
+      stageHeight: stage.getBoundingClientRect().height,
+      controlsTop: controls.getBoundingClientRect().top,
+      controlsHeight: controls.getBoundingClientRect().height,
+      betControlsHeight:
+        controls.querySelector('.bet-controls')?.getBoundingClientRect().height ?? 0,
+      actionGridHeight:
+        controls.querySelector('.blackjack-action-grid')?.getBoundingClientRect().height ?? 0,
+      dealButtons: controls.querySelectorAll('.blackjack-new-round-btn, .blackjack-action-btn')
+        .length,
+    };
+  });
+  releaseActiveRound();
+  activeRoundGate = null;
+  await page.locator('.blackjack-card-shell').first().waitFor();
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
+  const restoredLayout = await page.evaluate(() => {
+    const stage = document.querySelector('.blackjack-table-stage');
+    const controls = document.querySelector('.blackjack-control-card');
+    if (!(stage instanceof HTMLElement) || !(controls instanceof HTMLElement)) {
+      throw new Error('Blackjack restored layout did not render');
+    }
+    return {
+      stageHeight: stage.getBoundingClientRect().height,
+      controlsTop: controls.getBoundingClientRect().top,
+      controlsHeight: controls.getBoundingClientRect().height,
+      betControlsHeight:
+        controls.querySelector('.bet-controls')?.getBoundingClientRect().height ?? 0,
+      actionGridHeight:
+        controls.querySelector('.blackjack-action-grid')?.getBoundingClientRect().height ?? 0,
+    };
+  });
+  assert.equal(restoringLayout.dealButtons, 0, 'Restoring round exposed game actions early');
+  assert.ok(
+    Math.abs(restoredLayout.stageHeight - restoringLayout.stageHeight) <= 1 &&
+      Math.abs(restoredLayout.controlsTop - restoringLayout.controlsTop) <= 1,
+    `Restored round shifted the mobile table at ${viewport.height}px: ${JSON.stringify({ restoringLayout, restoredLayout })}`,
+  );
   for (const [gameId, tableId] of [
     ['blackjack', 'royal'],
     ['blackjack-table-2', 'classic'],
@@ -218,6 +285,50 @@ for (const viewport of [
         };
       });
 
+      const viewportChromeStability = await page.evaluate(async () => {
+        const viewport = window.visualViewport;
+        const shell = document.querySelector('.qmoney-game-shell');
+        const stage = document.querySelector('.blackjack-table-stage');
+        const controls = document.querySelector('.blackjack-control-card');
+        if (
+          !viewport ||
+          !(shell instanceof HTMLElement) ||
+          !(stage instanceof HTMLElement) ||
+          !(controls instanceof HTMLElement)
+        ) {
+          throw new Error('Blackjack viewport stability targets did not render');
+        }
+
+        const snapshot = () => ({
+          shellHeight: shell.getBoundingClientRect().height,
+          stageHeight: stage.getBoundingClientRect().height,
+          controlsTop: controls.getBoundingClientRect().top,
+        });
+        const before = snapshot();
+        const ownHeightDescriptor = Object.getOwnPropertyDescriptor(viewport, 'height');
+        Object.defineProperty(viewport, 'height', {
+          configurable: true,
+          get: () => before.shellHeight + 47,
+        });
+        viewport.dispatchEvent(new Event('resize'));
+        viewport.dispatchEvent(new Event('scroll'));
+        await new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        );
+        const after = snapshot();
+        if (ownHeightDescriptor) {
+          Object.defineProperty(viewport, 'height', ownHeightDescriptor);
+        } else {
+          delete viewport.height;
+        }
+
+        return {
+          shellStable: Math.abs(after.shellHeight - before.shellHeight) <= 0.5,
+          stageStable: Math.abs(after.stageHeight - before.stageHeight) <= 0.5,
+          controlsStable: Math.abs(after.controlsTop - before.controlsTop) <= 0.5,
+        };
+      });
+
       assert.equal(result.tableId, tableId);
       assert.equal(result.bodyFits, true, `${tableId} body overflowed at ${viewport.height}px`);
       assert.equal(result.cardsFit, true, `${tableId} cards were cropped at ${viewport.height}px`);
@@ -241,6 +352,13 @@ for (const viewport of [
       assert.ok(result.scoreFontSize <= 16, `${tableId} score type became oversized`);
       assert.equal(result.pageFits, true, `${tableId} created horizontal page overflow`);
       assert.ok(result.stageHeight >= 300, `${tableId} stage became too short`);
+      assert.equal(
+        viewportChromeStability.shellStable &&
+          viewportChromeStability.stageStable &&
+          viewportChromeStability.controlsStable,
+        true,
+        `${tableId} layout followed dynamic mobile browser toolbar events`,
+      );
       if (process.env.BLACKJACK_UX_SCREENSHOT_PREFIX && viewport.height === 844 && !split) {
         await page.screenshot({
           path: `${process.env.BLACKJACK_UX_SCREENSHOT_PREFIX}-${tableId}.png`,

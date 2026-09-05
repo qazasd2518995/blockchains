@@ -46,6 +46,16 @@ assert.ok(
   qmoneyShell.includes("isTableGame ? 'qmoney-game-shell--table' : ''"),
   'Qmoney table routes must expose an accessibility layout hook',
 );
+assert.doesNotMatch(
+  qmoneyShell,
+  /visualViewport/,
+  'Qmoney game shell must not mirror dynamic browser-toolbar viewport events into layout height',
+);
+assert.match(
+  styles,
+  /\.qmoney-game-shell\s*\{[\s\S]{0,220}height:\s*100svh;[\s\S]{0,100}min-height:\s*100svh;/,
+  'Qmoney game shell must use the stable small viewport height',
+);
 assert.ok(
   betControls.includes('bet-controls__balance') && betControls.includes('t.bet.balance'),
   'Qmoney bet controls must expose the current game balance',
@@ -126,8 +136,14 @@ assert.match(
 );
 assert.match(
   styles,
-  /blackjack-control-card--active[\s\S]{0,120}bet-controls__entry[\s\S]{0,220}display:\s*none\s*!important/,
+  /blackjack-control-card--active[\s\S]{0,520}bet-controls__entry[\s\S]{0,520}display:\s*none\s*!important/,
   'An active Blackjack round must hide the disabled stake editor on mobile',
+);
+assert.ok(
+  blackjackPage.includes('blackjack-control-card--restoring') &&
+    blackjackPage.includes('正在同步牌局…') &&
+    blackjackPage.includes('disabled={restoringRound ||'),
+  'Blackjack must reserve and disable its control dock while restoring an active round',
 );
 assert.match(
   styles,

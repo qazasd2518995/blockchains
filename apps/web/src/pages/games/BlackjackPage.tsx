@@ -107,6 +107,7 @@ export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableI
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
   const [busy, setBusy] = useState(false);
   const [animating, setAnimating] = useState(false);
+  const [restoringRound, setRestoringRound] = useState(true);
   const [animationMeta, setAnimationMeta] = useState<BlackjackAnimationMeta>(IDLE_ANIMATION_META);
   const [error, setError] = useState<string | null>(null);
   const animationTimers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
@@ -120,6 +121,7 @@ export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableI
     setHistory([]);
     setBusy(false);
     setAnimating(false);
+    setRestoringRound(true);
     setAnimationMeta(IDLE_ANIMATION_META);
     setError(null);
     Sfx.preloadTableGames();
@@ -132,7 +134,10 @@ export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableI
         setRound(res.data.state);
         setDisplayRound(res.data.state);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setRestoringRound(false);
+      });
 
     return () => {
       active = false;
@@ -476,7 +481,9 @@ export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableI
           <div
             className={`blackjack-control-card game-side-card p-5 ${
               round?.status === 'ACTIVE' ? 'blackjack-control-card--active' : ''
-            } ${settled ? 'blackjack-control-card-settled' : ''}`}
+            } ${restoringRound ? 'blackjack-control-card--restoring' : ''} ${
+              settled ? 'blackjack-control-card-settled' : ''
+            }`}
           >
             <BetControls
               amount={amount}
@@ -484,11 +491,19 @@ export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableI
               maxBalance={balance}
               guestMode={!user}
               gameId="blackjack"
-              disabled={Boolean(round && round.status === 'ACTIVE') || busy}
+              disabled={restoringRound || Boolean(round && round.status === 'ACTIVE') || busy}
             />
 
             <div className="blackjack-action-grid mt-6 grid grid-cols-2 gap-2">
-              {!round && (
+              {restoringRound ? (
+                <div
+                  className="blackjack-round-restoring col-span-2 flex min-h-11 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] px-3 text-[12px] font-bold text-white/60"
+                  role="status"
+                  aria-live="polite"
+                >
+                  正在同步牌局…
+                </div>
+              ) : !round ? (
                 <button
                   type="button"
                   onClick={handleStart}
@@ -498,9 +513,9 @@ export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableI
                   <Play className="h-4 w-4" aria-hidden="true" />
                   {t.games.blackjack.deal} · {formatAmount(amount)}
                 </button>
-              )}
+              ) : null}
 
-              {round?.status === 'ACTIVE' && (
+              {!restoringRound && round?.status === 'ACTIVE' && (
                 <>
                   <ActionButton
                     icon={<ChevronsRight className="h-4 w-4" aria-hidden="true" />}

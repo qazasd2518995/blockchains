@@ -2485,16 +2485,19 @@
 
 @layer components {
   /*
-   * Qmoney's original /game route is a borderless 100dvh provider stage with
-   * only a draggable lobby control above it. Keep the legacy casino's warm
-   * shell, account bar and mobile sizing rules completely out of this realm.
+   * Qmoney's original /game route is a borderless provider stage with only a
+   * draggable lobby control above it. Use the stable small viewport so mobile
+   * browser chrome cannot resize the game on every toolbar animation frame.
+   * Keep the legacy casino's warm shell and account bar out of this realm.
    */
   html[data-platform-realm='qmoney'],
   body[data-platform-realm='qmoney'],
   body[data-platform-realm='qmoney'] #root {
     width: 100%;
-    height: var(--game-shell-height, 100dvh);
-    min-height: var(--game-shell-height, 100dvh);
+    height: 100vh;
+    min-height: 100vh;
+    height: 100svh;
+    min-height: 100svh;
     overflow: hidden;
     background: #000;
   }
@@ -2503,8 +2506,10 @@
     position: fixed;
     inset: 0;
     width: 100vw;
-    height: var(--game-shell-height, 100dvh);
-    min-height: var(--game-shell-height, 100dvh);
+    height: 100vh;
+    min-height: 100vh;
+    height: 100svh;
+    min-height: 100svh;
     overflow: hidden;
     background: #000;
   }
@@ -2514,7 +2519,8 @@
     inset: 0;
     width: 100vw;
     max-width: none;
-    height: var(--game-shell-height, 100dvh);
+    height: 100vh;
+    height: 100svh;
     min-height: 0;
     overflow: hidden;
     padding: 0;
@@ -16200,6 +16206,7 @@
       .game-control-stack
       > .game-side-card:first-child {
       max-height: none !important;
+      min-height: clamp(176px, 28svh, 186px) !important;
     }
 
     .qmoney-game-shell--table[data-game-id='blackjack'] .game-control-stack {
@@ -16449,13 +16456,22 @@
       .blackjack-control-card--active
       .bet-controls__entry,
     .qmoney-game-shell--table[data-game-id='blackjack']
+      .blackjack-control-card--restoring
+      .bet-controls__entry,
+    .qmoney-game-shell--table[data-game-id='blackjack']
       .blackjack-control-card--active
+      .bet-controls__limit-hint,
+    .qmoney-game-shell--table[data-game-id='blackjack']
+      .blackjack-control-card--restoring
       .bet-controls__limit-hint {
       display: none !important;
     }
 
     .qmoney-game-shell--table[data-game-id='blackjack']
       .blackjack-control-card--active
+      .bet-controls,
+    .qmoney-game-shell--table[data-game-id='blackjack']
+      .blackjack-control-card--restoring
       .bet-controls {
       padding: 0.3rem 0.5rem !important;
     }
